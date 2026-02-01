@@ -193,6 +193,8 @@ setInterval(decayHeat, 60_000).unref?.();
 
 
 
+require("dotenv").config();
+
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");

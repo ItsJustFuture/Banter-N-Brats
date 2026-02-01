@@ -5023,7 +5023,7 @@ const profileStatusValue = document.getElementById("profileStatus");
 // tabs/views
 const tabProfile = document.getElementById("tabProfile");
 const tabTimeline = document.getElementById("tabTimeline");
-const tabCustomize = document.getElementById("tabCustomize");
+const tabSettings = document.getElementById("tabSettings");
 const tabActions = document.getElementById("tabActions");
 const addFriendBtn = document.getElementById("addFriendBtn");
 const declineFriendBtn = document.getElementById("declineFriendBtn");
@@ -11569,7 +11569,7 @@ profileSettingsMenu?.addEventListener("click", async (e) => {
     openThemesModal();
     return;
   }
-  setTab("customize");
+  setTab("settings");
   try { syncSoundPrefsUI(true); } catch {}
   await loadChatFxPrefs({ force: true });
 });
@@ -12008,11 +12008,11 @@ function setTab(tab){
   }
   if (viewAccount) viewAccount.style.display = tab==="profile" ? "block" : "none";
   if (viewTimeline) viewTimeline.style.display = tab==="timeline" ? "block" : "none";
-  if (viewCustom) viewCustom.style.display = tab==="customize" ? "block" : "none";
+  if (viewCustom) viewCustom.style.display = tab==="settings" ? "block" : "none";
   if (viewMore) viewMore.style.display = tab==="actions" ? "block" : "none";
   if (tab !== "profile") setProfileEditMode(false);
-  if (tab === "customize" && currentProfileIsSelf) setCustomizePage(activeCustomizePage || null);
-  if (tab === "customize") {
+  if (tab === "settings" && currentProfileIsSelf) setCustomizePage(activeCustomizePage || null);
+  if (tab === "settings") {
     applyCustomizeVisibility();
     if (currentProfileIsSelf) {
       loadChatFxPrefs({ force: true }).catch(() => {});
@@ -12038,7 +12038,7 @@ function setTab(tab){
   const scrollHost = modal?.querySelector(".modalBody");
   if (scrollHost) scrollHost.scrollTop = 0;
 }
-tabCustomize?.addEventListener("click", ()=>setTab("customize"));
+tabSettings?.addEventListener("click", ()=>setTab("settings"));
 tabTimeline?.addEventListener("click", async () => {
   setTab("timeline");
   if (memoryEnabled) await loadMemories();
@@ -12290,7 +12290,7 @@ async function handleProfileModalAction(action, btn){
       return;
     case "profile:customize":
       if (!currentProfileIsSelf) return;
-      setTab("customize");
+      setTab("settings");
       return;
     case "profile:themes":
       if (!currentProfileIsSelf) return;
@@ -17220,6 +17220,7 @@ function updateProfileActions({ isSelf = false, canModerate = false } = {}){
   const showActionsTab = canModerate && !isSelf;
   if (viewModeration) viewModeration.style.display = canModerate ? "" : "none";
   if (tabActions) tabActions.style.display = showActionsTab ? "" : "none";
+  if (tabSettings) tabSettings.style.display = isSelf ? "" : "none";
   if (profileModerationSection) profileModerationSection.style.display = showActionsTab ? "" : "none";
   if (profileModerationOpenBtn) profileModerationOpenBtn.disabled = !modalCanModerate;
   modal?.querySelectorAll("[data-profile-action='profile:customize'], [data-profile-action='profile:themes']").forEach((btn) => {
@@ -17232,6 +17233,9 @@ function updateProfileActions({ isSelf = false, canModerate = false } = {}){
     btn.disabled = !modalCanModerate;
   });
   if (!showActionsTab && activeProfileTab === "actions") {
+    setTab("profile");
+  }
+  if (activeProfileTab === "settings" && !isSelf) {
     setTab("profile");
   }
   if (actionsBtn) {
@@ -18913,7 +18917,7 @@ window.runProfileModalSelfTest = async function runProfileModalSelfTest(targetUs
   await clickAction("profile:like", "like");
   if (currentProfileIsSelf) {
     await clickAction("profile:toggle-edit", "toggle-edit", { expectEditToggle: true });
-    await clickAction("profile:customize", "customize", { expectTab: "customize" });
+    await clickAction("profile:customize", "customize", { expectTab: "settings" });
     await clickAction("profile:themes", "themes");
     try { closeThemesModal(); } catch {}
   }

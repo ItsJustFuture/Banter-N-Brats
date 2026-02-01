@@ -814,7 +814,7 @@
 <div class="tabs profileActionTabs profileCompactTabs" id="profileTabs">
 <button class="tab active" data-tab="profile" id="tabProfile" type="button">Profile</button>
 <button class="tab" data-tab="timeline" id="tabTimeline" type="button">Timeline</button>
-<button class="tab" data-tab="customize" id="tabCustomize" type="button">Customize</button>
+<button class="tab" data-tab="settings" id="tabSettings" style="display:none;" type="button">Settings</button>
 <button class="tab" data-tab="actions" id="tabActions" style="display:none;" type="button">Actions</button>
 </div>
 <div class="msgline" id="profileActionMsg"></div>
@@ -825,7 +825,7 @@
 <div class="modalContent" id="modalContent">
 <div id="viewProfile">
 <div class="profileSections" id="profileSections">
-<details class="profileSection" data-section="actions" open="">
+<details class="profileSection profileSpectatorOnly" data-section="actions" open="">
 <summary>Actions</summary>
 <div class="profileSectionBody">
 <div class="profileQuickActions" id="profileQuickActions">
@@ -1199,15 +1199,10 @@
 <div class="cardHint">Animation toggles and effect presets.</div>
 <div class="cardPreview effectsPreview"></div>
 </button>
-<button class="customizeCard" data-category="layout" data-search="layout accessibility scale contrast" type="button">
+<button class="customizeCard" data-category="layout" data-search="layout accessibility scale contrast sound" type="button">
 <div class="cardTitle">Layout &amp; Accessibility</div>
-<div class="cardHint">Scaling, clarity, and motion controls.</div>
+<div class="cardHint">Scaling, clarity, motion controls, and sound settings.</div>
 <div class="cardPreview layoutPreview"></div>
-</button>
-<button class="customizeCard" data-category="advanced" data-search="advanced debug experimental sound" type="button">
-<div class="cardTitle">Advanced</div>
-<div class="cardHint">Sound cues, diagnostics, and extras.</div>
-<div class="cardPreview advancedPreview"></div>
 </button>
 </div>
 <div class="customizeSubpages" id="customizeSubpages">
@@ -1452,35 +1447,8 @@
 </div>
 </div>
 <details class="customizeSection" data-section="layout-advanced">
-<summary>Advanced</summary>
+<summary>Sound Settings</summary>
 <div class="panelBox" id="layoutAdvanced">
-<div class="field" data-customize-item="" data-search="reduced motion">
-<div class="toggleRow">
-<label class="switch">
-<input id="reduceMotionToggle" type="checkbox"/>
-<span class="slider"></span>
-</label>
-<div class="toggleLabel">Reduced motion override</div>
-</div>
-<div class="small muted">Mirrors your comfort mode preference.</div>
-</div>
-</div>
-</details>
-<div class="customizeResetRow">
-<button class="btn secondary" id="resetLayoutBtn" type="button">Reset this section</button>
-</div>
-</div>
-<div class="customizeSubpage" data-category="advanced" id="customizeAdvancedPage">
-<div class="customizeHeader">
-<button aria-label="Back" class="iconBtn customizeBackBtn" data-back="advanced" type="button">←</button>
-<div>
-<div class="title">Advanced</div>
-<div class="small muted">Sound cues, diagnostics, and extras.</div>
-</div>
-</div>
-<div class="customizeSection">
-<div class="sectionTitle">Basic</div>
-<div class="panelBox" id="advancedBasic">
 <div class="field" data-customize-item="" data-search="sound cues">
 <div class="small" style="margin-bottom:10px;">Sound cues are quiet and optional. On iOS you may need to toggle once to enable audio.</div>
 <div class="toggleRow">
@@ -1546,11 +1514,21 @@
 </div>
 </div>
 <div class="small" id="prefSoundStatus" style="margin-top:8px;"></div>
+<div class="field" data-customize-item="" data-search="reduced motion">
+<div class="toggleRow">
+<label class="switch">
+<input id="reduceMotionToggle" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">Reduced motion override</div>
+</div>
+<div class="small muted">Mirrors your comfort mode preference.</div>
 </div>
 </div>
-<details class="customizeSection" data-section="advanced-extra">
-<summary>Advanced</summary>
-<div class="panelBox" id="advancedAdvanced">
+</details>
+<details class="customizeSection" data-section="layout-extra">
+<summary>Badge &amp; Extras</summary>
+<div class="panelBox" id="layoutExtra">
 <div class="field" data-customize-item="" data-search="dm neon backing">
 <div class="small">DM neon backing</div>
 <div class="colorInputRow tight">
@@ -1577,15 +1555,10 @@
 <button class="btn btnPrimary" id="saveBadgePrefsBtn" type="button">Save badge colors</button>
 </div>
 <div class="msgline" id="customizeMsg"></div>
-<div class="sectionTitle" style="margin-top:16px;">VIP gifts</div>
-<div class="panelBox">
-<div class="small">This section is wired and ready — add your gifts system whenever you want.</div>
-<div class="small" style="margin-top:6px;">Tip: later load inventory/history via an endpoint like <code>/gifts</code> and render it here.</div>
-</div>
 </div>
 </details>
 <div class="customizeResetRow">
-<button class="btn secondary" id="resetAdvancedBtn" type="button">Reset this section</button>
+<button class="btn secondary" id="resetLayoutBtn" type="button">Reset this section</button>
 </div>
 </div>
 </div>

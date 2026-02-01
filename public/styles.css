@@ -4615,6 +4615,12 @@ body:not(.polish-pack) .tonePicker{
   flex-direction:column;
   gap:12px;
 }
+
+/* Hide spectator-only elements when viewing your own profile in non-edit mode */
+.profileSpectatorOnly {
+  /* Will be hidden/shown via JS based on isSelf state */
+}
+
 .notificationsModal{
   position: fixed;
   inset: 0;
