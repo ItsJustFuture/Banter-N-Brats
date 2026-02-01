@@ -16049,12 +16049,12 @@ if (!room) {
       isPunished(socket.user.id, "mute", (muted) => {
         if (muted) return;
 
-        const rawText = sanitizedText;
-        if (rawText.length > MAX_CHAT_MESSAGE_CHARS) {
+        const cleanText = sanitizedText;
+        if (cleanText.length > MAX_CHAT_MESSAGE_CHARS) {
       socket.emit("system", buildSystemPayload(socket.currentRoom || "main", "Message too long (max " + MAX_CHAT_MESSAGE_CHARS + " characters)."));
           return;
         }
-        const text = rawText.slice(0, MAX_CHAT_MESSAGE_CHARS);
+        const text = cleanText.slice(0, MAX_CHAT_MESSAGE_CHARS);
         if (text.trim().startsWith("/")) {
           executeCommand(socket, text, room);
           return;

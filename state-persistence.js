@@ -268,7 +268,7 @@ async function cleanupExpiredState() {
 }
 
 // Cleanup every 5 minutes
-setInterval(cleanupExpiredState, 5 * 60 * 1000).unref?.();
+setInterval(cleanupExpiredState, 5 * 60 * 1000).unref();
 
 // ====================================
 // CONVENIENCE HELPERS
