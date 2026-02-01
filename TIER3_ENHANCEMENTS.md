@@ -282,7 +282,7 @@ All security checks passing:
 - Static assets cached after first load
 - Reduces bandwidth on repeat visits
 - 6-hour update check interval
-- Background sync when online
+- Cache-first for static assets, network-first for dynamic requests
 
 ### Redis Scaling
 
