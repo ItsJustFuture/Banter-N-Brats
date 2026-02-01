@@ -65,7 +65,6 @@ async function run() {
     );
 
     // Test 1: Simulate a winning roll
-    const winRoll = { variant: "d6", result: 6, breakdown: null, won: true };
     const winReward = computeDiceReward("d6", 6, null);
     assert.strictEqual(winReward.deltaGold, 500);
     assert.strictEqual(winReward.outcome, "win");
