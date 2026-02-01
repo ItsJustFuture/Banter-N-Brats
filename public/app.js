@@ -859,8 +859,11 @@ function resetSocketReadyPromise() {
 // Message queues for reliability
 const outgoingMessageQueue = [];
 const incomingMessageBuffer = [];
-let listenersAttached = false;
 let isInitialized = false;
+
+// Queue limits to prevent memory exhaustion
+const MAX_OUTGOING_QUEUE_SIZE = 100;
+const MAX_INCOMING_BUFFER_SIZE = 100;
 
 let me = null;
 let progression = { gold: 0, xp: 0, level: 1, xpIntoLevel: 0, xpForNextLevel: 100 };
@@ -15175,14 +15178,21 @@ async function sendMessage(){
     };
 
     if (!socket || !socket.connected || !serverReady) {
+      // Check queue size limit
+      if (outgoingMessageQueue.length >= MAX_OUTGOING_QUEUE_SIZE) {
+        console.error('[app.js] ✗ Message queue full - cannot queue more messages');
+        addSystem('⚠️ Too many queued messages. Please wait for connection to restore.');
+        return;
+      }
+      
       console.warn('[app.js] ⚠️ Socket not ready - queuing message for later delivery');
       outgoingMessageQueue.push(messagePayload);
       
-      // Show user feedback
+      // Show user feedback with a class for cleanup
       const messagesDiv = document.getElementById('messages');
       if (messagesDiv) {
         const pendingDiv = document.createElement('div');
-        pendingDiv.className = 'system-message';
+        pendingDiv.className = 'system-message queued-message-status';
         pendingDiv.textContent = '⏳ Message queued (connecting...)';
         messagesDiv.appendChild(pendingDiv);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -19201,11 +19211,29 @@ initAppealsDurationSelect();
     if (!socket || !socket.connected || !serverReady) return;
     if (outgoingMessageQueue.length > 0) {
       console.log(`[app.js] ⚠️ Processing ${outgoingMessageQueue.length} queued outgoing messages...`);
+      const failedMessages = [];
       outgoingMessageQueue.forEach(msg => {
-        socket.emit('chat message', msg);
+        try {
+          socket.emit('chat message', msg);
+        } catch (err) {
+          console.error('[app.js] ✗ Failed to emit queued message', err);
+          failedMessages.push(msg);
+        }
       });
       outgoingMessageQueue.length = 0;
-      console.log('[app.js] ✓ Outgoing message queue processed');
+      if (failedMessages.length > 0) {
+        Array.prototype.push.apply(outgoingMessageQueue, failedMessages);
+        console.warn(`[app.js] ⚠️ ${failedMessages.length} queued message(s) failed to send and will be retried`);
+      } else {
+        console.log('[app.js] ✓ Outgoing message queue processed');
+        // Clean up queued status messages from DOM
+        try {
+          const pendingEls = document.querySelectorAll('.queued-message-status');
+          pendingEls.forEach((el) => el.remove());
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
     }
   }
 
@@ -19256,7 +19284,6 @@ initAppealsDurationSelect();
     // Resolve the promise so code waiting for socket ready can proceed
     if (socketReadyResolve) {
       socketReadyResolve();
-      socketReadyResolve = null; // Prevent multiple calls
     }
     // Process queued messages now that server is ready
     processOutgoingQueue();
@@ -19911,6 +19938,11 @@ socket.on("mod:case_event", (payload = {}) => {
     if (mr && mr !== cur && mr !== legacyCur) return;
 
     if (!isInitialized) {
+      // Check buffer size limit
+      if (incomingMessageBuffer.length >= MAX_INCOMING_BUFFER_SIZE) {
+        console.error('[app.js] ✗ Incoming message buffer full - dropping early message');
+        return;
+      }
       console.warn('[app.js] ⚠️ Message received before UI initialized, buffering...');
       incomingMessageBuffer.push({ type: 'chat', data: m });
       return;
