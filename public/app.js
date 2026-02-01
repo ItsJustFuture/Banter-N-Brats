@@ -38,6 +38,11 @@ const PREFERS_REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-
 const IS_DEV = ["localhost", "127.0.0.1"].includes(window.location.hostname);
 const DELETE_ANIM_MS = PREFERS_REDUCED_MOTION ? 1 : 200;
 
+// Couples flair default gradient colors
+const COUPLE_DEFAULT_GRADIENT_START = "#ff6a2b";
+const COUPLE_DEFAULT_GRADIENT_END = "#2b0f08";
+
+
 function safeJsonParse(raw, fallback) {
   try {
     if (raw === null || raw === undefined || raw === "") return fallback;
@@ -4999,6 +5004,14 @@ const profileCoupleName = document.getElementById("profileCoupleName");
 const profileCoupleBadge = document.getElementById("profileCoupleBadge");
 const profileCoupleMeta = document.getElementById("profileCoupleMeta");
 const profileCoupleBio = document.getElementById("profileCoupleBio");
+const couplesFlair = document.getElementById("couplesFlair");
+const couplesFlairConnector = document.getElementById("couplesFlairConnector");
+const couplesFlairAvatar = document.getElementById("couplesFlairAvatar");
+const coupleGradientStart = document.getElementById("coupleGradientStart");
+const coupleGradientStartText = document.getElementById("coupleGradientStartText");
+const coupleGradientEnd = document.getElementById("coupleGradientEnd");
+const coupleGradientEndText = document.getElementById("coupleGradientEndText");
+const coupleGradientPreview = document.getElementById("coupleGradientPreview");
 const profileSheetAge = document.getElementById("profileSheetAge");
 const profileSheetGender = document.getElementById("profileSheetGender");
 const profileSheetDetails = document.getElementById("profileSheetDetails");
@@ -5023,7 +5036,7 @@ const profileStatusValue = document.getElementById("profileStatus");
 // tabs/views
 const tabProfile = document.getElementById("tabProfile");
 const tabTimeline = document.getElementById("tabTimeline");
-const tabCustomize = document.getElementById("tabCustomize");
+const tabSettings = document.getElementById("tabSettings");
 const tabActions = document.getElementById("tabActions");
 const addFriendBtn = document.getElementById("addFriendBtn");
 const declineFriendBtn = document.getElementById("declineFriendBtn");
@@ -11569,7 +11582,7 @@ profileSettingsMenu?.addEventListener("click", async (e) => {
     openThemesModal();
     return;
   }
-  setTab("customize");
+  setTab("settings");
   try { syncSoundPrefsUI(true); } catch {}
   await loadChatFxPrefs({ force: true });
 });
@@ -12008,11 +12021,11 @@ function setTab(tab){
   }
   if (viewAccount) viewAccount.style.display = tab==="profile" ? "block" : "none";
   if (viewTimeline) viewTimeline.style.display = tab==="timeline" ? "block" : "none";
-  if (viewCustom) viewCustom.style.display = tab==="customize" ? "block" : "none";
+  if (viewCustom) viewCustom.style.display = tab==="settings" ? "block" : "none";
   if (viewMore) viewMore.style.display = tab==="actions" ? "block" : "none";
   if (tab !== "profile") setProfileEditMode(false);
-  if (tab === "customize" && currentProfileIsSelf) setCustomizePage(activeCustomizePage || null);
-  if (tab === "customize") {
+  if (tab === "settings" && currentProfileIsSelf) setCustomizePage(activeCustomizePage || null);
+  if (tab === "settings") {
     applyCustomizeVisibility();
     if (currentProfileIsSelf) {
       loadChatFxPrefs({ force: true }).catch(() => {});
@@ -12038,7 +12051,7 @@ function setTab(tab){
   const scrollHost = modal?.querySelector(".modalBody");
   if (scrollHost) scrollHost.scrollTop = 0;
 }
-tabCustomize?.addEventListener("click", ()=>setTab("customize"));
+tabSettings?.addEventListener("click", ()=>setTab("settings"));
 tabTimeline?.addEventListener("click", async () => {
   setTab("timeline");
   if (memoryEnabled) await loadMemories();
@@ -12290,7 +12303,7 @@ async function handleProfileModalAction(action, btn){
       return;
     case "profile:customize":
       if (!currentProfileIsSelf) return;
-      setTab("customize");
+      setTab("settings");
       return;
     case "profile:themes":
       if (!currentProfileIsSelf) return;
@@ -16965,6 +16978,65 @@ function isSelfProfile(p){
   return !!meUser && meUser === targetUser;
 }
 
+function renderCouplesFlair(p) {
+  if (!couplesFlair || !couplesFlairAvatar || !couplesFlairConnector) return;
+  
+  // Check if user has a couple partner
+  const hasPartner = !!(p?.couple?.partner);
+  const card = p?.coupleCard;
+  
+  if (!hasPartner) {
+    couplesFlair.style.display = "none";
+    return;
+  }
+  
+  // Show the flair
+  couplesFlair.style.display = "flex";
+  
+  // Apply gradient from couple card settings
+  const gradientStart = card?.gradientStart || COUPLE_DEFAULT_GRADIENT_START;
+  const gradientEnd = card?.gradientEnd || COUPLE_DEFAULT_GRADIENT_END;
+  const gradient = `linear-gradient(90deg, ${gradientStart}, ${gradientEnd})`;
+  
+  if (couplesFlairConnector) {
+    couplesFlairConnector.style.background = gradient;
+  }
+  
+  // Fetch and render partner's avatar
+  const partnerUsername = p.couple.partner;
+  couplesFlairAvatar.innerHTML = "";
+  
+  // Try to get partner info from members list or fetch it
+  const partnerInfo = members.find(m => normKey(m.username) === normKey(partnerUsername));
+  
+  if (partnerInfo) {
+    const partnerAvatar = avatarNode(partnerInfo.avatar, partnerInfo.username, partnerInfo.role);
+    couplesFlairAvatar.appendChild(partnerAvatar);
+  } else {
+    // Fallback: create a simple avatar with initials
+    const initial = partnerUsername.charAt(0).toUpperCase();
+    const fallbackAvatar = document.createElement("div");
+    fallbackAvatar.className = "avatarWrap";
+    fallbackAvatar.style.cssText = "width:100%;height:100%;display:grid;place-items:center;background:rgba(255,255,255,0.1);font-size:20px;font-weight:700;";
+    fallbackAvatar.textContent = initial;
+    couplesFlairAvatar.appendChild(fallbackAvatar);
+  }
+  
+  // Set up click handler to open partner's profile
+  couplesFlairAvatar.onclick = (e) => {
+    e.stopPropagation();
+    openMemberProfile(partnerUsername);
+  };
+  
+  couplesFlairAvatar.onkeydown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      e.stopPropagation();
+      openMemberProfile(partnerUsername);
+    }
+  };
+}
+
 function fillProfileUI(p, isSelf){
   currentProfileIsSelf = !!isSelf;
 
@@ -17041,6 +17113,9 @@ function fillProfileUI(p, isSelf){
     }
   } catch {}
 
+  // Render couples flair
+  renderCouplesFlair(p);
+
   if (infoAge) infoAge.textContent = (p.age ?? "—");
   if (infoGender) infoGender.textContent = (p.gender ?? "—");
   if (infoLanguage){
@@ -17069,6 +17144,7 @@ function fillProfileUI(p, isSelf){
   }
   fillProfileSheetHeader(p, isSelf);
   syncProfileEditUi();
+  applyProfileSectionVisibility(isSelf);
   if (levelPanel){
     levelPanel.style.display = "none";
     const title = levelPanel.previousElementSibling;
@@ -17198,6 +17274,17 @@ function syncProfileEditUi(){
   if (profileEditSection) profileEditSection.style.display = (currentProfileIsSelf && profileEditMode) ? "block" : "none";
 }
 
+function applyProfileSectionVisibility(isSelf){
+  // Hide spectator-only sections when viewing your own profile
+  document.querySelectorAll(".profileSpectatorOnly").forEach(el => {
+    el.style.display = isSelf ? "none" : "";
+  });
+  // Hide owner-only sections when viewing someone else's profile
+  document.querySelectorAll(".profileOwnerOnly").forEach(el => {
+    el.style.display = isSelf ? "" : "none";
+  });
+}
+
 function updateProfileActions({ isSelf = false, canModerate = false } = {}){
   // Quick "Edit profile" button now lives in the top quick-actions row.
   if (!isSelf) closeProfileSettingsMenu();
@@ -17220,6 +17307,7 @@ function updateProfileActions({ isSelf = false, canModerate = false } = {}){
   const showActionsTab = canModerate && !isSelf;
   if (viewModeration) viewModeration.style.display = canModerate ? "" : "none";
   if (tabActions) tabActions.style.display = showActionsTab ? "" : "none";
+  if (tabSettings) tabSettings.style.display = isSelf ? "" : "none";
   if (profileModerationSection) profileModerationSection.style.display = showActionsTab ? "" : "none";
   if (profileModerationOpenBtn) profileModerationOpenBtn.disabled = !modalCanModerate;
   modal?.querySelectorAll("[data-profile-action='profile:customize'], [data-profile-action='profile:themes']").forEach((btn) => {
@@ -17232,6 +17320,9 @@ function updateProfileActions({ isSelf = false, canModerate = false } = {}){
     btn.disabled = !modalCanModerate;
   });
   if (!showActionsTab && activeProfileTab === "actions") {
+    setTab("profile");
+  }
+  if (activeProfileTab === "settings" && !isSelf) {
     setTab("profile");
   }
   if (actionsBtn) {
@@ -18913,7 +19004,7 @@ window.runProfileModalSelfTest = async function runProfileModalSelfTest(targetUs
   await clickAction("profile:like", "like");
   if (currentProfileIsSelf) {
     await clickAction("profile:toggle-edit", "toggle-edit", { expectEditToggle: true });
-    await clickAction("profile:customize", "customize", { expectTab: "customize" });
+    await clickAction("profile:customize", "customize", { expectTab: "settings" });
     await clickAction("profile:themes", "themes");
     try { closeThemesModal(); } catch {}
   }
@@ -20693,6 +20784,16 @@ async function refreshCouplesUI(){
     if (couplesBioInput) couplesBioInput.value = c.couple_bio || "";
     if (couplesShowBadgeToggle) couplesShowBadgeToggle.checked = c.show_badge !== false;
     if (couplesBonusesToggle) couplesBonusesToggle.checked = !!c.bonuses_enabled;
+    
+    // Load gradient colors
+    const gradStart = c.gradient_start || c.gradientStart || COUPLE_DEFAULT_GRADIENT_START;
+    const gradEnd = c.gradient_end || c.gradientEnd || COUPLE_DEFAULT_GRADIENT_END;
+    if (coupleGradientStart) coupleGradientStart.value = gradStart;
+    if (coupleGradientStartText) coupleGradientStartText.value = gradStart;
+    if (coupleGradientEnd) coupleGradientEnd.value = gradEnd;
+    if (coupleGradientEndText) coupleGradientEndText.value = gradEnd;
+    updateGradientPreview();
+    
     if (couplesSettingsSaveBtn) couplesSettingsSaveBtn.disabled = false;
     if (couplesNudgeBtn) couplesNudgeBtn.disabled = false;
     if (couplesV2Status) {
@@ -20705,6 +20806,42 @@ async function refreshCouplesUI(){
     if (couplesV2Status) couplesV2Status.textContent = "";
   }
   updateIrisLolaTogetherClass();
+}
+
+function updateGradientPreview() {
+  if (!coupleGradientPreview) return;
+  const start = coupleGradientStartText?.value || coupleGradientStart?.value || COUPLE_DEFAULT_GRADIENT_START;
+  const end = coupleGradientEndText?.value || coupleGradientEnd?.value || COUPLE_DEFAULT_GRADIENT_END;
+  coupleGradientPreview.style.background = `linear-gradient(90deg, ${start}, ${end})`;
+}
+
+// Sync gradient color pickers
+if (coupleGradientStart && coupleGradientStartText) {
+  coupleGradientStart.addEventListener("input", (e) => {
+    coupleGradientStartText.value = e.target.value;
+    updateGradientPreview();
+  });
+  coupleGradientStartText.addEventListener("input", (e) => {
+    const val = e.target.value;
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+      coupleGradientStart.value = val;
+    }
+    updateGradientPreview();
+  });
+}
+
+if (coupleGradientEnd && coupleGradientEndText) {
+  coupleGradientEnd.addEventListener("input", (e) => {
+    coupleGradientEndText.value = e.target.value;
+    updateGradientPreview();
+  });
+  coupleGradientEndText.addEventListener("input", (e) => {
+    const val = e.target.value;
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+      coupleGradientEnd.value = val;
+    }
+    updateGradientPreview();
+  });
 }
 
 function emitLocalMembersRefresh(){
@@ -20813,7 +20950,9 @@ if (couplesSettingsSaveBtn) {
     couple_name: couplesNameInput?.value || "",
     couple_bio: couplesBioInput?.value || "",
     show_badge: !!couplesShowBadgeToggle?.checked,
-    bonuses_enabled: !!couplesBonusesToggle?.checked
+    bonuses_enabled: !!couplesBonusesToggle?.checked,
+    gradient_start: coupleGradientStartText?.value || coupleGradientStart?.value || COUPLE_DEFAULT_GRADIENT_START,
+    gradient_end: coupleGradientEndText?.value || coupleGradientEnd?.value || COUPLE_DEFAULT_GRADIENT_END
   });
 }
 if (couplesNudgeBtn) couplesNudgeBtn.onclick = () => sendCoupleNudge();

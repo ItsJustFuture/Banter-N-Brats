@@ -786,6 +786,14 @@
 </button>
 </div>
 </div>
+<!-- Couples Flair -->
+<div class="couplesFlair" id="couplesFlair" style="display:none;">
+<div class="couplesFlairConnector" id="couplesFlairConnector"></div>
+<div class="couplesFlairPartner" id="couplesFlairPartner">
+<div class="couplesFlairText">linked with</div>
+<div class="couplesFlairAvatar" id="couplesFlairAvatar" role="button" tabindex="0" aria-label="View partner profile"></div>
+</div>
+</div>
 </div>
 <span aria-hidden="true" class="profilePresenceDot" id="profilePresenceDot"></span>
 <div class="profileSheetMeta">
@@ -814,7 +822,7 @@
 <div class="tabs profileActionTabs profileCompactTabs" id="profileTabs">
 <button class="tab active" data-tab="profile" id="tabProfile" type="button">Profile</button>
 <button class="tab" data-tab="timeline" id="tabTimeline" type="button">Timeline</button>
-<button class="tab" data-tab="customize" id="tabCustomize" type="button">Customize</button>
+<button class="tab" data-tab="settings" id="tabSettings" style="display:none;" type="button">Settings</button>
 <button class="tab" data-tab="actions" id="tabActions" style="display:none;" type="button">Actions</button>
 </div>
 <div class="msgline" id="profileActionMsg"></div>
@@ -825,7 +833,7 @@
 <div class="modalContent" id="modalContent">
 <div id="viewProfile">
 <div class="profileSections" id="profileSections">
-<details class="profileSection" data-section="actions" open="">
+<details class="profileSection profileSpectatorOnly" data-section="actions" open="">
 <summary>Actions</summary>
 <div class="profileSectionBody">
 <div class="profileQuickActions" id="profileQuickActions">
@@ -901,8 +909,8 @@
 </div>
 </div>
 </details>
-<details class="profileSection" data-section="customize">
-<summary>Customization</summary>
+<details class="profileSection profileOwnerOnly" data-section="customize">
+<summary>Profile Settings</summary>
 <div class="profileSectionBody">
 <div class="panelBox">
 <div class="small">Jump into the full customization panel or apply a theme.</div>
@@ -931,8 +939,9 @@
 <div class="small" style="margin-bottom:6px;">Pending</div>
 <div id="couplesPendingList"></div>
 </div>
-<div class="panelBox" id="couplesActiveBox" style="margin-top:10px; display:none;">
-<div class="small" id="couplesActiveTitle">Linked</div>
+<details class="panelBox" id="couplesActiveBox" style="margin-top:10px; display:none;">
+<summary class="small" id="couplesActiveTitle" style="cursor:pointer; font-weight:600; list-style:none;" tabindex="0">Linked (click to expand)</summary>
+<div style="margin-top:10px;">
 <div class="row couplesStatusRow" style="margin-top:8px; gap:8px; align-items:center;">
 <select aria-label="Couple status emoji" id="couplesStatusEmoji" style="width:72px;">
 <option value="💜">💜</option>
@@ -1023,6 +1032,22 @@
 <input id="couplesNameInput" maxlength="48" placeholder="Couple name (optional)" style="flex:1;"/>
 </div>
 <textarea id="couplesBioInput" maxlength="220" placeholder="Couple bio (optional)" style="width:100%; min-height:70px; margin-top:8px;"></textarea>
+<div class="field" style="margin-top:10px;">
+<label>Profile link gradient</label>
+<div class="small muted">Customize the gradient line connecting your profile pictures</div>
+<div class="row" style="margin-top:8px; gap:8px; align-items:center;">
+<div class="colorInputRow tight" style="flex:1;">
+<input aria-label="Gradient start color" id="coupleGradientStart" type="color" value="#ff6a2b"/>
+<input aria-label="Gradient start color text" id="coupleGradientStartText" placeholder="#ff6a2b" type="text" style="flex:1;"/>
+</div>
+<span style="opacity:0.6;">→</span>
+<div class="colorInputRow tight" style="flex:1;">
+<input aria-label="Gradient end color" id="coupleGradientEnd" type="color" value="#2b0f08"/>
+<input aria-label="Gradient end color text" id="coupleGradientEndText" placeholder="#2b0f08" type="text" style="flex:1;"/>
+</div>
+</div>
+<div class="coupleGradientPreview" id="coupleGradientPreview" style="height:4px; border-radius:2px; margin-top:8px; background:linear-gradient(90deg, #ff6a2b, #2b0f08);"></div>
+</div>
 <div class="toggleRow" style="margin-top:8px;">
 <label class="switch">
 <input id="couplesShowBadgeToggle" type="checkbox"/>
@@ -1047,6 +1072,7 @@
 <button class="btn danger" id="couplesUnlinkBtn" type="button">Unlink</button>
 </div>
 </div>
+</details>
 <div class="msgline" id="couplesMsg"></div>
 </div>
 <div class="field">
@@ -1199,15 +1225,10 @@
 <div class="cardHint">Animation toggles and effect presets.</div>
 <div class="cardPreview effectsPreview"></div>
 </button>
-<button class="customizeCard" data-category="layout" data-search="layout accessibility scale contrast" type="button">
+<button class="customizeCard" data-category="layout" data-search="layout accessibility scale contrast sound" type="button">
 <div class="cardTitle">Layout &amp; Accessibility</div>
-<div class="cardHint">Scaling, clarity, and motion controls.</div>
+<div class="cardHint">Scaling, clarity, motion controls, and sound settings.</div>
 <div class="cardPreview layoutPreview"></div>
-</button>
-<button class="customizeCard" data-category="advanced" data-search="advanced debug experimental sound" type="button">
-<div class="cardTitle">Advanced</div>
-<div class="cardHint">Sound cues, diagnostics, and extras.</div>
-<div class="cardPreview advancedPreview"></div>
 </button>
 </div>
 <div class="customizeSubpages" id="customizeSubpages">
@@ -1452,35 +1473,8 @@
 </div>
 </div>
 <details class="customizeSection" data-section="layout-advanced">
-<summary>Advanced</summary>
+<summary>Sound Settings</summary>
 <div class="panelBox" id="layoutAdvanced">
-<div class="field" data-customize-item="" data-search="reduced motion">
-<div class="toggleRow">
-<label class="switch">
-<input id="reduceMotionToggle" type="checkbox"/>
-<span class="slider"></span>
-</label>
-<div class="toggleLabel">Reduced motion override</div>
-</div>
-<div class="small muted">Mirrors your comfort mode preference.</div>
-</div>
-</div>
-</details>
-<div class="customizeResetRow">
-<button class="btn secondary" id="resetLayoutBtn" type="button">Reset this section</button>
-</div>
-</div>
-<div class="customizeSubpage" data-category="advanced" id="customizeAdvancedPage">
-<div class="customizeHeader">
-<button aria-label="Back" class="iconBtn customizeBackBtn" data-back="advanced" type="button">←</button>
-<div>
-<div class="title">Advanced</div>
-<div class="small muted">Sound cues, diagnostics, and extras.</div>
-</div>
-</div>
-<div class="customizeSection">
-<div class="sectionTitle">Basic</div>
-<div class="panelBox" id="advancedBasic">
 <div class="field" data-customize-item="" data-search="sound cues">
 <div class="small" style="margin-bottom:10px;">Sound cues are quiet and optional. On iOS you may need to toggle once to enable audio.</div>
 <div class="toggleRow">
@@ -1546,11 +1540,21 @@
 </div>
 </div>
 <div class="small" id="prefSoundStatus" style="margin-top:8px;"></div>
+<div class="field" data-customize-item="" data-search="reduced motion">
+<div class="toggleRow">
+<label class="switch">
+<input id="reduceMotionToggle" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">Reduced motion override</div>
+</div>
+<div class="small muted">Mirrors your comfort mode preference.</div>
 </div>
 </div>
-<details class="customizeSection" data-section="advanced-extra">
-<summary>Advanced</summary>
-<div class="panelBox" id="advancedAdvanced">
+</details>
+<details class="customizeSection" data-section="layout-extra">
+<summary>Badge &amp; Extras</summary>
+<div class="panelBox" id="layoutExtra">
 <div class="field" data-customize-item="" data-search="dm neon backing">
 <div class="small">DM neon backing</div>
 <div class="colorInputRow tight">
@@ -1577,15 +1581,10 @@
 <button class="btn btnPrimary" id="saveBadgePrefsBtn" type="button">Save badge colors</button>
 </div>
 <div class="msgline" id="customizeMsg"></div>
-<div class="sectionTitle" style="margin-top:16px;">VIP gifts</div>
-<div class="panelBox">
-<div class="small">This section is wired and ready — add your gifts system whenever you want.</div>
-<div class="small" style="margin-top:6px;">Tip: later load inventory/history via an endpoint like <code>/gifts</code> and render it here.</div>
-</div>
 </div>
 </details>
 <div class="customizeResetRow">
-<button class="btn secondary" id="resetAdvancedBtn" type="button">Reset this section</button>
+<button class="btn secondary" id="resetLayoutBtn" type="button">Reset this section</button>
 </div>
 </div>
 </div>
