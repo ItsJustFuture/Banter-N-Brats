@@ -27,7 +27,8 @@ This document describes the enhancements made to the three game systems in Bante
 
 ```
 GET /api/dice/leaderboard?sort=biggest_win&limit=50&offset=0
-GET /api/dice/history?userId=123&limit=20&offset=0
+GET /api/dice/history?limit=20&offset=0
+# Note: userId is derived from the authenticated session on the server; non-privileged callers cannot override it.
 ```
 
 ### Database Changes
