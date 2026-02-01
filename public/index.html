@@ -786,6 +786,14 @@
 </button>
 </div>
 </div>
+<!-- Couples Flair -->
+<div class="couplesFlair" id="couplesFlair" style="display:none;">
+<div class="couplesFlairConnector" id="couplesFlairConnector"></div>
+<div class="couplesFlairPartner" id="couplesFlairPartner">
+<div class="couplesFlairText">linked with</div>
+<div class="couplesFlairAvatar" id="couplesFlairAvatar" role="button" tabindex="0" aria-label="View partner profile"></div>
+</div>
+</div>
 </div>
 <span aria-hidden="true" class="profilePresenceDot" id="profilePresenceDot"></span>
 <div class="profileSheetMeta">
@@ -1024,6 +1032,22 @@
 <input id="couplesNameInput" maxlength="48" placeholder="Couple name (optional)" style="flex:1;"/>
 </div>
 <textarea id="couplesBioInput" maxlength="220" placeholder="Couple bio (optional)" style="width:100%; min-height:70px; margin-top:8px;"></textarea>
+<div class="field" style="margin-top:10px;">
+<label>Profile link gradient</label>
+<div class="small muted">Customize the gradient line connecting your profile pictures</div>
+<div class="row" style="margin-top:8px; gap:8px; align-items:center;">
+<div class="colorInputRow tight" style="flex:1;">
+<input aria-label="Gradient start color" id="coupleGradientStart" type="color" value="#ff6a2b"/>
+<input aria-label="Gradient start color text" id="coupleGradientStartText" placeholder="#ff6a2b" type="text" style="flex:1;"/>
+</div>
+<span style="opacity:0.6;">→</span>
+<div class="colorInputRow tight" style="flex:1;">
+<input aria-label="Gradient end color" id="coupleGradientEnd" type="color" value="#2b0f08"/>
+<input aria-label="Gradient end color text" id="coupleGradientEndText" placeholder="#2b0f08" type="text" style="flex:1;"/>
+</div>
+</div>
+<div class="coupleGradientPreview" id="coupleGradientPreview" style="height:4px; border-radius:2px; margin-top:8px; background:linear-gradient(90deg, #ff6a2b, #2b0f08);"></div>
+</div>
 <div class="toggleRow" style="margin-top:8px;">
 <label class="switch">
 <input id="couplesShowBadgeToggle" type="checkbox"/>

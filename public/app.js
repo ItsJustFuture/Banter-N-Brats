@@ -4999,6 +4999,14 @@ const profileCoupleName = document.getElementById("profileCoupleName");
 const profileCoupleBadge = document.getElementById("profileCoupleBadge");
 const profileCoupleMeta = document.getElementById("profileCoupleMeta");
 const profileCoupleBio = document.getElementById("profileCoupleBio");
+const couplesFlair = document.getElementById("couplesFlair");
+const couplesFlairConnector = document.getElementById("couplesFlairConnector");
+const couplesFlairAvatar = document.getElementById("couplesFlairAvatar");
+const coupleGradientStart = document.getElementById("coupleGradientStart");
+const coupleGradientStartText = document.getElementById("coupleGradientStartText");
+const coupleGradientEnd = document.getElementById("coupleGradientEnd");
+const coupleGradientEndText = document.getElementById("coupleGradientEndText");
+const coupleGradientPreview = document.getElementById("coupleGradientPreview");
 const profileSheetAge = document.getElementById("profileSheetAge");
 const profileSheetGender = document.getElementById("profileSheetGender");
 const profileSheetDetails = document.getElementById("profileSheetDetails");
@@ -16965,6 +16973,65 @@ function isSelfProfile(p){
   return !!meUser && meUser === targetUser;
 }
 
+function renderCouplesFlair(p) {
+  if (!couplesFlair || !couplesFlairAvatar || !couplesFlairConnector) return;
+  
+  // Check if user has a couple partner
+  const hasPartner = !!(p?.couple?.partner);
+  const card = p?.coupleCard;
+  
+  if (!hasPartner) {
+    couplesFlair.style.display = "none";
+    return;
+  }
+  
+  // Show the flair
+  couplesFlair.style.display = "flex";
+  
+  // Apply gradient from couple card settings
+  const gradientStart = card?.gradientStart || "#ff6a2b";
+  const gradientEnd = card?.gradientEnd || "#2b0f08";
+  const gradient = `linear-gradient(90deg, ${gradientStart}, ${gradientEnd})`;
+  
+  if (couplesFlairConnector) {
+    couplesFlairConnector.style.background = gradient;
+  }
+  
+  // Fetch and render partner's avatar
+  const partnerUsername = p.couple.partner;
+  couplesFlairAvatar.innerHTML = "";
+  
+  // Try to get partner info from members list or fetch it
+  const partnerInfo = members.find(m => normKey(m.username) === normKey(partnerUsername));
+  
+  if (partnerInfo) {
+    const partnerAvatar = avatarNode(partnerInfo.avatar, partnerInfo.username, partnerInfo.role);
+    couplesFlairAvatar.appendChild(partnerAvatar);
+  } else {
+    // Fallback: create a simple avatar with initials
+    const initial = partnerUsername.charAt(0).toUpperCase();
+    const fallbackAvatar = document.createElement("div");
+    fallbackAvatar.className = "avatarWrap";
+    fallbackAvatar.style.cssText = "width:100%;height:100%;display:grid;place-items:center;background:rgba(255,255,255,0.1);font-size:20px;font-weight:700;";
+    fallbackAvatar.textContent = initial;
+    couplesFlairAvatar.appendChild(fallbackAvatar);
+  }
+  
+  // Set up click handler to open partner's profile
+  couplesFlairAvatar.onclick = (e) => {
+    e.stopPropagation();
+    openMemberProfile(partnerUsername);
+  };
+  
+  couplesFlairAvatar.onkeydown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      e.stopPropagation();
+      openMemberProfile(partnerUsername);
+    }
+  };
+}
+
 function fillProfileUI(p, isSelf){
   currentProfileIsSelf = !!isSelf;
 
@@ -17040,6 +17107,9 @@ function fillProfileUI(p, isSelf){
       }
     }
   } catch {}
+
+  // Render couples flair
+  renderCouplesFlair(p);
 
   if (infoAge) infoAge.textContent = (p.age ?? "—");
   if (infoGender) infoGender.textContent = (p.gender ?? "—");
@@ -20709,6 +20779,16 @@ async function refreshCouplesUI(){
     if (couplesBioInput) couplesBioInput.value = c.couple_bio || "";
     if (couplesShowBadgeToggle) couplesShowBadgeToggle.checked = c.show_badge !== false;
     if (couplesBonusesToggle) couplesBonusesToggle.checked = !!c.bonuses_enabled;
+    
+    // Load gradient colors
+    const gradStart = c.gradient_start || c.gradientStart || "#ff6a2b";
+    const gradEnd = c.gradient_end || c.gradientEnd || "#2b0f08";
+    if (coupleGradientStart) coupleGradientStart.value = gradStart;
+    if (coupleGradientStartText) coupleGradientStartText.value = gradStart;
+    if (coupleGradientEnd) coupleGradientEnd.value = gradEnd;
+    if (coupleGradientEndText) coupleGradientEndText.value = gradEnd;
+    updateGradientPreview();
+    
     if (couplesSettingsSaveBtn) couplesSettingsSaveBtn.disabled = false;
     if (couplesNudgeBtn) couplesNudgeBtn.disabled = false;
     if (couplesV2Status) {
@@ -20721,6 +20801,42 @@ async function refreshCouplesUI(){
     if (couplesV2Status) couplesV2Status.textContent = "";
   }
   updateIrisLolaTogetherClass();
+}
+
+function updateGradientPreview() {
+  if (!coupleGradientPreview) return;
+  const start = coupleGradientStartText?.value || coupleGradientStart?.value || "#ff6a2b";
+  const end = coupleGradientEndText?.value || coupleGradientEnd?.value || "#2b0f08";
+  coupleGradientPreview.style.background = `linear-gradient(90deg, ${start}, ${end})`;
+}
+
+// Sync gradient color pickers
+if (coupleGradientStart && coupleGradientStartText) {
+  coupleGradientStart.addEventListener("input", (e) => {
+    coupleGradientStartText.value = e.target.value;
+    updateGradientPreview();
+  });
+  coupleGradientStartText.addEventListener("input", (e) => {
+    const val = e.target.value;
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+      coupleGradientStart.value = val;
+    }
+    updateGradientPreview();
+  });
+}
+
+if (coupleGradientEnd && coupleGradientEndText) {
+  coupleGradientEnd.addEventListener("input", (e) => {
+    coupleGradientEndText.value = e.target.value;
+    updateGradientPreview();
+  });
+  coupleGradientEndText.addEventListener("input", (e) => {
+    const val = e.target.value;
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+      coupleGradientEnd.value = val;
+    }
+    updateGradientPreview();
+  });
 }
 
 function emitLocalMembersRefresh(){
@@ -20829,7 +20945,9 @@ if (couplesSettingsSaveBtn) {
     couple_name: couplesNameInput?.value || "",
     couple_bio: couplesBioInput?.value || "",
     show_badge: !!couplesShowBadgeToggle?.checked,
-    bonuses_enabled: !!couplesBonusesToggle?.checked
+    bonuses_enabled: !!couplesBonusesToggle?.checked,
+    gradient_start: coupleGradientStartText?.value || coupleGradientStart?.value || "#ff6a2b",
+    gradient_end: coupleGradientEndText?.value || coupleGradientEnd?.value || "#2b0f08"
   });
 }
 if (couplesNudgeBtn) couplesNudgeBtn.onclick = () => sendCoupleNudge();
