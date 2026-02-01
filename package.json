@@ -1,0 +1,45 @@
+{
+  "name": "chat-site",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "LOCAL_DEV=1 node server.js",
+    "dev:seed": "LOCAL_DEV=1 node scripts/dev-seed.js",
+    "test": "echo \"No tests yet\" && exit 0",
+    "test:dice": "node scripts/dice-variant-smoke.js",
+    "test:couples": "node scripts/couples-regression.js",
+    "test:chess": "node scripts/chess-elo-smoke.js",
+    "test:smoke": "LOCAL_DEV=1 node scripts/smoke-test.js",
+    "test:memory": "node scripts/memory-sanity.js",
+    "check": "node --check server.js && node --check public/app.js && node --check public/theme-init.js && node --check database.js",
+    "audit": "npm audit --audit-level=high",
+    "fund": "npm fund",
+    "verify": "(npm run fund --if-present || true) && npm run check && npm run audit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "chess.js": "^1.0.0",
+    "connect-pg-simple": "^10.0.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "express-session": "^1.18.2",
+    "helmet": "^8.1.0",
+    "multer": "^2.0.2",
+    "pg": "^8.16.3",
+    "socket.io": "^4.8.3",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "supertest": "^7.2.2"
+  },
+  "overrides": {
+    "qs": "^6.14.1"
+  }
+}
