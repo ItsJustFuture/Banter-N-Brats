@@ -841,6 +841,7 @@ const Sound = (() => {
 
 
 let socket = null;
+let serverReady = false;
 let me = null;
 let progression = { gold: 0, xp: 0, level: 1, xpIntoLevel: 0, xpForNextLevel: 100 };
 let activeProfileTab = "profile";
@@ -19105,6 +19106,25 @@ initAppealsDurationSelect();
     timeout: 15000,
   });
 
+  // Connection guard utilities
+  window.socket = socket;
+  window.isSocketConnected = function() {
+    return window.socket && window.socket.connected;
+  };
+
+  window.safeSocketEmit = function(event, data, ack) {
+    if (!window.isSocketConnected()) {
+      console.warn('[app.js] Cannot emit', event, '- socket not connected');
+      return false;
+    }
+    if (typeof ack === 'function') {
+      window.socket.emit(event, data, ack);
+    } else {
+      window.socket.emit(event, data);
+    }
+    return true;
+  };
+
   // ---- Mobile suspend/resume: treat common disconnect reasons as benign ----
   let suppressRealtimeNoticesUntil = 0;
 
@@ -19124,6 +19144,7 @@ initAppealsDurationSelect();
   }
 
   socket.on("connect", () => {
+    console.log('[app.js] Socket connected');
     try{
       socket.emit("client:hello", {
         tz: (Intl.DateTimeFormat && Intl.DateTimeFormat().resolvedOptions().timeZone) || null,
@@ -19138,6 +19159,19 @@ initAppealsDurationSelect();
     if (chessState.isOpen && chessState.contextType && chessState.contextId) {
       socket.emit("chess:game:join", { contextType: chessState.contextType, contextId: chessState.contextId });
     }
+  });
+
+  socket.on('reconnect', (attemptNumber) => {
+    console.log('[app.js] Socket reconnected after', attemptNumber, 'attempts');
+    serverReady = false; // Reset until new server-ready signal
+    // Hide any connection error UI if present
+  });
+
+  socket.on('server-ready', (data) => {
+    console.log('[app.js] Server ready signal received', { 
+      socketId: data?.socketId || socket.id 
+    });
+    serverReady = true;
   });
 
   socket.on("restriction:status", async (payload) => {
