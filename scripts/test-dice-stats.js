@@ -97,7 +97,6 @@ async function run() {
     assert.strictEqual(user.dice_current_streak, 1);
 
     // Test 2: Simulate a losing roll (should break streak)
-    const loseRoll = { variant: "d6", result: 3, breakdown: null, won: false };
     const loseReward = computeDiceReward("d6", 3, null);
     assert.strictEqual(loseReward.deltaGold, -50);
     assert.strictEqual(loseReward.outcome, "loss");
