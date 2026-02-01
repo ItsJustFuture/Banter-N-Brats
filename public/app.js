@@ -15175,7 +15175,7 @@ async function sendMessage(){
     };
 
     if (!socket || !socket.connected) {
-      console.warn('[chat.js] ⚠️ Socket not connected - queuing message for later delivery');
+      console.warn('[app.js] ⚠️ Socket not connected - queuing message for later delivery');
       outgoingMessageQueue.push(messagePayload);
       
       // Show user feedback
@@ -19184,7 +19184,7 @@ initAppealsDurationSelect();
   // Message queue processing functions
   function flushIncomingMessageBuffer() {
     if (incomingMessageBuffer.length > 0) {
-      console.log(`[chat.js] ⚠️ Flushing ${incomingMessageBuffer.length} buffered messages...`);
+      console.log(`[app.js] ⚠️ Flushing ${incomingMessageBuffer.length} buffered messages...`);
       incomingMessageBuffer.forEach(msg => {
         if (msg.type === 'chat') {
           safeAddMessage(msg.data);
@@ -19193,19 +19193,19 @@ initAppealsDurationSelect();
         }
       });
       incomingMessageBuffer.length = 0;
-      console.log('[chat.js] ✓ Message buffer flushed');
+      console.log('[app.js] ✓ Message buffer flushed');
     }
   }
 
   function processOutgoingQueue() {
-    if (!socket || !socket.connected) return;
+    if (!socket || !socket.connected || !serverReady) return;
     if (outgoingMessageQueue.length > 0) {
-      console.log(`[chat.js] ⚠️ Processing ${outgoingMessageQueue.length} queued outgoing messages...`);
+      console.log(`[app.js] ⚠️ Processing ${outgoingMessageQueue.length} queued outgoing messages...`);
       outgoingMessageQueue.forEach(msg => {
         socket.emit('chat message', msg);
       });
       outgoingMessageQueue.length = 0;
-      console.log('[chat.js] ✓ Outgoing message queue processed');
+      console.log('[app.js] ✓ Outgoing message queue processed');
     }
   }
 
@@ -19231,9 +19231,6 @@ initAppealsDurationSelect();
     console.log('[app.js] Socket connected');
     // Reset the promise for this new connection
     resetSocketReadyPromise();
-    if (socketReadyResolve) {
-      socketReadyResolve();
-    }
     try {
       socket.emit("client:hello", {
         tz: (Intl.DateTimeFormat && Intl.DateTimeFormat().resolvedOptions().timeZone) || null,
@@ -19262,6 +19259,10 @@ initAppealsDurationSelect();
       socketId: data?.socketId || socket.id 
     });
     serverReady = true;
+    // Resolve the promise so code waiting for socket ready can proceed
+    if (socketReadyResolve) {
+      socketReadyResolve();
+    }
     // Process queued messages now that server is ready
     processOutgoingQueue();
   });
@@ -19915,7 +19916,7 @@ socket.on("mod:case_event", (payload = {}) => {
     if (mr && mr !== cur && mr !== legacyCur) return;
 
     if (!isInitialized) {
-      console.warn('[chat.js] ⚠️ Message received before UI initialized, buffering...');
+      console.warn('[app.js] ⚠️ Message received before UI initialized, buffering...');
       incomingMessageBuffer.push({ type: 'chat', data: m });
       return;
     }
