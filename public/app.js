@@ -1,5 +1,36 @@
 "use strict";
 
+// Register Service Worker for PWA support
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        console.log('[PWA] Service Worker registered:', registration.scope);
+        
+        // Check for updates periodically
+        setInterval(() => {
+          registration.update();
+        }, 60 * 60 * 1000); // Check every hour
+        
+        // Handle updates
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[PWA] New version available. Reload to update.');
+                // Optionally show a notification to the user
+              }
+            });
+          }
+        });
+      })
+      .catch((error) => {
+        console.error('[PWA] Service Worker registration failed:', error);
+      });
+  });
+}
+
 // Debug hook: enable tap hit-testing logs by setting `window.__TAP_DEBUG__ = true` in the console.
 window.__TAP_DEBUG__ = window.__TAP_DEBUG__ ?? false;
 const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
