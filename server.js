@@ -242,6 +242,9 @@ process.on("uncaughtException", (err) => {
   console.error("[uncaughtException]", err);
 });
 const { Server } = require("socket.io");
+const { createAdapter } = require("@socket.io/redis-adapter");
+const { createClient } = require("redis");
+
 const { db, migrationsReady, seedDevUser, DB_FILE } = require("./database");
 const { VIBE_TAGS, VIBE_TAG_LIMIT } = require("./vibe-tags");
 
@@ -315,6 +318,36 @@ for (const dir of [UPLOADS_DIR, AVATARS_DIR]) {
     pingTimeout: 300_000,  // wait 5 minutes for pong before disconnect (mobile suspend)
     upgradeTimeout: 45_000,
   });
+
+  // Redis adapter for horizontal scaling (optional - graceful fallback)
+  const REDIS_URL = process.env.REDIS_URL || process.env.REDIS_PRIVATE_URL;
+  if (REDIS_URL) {
+    console.log("[Redis] Attempting to connect Redis adapter for Socket.IO scaling...");
+    
+    const pubClient = createClient({ url: REDIS_URL });
+    const subClient = pubClient.duplicate();
+    
+    Promise.all([pubClient.connect(), subClient.connect()])
+      .then(() => {
+        io.adapter(createAdapter(pubClient, subClient));
+        console.log("[Redis] ✓ Socket.IO Redis adapter connected successfully");
+      })
+      .catch((err) => {
+        console.error("[Redis] ✗ Failed to connect Redis adapter:", err.message);
+        console.warn("[Redis] Continuing with default in-memory adapter");
+      });
+    
+    // Handle Redis errors gracefully
+    pubClient.on('error', (err) => {
+      console.error('[Redis] Pub client error:', err.message);
+    });
+    
+    subClient.on('error', (err) => {
+      console.error('[Redis] Sub client error:', err.message);
+    });
+  } else {
+    console.log("[Redis] No REDIS_URL configured - using default in-memory adapter");
+  }
 
   const DEBUG_ROOMS = String(process.env.DEBUG_ROOMS || "").toLowerCase() === "true";
 
@@ -1714,7 +1747,8 @@ app.use((req, res, next) => {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://s.ytimg.com https://unpkg.com https://challenges.cloudflare.com https://hcaptcha.com https://js.hcaptcha.com 'sha256-ieoeWczDHkReVBsRBqaal5AFMlBtNjMzgwKvLqi/tSU=' 'sha256-ZswfTY7H35rbv8WC7NXBoiC7WNu86vSzCDChNWwZZDM='",      "script-src-elem 'self' https://www.youtube.com https://www.youtube-nocookie.com https://s.ytimg.com https://unpkg.com https://challenges.cloudflare.com https://hcaptcha.com https://js.hcaptcha.com 'sha256-ieoeWczDHkReVBsRBqaal5AFMlBtNjMzgwKvLqi/tSU=' 'sha256-ZswfTY7H35rbv8WC7NXBoiC7WNu86vSzCDChNWwZZDM='",      // Inline style attributes are set by the client JS (e.g. show/hide panels),
+      "script-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://s.ytimg.com https://unpkg.com https://cdn.jsdelivr.net https://challenges.cloudflare.com https://hcaptcha.com https://js.hcaptcha.com 'sha256-ieoeWczDHkReVBsRBqaal5AFMlBtNjMzgwKvLqi/tSU=' 'sha256-ZswfTY7H35rbv8WC7NXBoiC7WNu86vSzCDChNWwZZDM='",
+      "script-src-elem 'self' https://www.youtube.com https://www.youtube-nocookie.com https://s.ytimg.com https://unpkg.com https://cdn.jsdelivr.net https://challenges.cloudflare.com https://hcaptcha.com https://js.hcaptcha.com 'sha256-ieoeWczDHkReVBsRBqaal5AFMlBtNjMzgwKvLqi/tSU=' 'sha256-ZswfTY7H35rbv8WC7NXBoiC7WNu86vSzCDChNWwZZDM='",      // Inline style attributes are set by the client JS (e.g. show/hide panels),
       // so allow them alongside our external stylesheet.
       // Also allow Google Fonts stylesheets for optional custom fonts.
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
@@ -15354,7 +15388,7 @@ if (!room) {
   });
 
   
-  socket.on("dm mark read", (payload = {}) => {
+  socket.on("dm mark read", async (payload = {}) => {
     const tid = Number(payload.threadId);
     const mid = Number(payload.messageId);
     const tms = safeNumber(payload.ts, Date.now());
@@ -15375,7 +15409,19 @@ if (!room) {
            SET last_read_at = CASE WHEN COALESCE(last_read_at,0) < ? THEN ? ELSE COALESCE(last_read_at,0) END
          WHERE thread_id = ? AND user_id = ?`,
         [tms, tms, tid, socket.user.id],
-        () => {}
+        (err) => {
+          if (err) console.error('[dm mark read] Error updating dm_participants:', err.message);
+        }
+      );
+      
+      // Also persist to dm_read_tracking table for enhanced read receipt features
+      db.run(
+        `INSERT OR REPLACE INTO dm_read_tracking (thread_id, user_id, last_read_message_id, last_read_at)
+         VALUES (?, ?, ?, ?)`,
+        [tid, socket.user.id, mid, tms],
+        (err) => {
+          if (err) console.error('[dm mark read] Error updating dm_read_tracking:', err.message);
+        }
       );
 
       // Broadcast to everyone in the dm room (clients can ignore self)
@@ -15404,6 +15450,43 @@ if (!room) {
         broadcastDmTyping(tid);
       }
     } catch {}
+  });
+
+  // Room message read receipts
+  socket.on("message mark read", async (payload = {}) => {
+    const messageId = Number(payload.messageId);
+    const room = String(payload.room || "").trim();
+    if (!socket.user) return;
+    if (!Number.isInteger(messageId) || !room) return;
+
+    // Validate user is a member of the room (check if socket is in the room)
+    const socketRooms = socket.rooms || new Set();
+    if (!socketRooms.has(room)) {
+      console.warn('[message mark read] User not in room:', { userId: socket.user.id, room });
+      return;
+    }
+
+    const now = Date.now();
+    
+    // Store read receipt in database
+    try {
+      await dbRunAsync(
+        `INSERT OR REPLACE INTO message_read_receipts (message_id, room_name, user_id, read_at)
+         VALUES (?, ?, ?, ?)`,
+        [messageId, room, socket.user.id, now]
+      );
+      
+      // Optionally broadcast to room that user read this message
+      // (This is less critical for room messages than DMs)
+      io.to(room).emit("message read", {
+        messageId,
+        room,
+        userId: socket.user.id,
+        ts: now
+      });
+    } catch (err) {
+      console.error('[message mark read] Error:', err.message);
+    }
   });
 
   // DM typing indicators (per thread)

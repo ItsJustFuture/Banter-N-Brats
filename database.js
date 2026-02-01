@@ -922,6 +922,49 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
     )
   `);
 
+  // --- Message read receipts (persistent tracking)
+  await run(`
+    CREATE TABLE IF NOT EXISTS message_read_receipts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_id INTEGER NOT NULL,
+      room_name TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      read_at INTEGER NOT NULL,
+      UNIQUE(message_id, user_id)
+    )
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS dm_read_tracking (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      thread_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      last_read_message_id INTEGER,
+      last_read_at INTEGER NOT NULL,
+      UNIQUE(thread_id, user_id)
+    )
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS message_delivery_receipts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_id INTEGER NOT NULL,
+      room_name TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      delivered_at INTEGER NOT NULL,
+      UNIQUE(message_id, user_id)
+    )
+  `);
+
+  // Indexes for read receipts
+  await run(`CREATE INDEX IF NOT EXISTS idx_read_receipts_message ON message_read_receipts(message_id)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_read_receipts_user ON message_read_receipts(user_id)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_read_receipts_room ON message_read_receipts(room_name)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_dm_read_thread ON dm_read_tracking(thread_id)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_dm_read_user ON dm_read_tracking(user_id)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_delivery_receipts_message ON message_delivery_receipts(message_id)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_delivery_receipts_user ON message_delivery_receipts(user_id)`);
+
 
 // --- Fixed role assignments
   await run("UPDATE users SET role='Owner' WHERE lower(username)='iri'");

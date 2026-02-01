@@ -1,5 +1,36 @@
 "use strict";
 
+// Register Service Worker for PWA support
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        console.log('[PWA] Service Worker registered:', registration.scope);
+        
+        // Check for updates periodically (every 6 hours to avoid excessive requests)
+        setInterval(() => {
+          registration.update();
+        }, 6 * 60 * 60 * 1000);
+        
+        // Handle updates
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[PWA] New version available. Reload to update.');
+                // Optionally show a notification to the user
+              }
+            });
+          }
+        });
+      })
+      .catch((error) => {
+        console.error('[PWA] Service Worker registration failed:', error);
+      });
+  });
+}
+
 // Debug hook: enable tap hit-testing logs by setting `window.__TAP_DEBUG__ = true` in the console.
 window.__TAP_DEBUG__ = window.__TAP_DEBUG__ ?? false;
 const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -6528,6 +6559,50 @@ function handleCommandResponse(payload){
 function escapeRegex(str){
   return String(str || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+// Initialize markdown-it renderer with DOMPurify sanitization
+let markdownRenderer = null;
+function initMarkdownRenderer() {
+  if (typeof markdownit !== 'undefined' && typeof DOMPurify !== 'undefined') {
+    markdownRenderer = markdownit({
+      html: false,         // Disable HTML tags in source
+      xhtmlOut: false,
+      breaks: true,        // Convert \n to <br>
+      linkify: true,       // Auto-convert URLs to links
+      typographer: false,  // Disable smart quotes
+    });
+  }
+}
+
+// Render markdown with DOMPurify sanitization
+function renderMarkdown(text) {
+  if (!markdownRenderer) {
+    initMarkdownRenderer();
+  }
+  
+  // If markdown-it or DOMPurify not available, fallback to escapeHtml
+  if (!markdownRenderer || typeof DOMPurify === 'undefined') {
+    return escapeHtml(text);
+  }
+  
+  try {
+    // Render markdown
+    const rendered = markdownRenderer.render(text);
+    
+    // Sanitize with DOMPurify to prevent XSS
+    const clean = DOMPurify.sanitize(rendered, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'code', 'pre', 'a', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr'],
+      ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
+      ALLOW_DATA_ATTR: false,
+    });
+    
+    return clean;
+  } catch (err) {
+    console.error('[renderMarkdown] Error:', err);
+    return escapeHtml(text);
+  }
+}
+
 function applyMentions(text, { linkifyText = false } = {}){
   const safe = escapeHtml(text);
   const names = new Set((lastUsers || []).map((u) => u.username || u.name));
@@ -6541,6 +6616,95 @@ function applyMentions(text, { linkifyText = false } = {}){
   }
   return linkifyText ? linkify(output) : output;
 }
+
+// Render markdown with mentions support
+function renderMarkdownWithMentions(text) {
+  if (!markdownRenderer) {
+    initMarkdownRenderer();
+  }
+  
+  // If markdown-it or DOMPurify not available, fallback to applyMentions
+  if (!markdownRenderer || typeof DOMPurify === 'undefined') {
+    return applyMentions(text, { linkifyText: true });
+  }
+  
+  try {
+    // Render markdown first
+    const rendered = markdownRenderer.render(text);
+    
+    // Sanitize with DOMPurify
+    let clean = DOMPurify.sanitize(rendered, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'code', 'pre', 'a', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr'],
+      ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
+      ALLOW_DATA_ATTR: false,
+    });
+    
+    // Apply mentions highlighting using DOM manipulation (safer than string replacement)
+    const names = new Set((lastUsers || []).map((u) => u.username || u.name));
+    if (me?.username) names.add(me.username);
+    const list = Array.from(names).filter(Boolean);
+    
+    if (list.length) {
+      // Create a temporary container to manipulate the DOM
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = clean;
+      
+      // Walk through all text nodes and replace mentions
+      const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT);
+      const textNodesToReplace = [];
+      
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        textNodesToReplace.push(node);
+      }
+      
+      textNodesToReplace.forEach(node => {
+        const text = node.textContent;
+        const pattern = list.map(escapeRegex).join("|");
+        const re = new RegExp(`(@(?:${pattern}))(?=$|[^\\S]|[.,!?:;])`, "gi");
+        
+        if (re.test(text)) {
+          const fragment = document.createDocumentFragment();
+          let lastIndex = 0;
+          
+          // Reset regex
+          re.lastIndex = 0;
+          let match;
+          
+          while ((match = re.exec(text)) !== null) {
+            // Add text before match
+            if (match.index > lastIndex) {
+              fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+            }
+            
+            // Add mention span
+            const span = document.createElement('span');
+            span.className = 'mention';
+            span.textContent = match[0];
+            fragment.appendChild(span);
+            
+            lastIndex = match.index + match[0].length;
+          }
+          
+          // Add remaining text
+          if (lastIndex < text.length) {
+            fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+          }
+          
+          node.parentNode.replaceChild(fragment, node);
+        }
+      });
+      
+      clean = tempDiv.innerHTML;
+    }
+    
+    return clean;
+  } catch (err) {
+    console.error('[renderMarkdownWithMentions] Error:', err);
+    return applyMentions(text, { linkifyText: true });
+  }
+}
+
 function hasMention(text, username){
   const name = String(username || "").trim();
   if (!name) return false;
@@ -8339,7 +8503,7 @@ function buildMainMsgItem(m, opts){
   if(displayText.trim()){
     const text = document.createElement("div");
     text.className = "text";
-    text.innerHTML = applyMentions(displayText, { linkifyText: true }).replace(/\n/g, "<br/>");
+    text.innerHTML = renderMarkdownWithMentions(displayText);
     bubble.appendChild(text);
   }
 
@@ -10595,7 +10759,7 @@ function renderDmMessages(threadId){
     } else {
       const text = document.createElement("div");
       text.className = "dmText";
-      text.innerHTML = applyMentions(m.text || "");
+      text.innerHTML = renderMarkdownWithMentions(m.text || "");
       bubble.appendChild(text);
     }
 
