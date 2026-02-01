@@ -222,8 +222,8 @@ Indexes:
 #### PostgreSQL (Production)
 
 Migration file executed on deployment:
-- Same schema as SQLite
-- Uses INTEGER PRIMARY KEY AUTOINCREMENT
+- Same logical schema as SQLite, using PostgreSQL-appropriate types
+- Uses `SERIAL` or identity columns for auto-incrementing primary keys
 - Prevents ID reuse for deleted rows
 
 #### Migration Safety
