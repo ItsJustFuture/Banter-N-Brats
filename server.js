@@ -16112,6 +16112,10 @@ if (!room) {
       if ((game.turn === "w" && !isWhite) || (game.turn === "b" && !isBlack)) {
         return respond({ ok: false, error: "Not your turn" });
       }
+      
+      // Store the color that is about to move BEFORE calling chess.move()
+      const colorMoving = game.turn; // This is the color making the move
+      
       const chess = createChessInstance(game.fen);
       const move = chess.move({ from, to, promotion: promotion || undefined });
       if (!move) return respond({ ok: false, error: "Illegal move" });
@@ -16126,9 +16130,9 @@ if (!room) {
       
       if (timeControl && game.last_move_at) {
         const elapsed = now - game.last_move_at;
-        const movingColor = game.turn; // Color that just moved
+        // Deduct time from the player who just moved (before chess.move() was called)
         
-        if (movingColor === "w" && whiteTimeRemaining != null) {
+        if (colorMoving === "w" && whiteTimeRemaining != null) {
           whiteTimeRemaining = whiteTimeRemaining - elapsed + timeIncrement;
           if (whiteTimeRemaining <= 0) {
             // White ran out of time, black wins
@@ -16140,7 +16144,7 @@ if (!room) {
             await emitChessStateToGameRoom(finalResult.game);
             return respond({ ok: true, timeout: true });
           }
-        } else if (movingColor === "b" && blackTimeRemaining != null) {
+        } else if (colorMoving === "b" && blackTimeRemaining != null) {
           blackTimeRemaining = blackTimeRemaining - elapsed + timeIncrement;
           if (blackTimeRemaining <= 0) {
             // Black ran out of time, white wins
@@ -16166,7 +16170,7 @@ if (!room) {
         turn: chess.turn(),
         plies_count: Number(game.plies_count || 0) + 1,
         last_move_at: now,
-        last_move_color: game.turn, // The color that just moved
+        last_move_color: colorMoving, // The color that just moved (before chess.move() was called)
         white_time_remaining: whiteTimeRemaining,
         black_time_remaining: blackTimeRemaining,
         updated_at: now,
