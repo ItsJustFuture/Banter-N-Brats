@@ -6,6 +6,7 @@
  * Tests state persistence and validation working together with the server
  */
 
+const assert = require("assert/strict");
 const path = require("path");
 const fs = require("fs");
 
@@ -15,8 +16,9 @@ async function runIntegrationTest() {
   // Test 1: Verify modules can be imported
   console.log("📝 Test 1: Module imports");
   try {
-    const statePersistence = require("../state-persistence");
+    require("../state-persistence");
     const validators = require("../validators");
+    assert(typeof validators.validate === "function", "Validators module should export a validate function");
     console.log("✓ State persistence module imported");
     console.log("✓ Validators module imported");
   } catch (err) {
@@ -28,7 +30,7 @@ async function runIntegrationTest() {
   console.log("\n📝 Test 2: Zod dependency");
   try {
     const { z } = require("zod");
-    console.assert(typeof z.string === "function", "Zod should be functional");
+    assert(typeof z.string === "function", "Zod should be functional");
     console.log("✓ Zod installed and working");
   } catch (err) {
     console.error("❌ Zod not properly installed:", err.message);
@@ -39,10 +41,12 @@ async function runIntegrationTest() {
   console.log("\n📝 Test 3: Server.js integration");
   try {
     const serverContent = fs.readFileSync(path.join(__dirname, "../server.js"), "utf-8");
-    console.assert(serverContent.includes("require('./state-persistence')"), "Server should import state-persistence");
-    console.assert(serverContent.includes("require('./validators')"), "Server should import validators");
-    console.assert(serverContent.includes("statePersistence.initStateManagement"), "Server should initialize state persistence");
-    console.assert(serverContent.includes("validators.validate"), "Server should use validators");
+    const hasStatePersistenceImport = /require\(['"]\.\/state-persistence['"]\)/.test(serverContent);
+    const hasValidatorsImport = /require\(['"]\.\/validators['"]\)/.test(serverContent);
+    assert(hasStatePersistenceImport, "Server should import state-persistence");
+    assert(hasValidatorsImport, "Server should import validators");
+    assert(serverContent.includes("statePersistence.initStateManagement"), "Server should initialize state persistence");
+    assert(serverContent.includes("validators.validate"), "Server should use validators");
     console.log("✓ Server.js properly integrated");
   } catch (err) {
     console.error("❌ Server.js integration check failed:", err.message);
@@ -53,8 +57,8 @@ async function runIntegrationTest() {
   console.log("\n📝 Test 4: Database error handling");
   try {
     const dbContent = fs.readFileSync(path.join(__dirname, "../database.js"), "utf-8");
-    console.assert(dbContent.includes("console.error('[database]"), "Database should have error logging");
-    console.assert(dbContent.match(/try\s*{/g)?.length >= 3, "Database should have multiple try-catch blocks");
+    assert(dbContent.includes("console.error('[database]"), "Database should have error logging");
+    assert(dbContent.match(/try\s*{/g)?.length >= 3, "Database should have multiple try-catch blocks");
     console.log("✓ Database has enhanced error handling");
   } catch (err) {
     console.error("❌ Database error handling check failed:", err.message);
@@ -79,7 +83,7 @@ async function runIntegrationTest() {
     ];
     
     for (const func of requiredFunctions) {
-      console.assert(typeof statePersistence[func] === "function", `${func} should be a function`);
+      assert(typeof statePersistence[func] === "function", `${func} should be a function`);
     }
     console.log("✓ State persistence has all required functions");
   } catch (err) {
@@ -100,7 +104,7 @@ async function runIntegrationTest() {
     ];
     
     for (const schema of requiredSchemas) {
-      console.assert(validators[schema] !== undefined, `${schema} should exist`);
+      assert(validators[schema] !== undefined, `${schema} should exist`);
     }
     
     const requiredHelpers = [
@@ -112,7 +116,7 @@ async function runIntegrationTest() {
     ];
     
     for (const helper of requiredHelpers) {
-      console.assert(typeof validators[helper] === "function", `${helper} should be a function`);
+      assert(typeof validators[helper] === "function", `${helper} should be a function`);
     }
     console.log("✓ Validators has all required schemas and helpers");
   } catch (err) {
@@ -124,9 +128,9 @@ async function runIntegrationTest() {
   console.log("\n📝 Test 7: Package.json dependencies");
   try {
     const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, "../package.json"), "utf-8"));
-    console.assert(packageJson.dependencies.zod, "Zod should be in dependencies");
-    console.assert(packageJson.scripts["test:state"], "test:state script should exist");
-    console.assert(packageJson.scripts["test:validators"], "test:validators script should exist");
+    assert(packageJson.dependencies.zod, "Zod should be in dependencies");
+    assert(packageJson.scripts["test:state"], "test:state script should exist");
+    assert(packageJson.scripts["test:validators"], "test:validators script should exist");
     console.log("✓ Package.json properly configured");
   } catch (err) {
     console.error("❌ Package.json check failed:", err.message);
@@ -143,20 +147,20 @@ async function runIntegrationTest() {
       room: "main",
       text: "Test message"
     });
-    console.assert(valid.success === true, "Valid message should pass");
+    assert(valid.success === true, "Valid message should pass");
     
     // Test invalid message
     const invalid = validators.validate(validators.ChatMessageSchema, {
       room: "",
       text: "Test"
     });
-    console.assert(invalid.success === false, "Invalid message should fail");
+    assert(invalid.success === false, "Invalid message should fail");
     
     // Test sanitization
     const dirty = "Test\u200Bmessage\x00";
     const clean = validators.sanitizeText(dirty);
-    console.assert(!clean.includes("\u200B"), "Should remove zero-width chars");
-    console.assert(!clean.includes("\x00"), "Should remove null chars");
+    assert(!clean.includes("\u200B"), "Should remove zero-width chars");
+    assert(!clean.includes("\x00"), "Should remove null chars");
     
     console.log("✓ Validation tests passed");
   } catch (err) {

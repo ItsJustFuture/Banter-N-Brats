@@ -231,8 +231,8 @@ const {
   normalizeLuckMessage,
 } = require("./luck-utils");
 const { SURVIVAL_EVENT_TEMPLATES, SURVIVAL_ITEM_POOL } = require("./survival-events");
-const statePersistence = require('./state-persistence');
-const validators = require('./validators');
+const statePersistence = require("./state-persistence");
+const validators = require("./validators");
 
 // ---- Safety nets (prevents silent crashes in prod) ----
 process.on("unhandledRejection", (err) => {
@@ -16031,7 +16031,7 @@ if (!room) {
     const validation = validators.validate(validators.ChatMessageSchema, {
       room: room,
       text: payload.text,
-      replyTo: payload.replyToId
+      replyToId: payload.replyToId ?? undefined
     });
     if (!validation.success) {
       if (IS_DEV_MODE) {

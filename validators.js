@@ -7,15 +7,15 @@ const { z } = require("zod");
 // ====================================
 
 const ChatMessageSchema = z.object({
-  room: z.string().min(1).max(100).trim(),
-  text: z.string().min(1).max(2000),
-  replyTo: z.number().int().positive().optional(),
+  room: z.string().trim().min(1).max(100),
+  text: z.string().trim().min(1).max(2000),
+  replyToId: z.number().int().positive().nullish(),
 });
 
 const DMMessageSchema = z.object({
   threadId: z.number().int().positive(),
-  text: z.string().min(1).max(2000),
-  replyTo: z.number().int().positive().optional(),
+  text: z.string().trim().min(1).max(2000),
+  replyToId: z.number().int().positive().nullish(),
 });
 
 const EditMessageSchema = z.object({
@@ -74,8 +74,9 @@ function sanitizeText(text) {
   if (typeof text !== 'string') return '';
   
   return text
+    .replace(/\r\n?/g, '\n') // Normalize CRLF / CR to LF
     .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width chars
-    .replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '') // Remove control chars
+    .replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '') // Remove control chars (except LF)
     .trim()
     .replace(/\n{4,}/g, '\n\n\n'); // Limit consecutive newlines
 }

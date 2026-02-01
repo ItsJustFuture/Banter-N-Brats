@@ -6,7 +6,7 @@
  * Tests the state persistence module functionality
  */
 
-const path = require("path");
+const assert = require("assert/strict");
 const statePersistence = require("../state-persistence");
 
 // Mock database functions for testing
@@ -16,15 +16,15 @@ function mockDbRunAsync(sql, params = []) {
   return new Promise((resolve) => {
     if (sql.includes("CREATE TABLE") || sql.includes("CREATE INDEX")) {
       // Just resolve for schema creation
-      resolve({ changes: 0 });
+      return resolve({ changes: 0 });
     } else if (sql.includes("INSERT OR REPLACE")) {
       const [key, value, expiresAt, createdAt, updatedAt] = params;
       testData.set(key, { value, expires_at: expiresAt, created_at: createdAt, updated_at: updatedAt });
-      resolve({ changes: 1 });
+      return resolve({ changes: 1 });
     } else if (sql.includes("DELETE")) {
       if (sql.includes("LIKE")) {
         const pattern = params[0];
-        const prefix = pattern.replace('%', '');
+        const prefix = pattern.replace('%', '').replace(/\\\\/g, '\\').replace(/\\%/g, '%').replace(/\\_/g, '_');
         for (const [k] of testData) {
           if (k.startsWith(prefix)) {
             testData.delete(k);
@@ -34,9 +34,9 @@ function mockDbRunAsync(sql, params = []) {
         const key = params[0];
         testData.delete(key);
       }
-      resolve({ changes: 1 });
+      return resolve({ changes: 1 });
     }
-    resolve({ changes: 0 });
+    return resolve({ changes: 0 });
   });
 }
 
@@ -81,7 +81,7 @@ async function runTests() {
   console.log("\n📝 Test 1: Basic set/get");
   await statePersistence.setState("test-key", "test-value");
   const val1 = await statePersistence.getState("test-key");
-  console.assert(val1 === "test-value", "Expected 'test-value', got: " + val1);
+  assert(val1 === "test-value", "Expected 'test-value', got: " + val1);
   console.log("✓ Basic set/get works");
   
   // Test 2: JSON values
@@ -89,22 +89,22 @@ async function runTests() {
   await statePersistence.setState("json-key", { foo: "bar", num: 42 });
   const val2 = await statePersistence.getState("json-key");
   const parsed = JSON.parse(val2);
-  console.assert(parsed.foo === "bar" && parsed.num === 42, "JSON value mismatch");
+  assert(parsed.foo === "bar" && parsed.num === 42, "JSON value mismatch");
   console.log("✓ JSON values work");
   
   // Test 3: hasState
   console.log("\n📝 Test 3: hasState");
   const exists = await statePersistence.hasState("test-key");
-  console.assert(exists === true, "Key should exist");
+  assert(exists === true, "Key should exist");
   const notExists = await statePersistence.hasState("nonexistent");
-  console.assert(notExists === false, "Key should not exist");
+  assert(notExists === false, "Key should not exist");
   console.log("✓ hasState works");
   
   // Test 4: Delete
   console.log("\n📝 Test 4: Delete");
   await statePersistence.deleteState("test-key");
   const val3 = await statePersistence.getState("test-key");
-  console.assert(val3 === null, "Key should be deleted");
+  assert(val3 === null, "Key should be deleted");
   console.log("✓ Delete works");
   
   // Test 5: TTL expiration (simulated)
@@ -117,7 +117,7 @@ async function runTests() {
     testData.set("ttl-key", data);
   }
   const val4 = await statePersistence.getState("ttl-key");
-  console.assert(val4 === null, "Expired key should return null");
+  assert(val4 === null, "Expired key should return null");
   console.log("✓ TTL expiration works");
   
   // Test 6: Prefix queries
@@ -126,24 +126,24 @@ async function runTests() {
   await statePersistence.setState("user:2:online", "1");
   await statePersistence.setState("user:3:online", "1");
   const keys = await statePersistence.getKeysByPrefix("user:");
-  console.assert(keys.length === 3, `Expected 3 keys, got ${keys.length}`);
+  assert(keys.length === 3, `Expected 3 keys, got ${keys.length}`);
   console.log("✓ Prefix queries work");
   
   // Test 7: Delete by prefix
   console.log("\n📝 Test 7: Delete by prefix");
   await statePersistence.deleteByPrefix("user:");
   const keys2 = await statePersistence.getKeysByPrefix("user:");
-  console.assert(keys2.length === 0, `Expected 0 keys, got ${keys2.length}`);
+  assert(keys2.length === 0, `Expected 0 keys, got ${keys2.length}`);
   console.log("✓ Delete by prefix works");
   
   // Test 8: Convenience helpers
   console.log("\n📝 Test 8: Convenience helpers");
   await statePersistence.setUserOnline(123, true);
   const isOnline = await statePersistence.isUserOnline(123);
-  console.assert(isOnline === true, "User should be online");
+  assert(isOnline === true, "User should be online");
   await statePersistence.setUserOnline(123, false);
   const isOffline = await statePersistence.isUserOnline(123);
-  console.assert(isOffline === false, "User should be offline");
+  assert(isOffline === false, "User should be offline");
   console.log("✓ Convenience helpers work");
   
   console.log("\n✅ All tests passed!\n");

@@ -87,7 +87,12 @@ async function setState(key, value, ttlSeconds = null) {
   if (!key || !dbRunAsync) return;
   
   const now = Date.now();
-  const expiresAt = ttlSeconds ? now + (ttlSeconds * 1000) : null;
+  const expiresAt =
+    ttlSeconds == null
+      ? null
+      : ttlSeconds > 0
+        ? now + (ttlSeconds * 1000)
+        : now;
   const valueStr = typeof value === 'string' ? value : JSON.stringify(value);
   
   // SQLite
@@ -160,6 +165,26 @@ async function getState(key) {
     return row.value;
   } catch (err) {
     console.error('[state] Get error:', err.message);
+    // Try Postgres fallback on SQLite error
+    if (pgPool) {
+      try {
+        const result = await pgSafe(
+          "SELECT value, expires_at FROM state_kv WHERE key = $1",
+          [key]
+        );
+        
+        if (result?.rows && result.rows.length) {
+          const row = result.rows[0];
+          if (row.expires_at && row.expires_at < now) {
+            await deleteState(key);
+            return null;
+          }
+          return row.value;
+        }
+      } catch (pgErr) {
+        // Both backends failed
+      }
+    }
     return null;
   }
 }
@@ -194,25 +219,60 @@ async function hasState(key) {
 }
 
 /**
+ * Escape special characters in LIKE patterns
+ */
+function escapeLikePattern(pattern) {
+  return pattern
+    .replace(/\\/g, '\\\\')  // Escape backslash first
+    .replace(/%/g, '\\%')    // Escape %
+    .replace(/_/g, '\\_');   // Escape _
+}
+
+/**
  * Get all keys with prefix
  */
 async function getKeysByPrefix(prefix) {
-  if (!prefix || !dbAllAsync) return [];
-  
+  // Require a prefix and at least one available backend (SQLite or Postgres)
+  if (!prefix || (!dbAllAsync && !pgPool)) return [];
+
   const now = Date.now();
-  const pattern = `${prefix}%`;
-  
-  try {
-    const rows = await dbAllAsync(
-      "SELECT key FROM state_kv WHERE key LIKE ? AND (expires_at IS NULL OR expires_at > ?)",
-      [pattern, now]
-    );
-    
-    return rows.map(row => row.key);
-  } catch (err) {
-    console.error('[state] Get keys error:', err.message);
-    return [];
+  const escapedPrefix = escapeLikePattern(prefix);
+  const pattern = `${escapedPrefix}%`;
+
+  let sqliteKeys = [];
+  let pgKeys = [];
+
+  // Primary: SQLite
+  if (dbAllAsync) {
+    try {
+      const rows = await dbAllAsync(
+        "SELECT key FROM state_kv WHERE key LIKE ? ESCAPE '\\' AND (expires_at IS NULL OR expires_at > ?)",
+        [pattern, now]
+      );
+      sqliteKeys = rows.map(row => row.key);
+    } catch (err) {
+      console.error('[state] Get keys error (SQLite):', err.message);
+    }
   }
+
+  // Fallback / merge: Postgres
+  if (pgPool) {
+    try {
+      const res = await pgSafe(
+        "SELECT key FROM state_kv WHERE key LIKE $1 ESCAPE '\\' AND (expires_at IS NULL OR expires_at > $2)",
+        [pattern, now]
+      );
+      if (res && res.rows) {
+        pgKeys = res.rows.map(row => row.key);
+      }
+    } catch (err) {
+      // pgSafe already logs and handles errors; this catch is defensive
+    }
+  }
+
+  // Merge and deduplicate keys from both backends
+  const merged = [...new Set([...sqliteKeys, ...pgKeys])];
+  return merged;
 }
 
 /**
@@ -221,17 +281,18 @@ async function getKeysByPrefix(prefix) {
 async function deleteByPrefix(prefix) {
   if (!prefix || !dbRunAsync) return;
   
-  const pattern = `${prefix}%`;
+  const escapedPrefix = escapeLikePattern(prefix);
+  const pattern = `${escapedPrefix}%`;
   
   try {
-    await dbRunAsync("DELETE FROM state_kv WHERE key LIKE ?", [pattern]);
+    await dbRunAsync("DELETE FROM state_kv WHERE key LIKE ? ESCAPE '\\'", [pattern]);
   } catch (err) {
     // Silent fail
   }
   
   if (pgPool) {
     try {
-      await pgSafe("DELETE FROM state_kv WHERE key LIKE $1", [pattern]);
+      await pgSafe("DELETE FROM state_kv WHERE key LIKE $1 ESCAPE '\\'", [pattern]);
     } catch (err) {
       // Silent fail
     }
