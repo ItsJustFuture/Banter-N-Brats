@@ -7,10 +7,10 @@ if ('serviceWorker' in navigator) {
       .then((registration) => {
         console.log('[PWA] Service Worker registered:', registration.scope);
         
-        // Check for updates periodically
+        // Check for updates periodically (every 6 hours to avoid excessive requests)
         setInterval(() => {
           registration.update();
-        }, 60 * 60 * 1000); // Check every hour
+        }, 6 * 60 * 60 * 1000);
         
         // Handle updates
         registration.addEventListener('updatefound', () => {
@@ -6639,15 +6639,63 @@ function renderMarkdownWithMentions(text) {
       ALLOW_DATA_ATTR: false,
     });
     
-    // Apply mentions highlighting to the sanitized HTML
+    // Apply mentions highlighting using DOM manipulation (safer than string replacement)
     const names = new Set((lastUsers || []).map((u) => u.username || u.name));
     if (me?.username) names.add(me.username);
     const list = Array.from(names).filter(Boolean);
     
     if (list.length) {
-      const pattern = list.map(escapeRegex).join("|");
-      const re = new RegExp(`@(${pattern})(?=$|[^\\S]|[.,!?:;])`, "gi");
-      clean = clean.replace(re, (m)=>`<span class="mention">${m}</span>`);
+      // Create a temporary container to manipulate the DOM
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = clean;
+      
+      // Walk through all text nodes and replace mentions
+      const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT);
+      const textNodesToReplace = [];
+      
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        textNodesToReplace.push(node);
+      }
+      
+      textNodesToReplace.forEach(node => {
+        const text = node.textContent;
+        const pattern = list.map(escapeRegex).join("|");
+        const re = new RegExp(`(@(?:${pattern}))(?=$|[^\\S]|[.,!?:;])`, "gi");
+        
+        if (re.test(text)) {
+          const fragment = document.createDocumentFragment();
+          let lastIndex = 0;
+          
+          // Reset regex
+          re.lastIndex = 0;
+          let match;
+          
+          while ((match = re.exec(text)) !== null) {
+            // Add text before match
+            if (match.index > lastIndex) {
+              fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+            }
+            
+            // Add mention span
+            const span = document.createElement('span');
+            span.className = 'mention';
+            span.textContent = match[0];
+            fragment.appendChild(span);
+            
+            lastIndex = match.index + match[0].length;
+          }
+          
+          // Add remaining text
+          if (lastIndex < text.length) {
+            fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+          }
+          
+          node.parentNode.replaceChild(fragment, node);
+        }
+      });
+      
+      clean = tempDiv.innerHTML;
     }
     
     return clean;

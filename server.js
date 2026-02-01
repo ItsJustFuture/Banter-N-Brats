@@ -15409,7 +15409,9 @@ if (!room) {
            SET last_read_at = CASE WHEN COALESCE(last_read_at,0) < ? THEN ? ELSE COALESCE(last_read_at,0) END
          WHERE thread_id = ? AND user_id = ?`,
         [tms, tms, tid, socket.user.id],
-        () => {}
+        (err) => {
+          if (err) console.error('[dm mark read] Error updating dm_participants:', err.message);
+        }
       );
       
       // Also persist to dm_read_tracking table for enhanced read receipt features
@@ -15417,7 +15419,9 @@ if (!room) {
         `INSERT OR REPLACE INTO dm_read_tracking (thread_id, user_id, last_read_message_id, last_read_at)
          VALUES (?, ?, ?, ?)`,
         [tid, socket.user.id, mid, tms],
-        () => {}
+        (err) => {
+          if (err) console.error('[dm mark read] Error updating dm_read_tracking:', err.message);
+        }
       );
 
       // Broadcast to everyone in the dm room (clients can ignore self)
@@ -15455,6 +15459,13 @@ if (!room) {
     if (!socket.user) return;
     if (!Number.isInteger(messageId) || !room) return;
 
+    // Validate user is a member of the room (check if socket is in the room)
+    const socketRooms = socket.rooms || new Set();
+    if (!socketRooms.has(room)) {
+      console.warn('[message mark read] User not in room:', { userId: socket.user.id, room });
+      return;
+    }
+
     const now = Date.now();
     
     // Store read receipt in database
@@ -15474,7 +15485,7 @@ if (!room) {
         ts: now
       });
     } catch (err) {
-      console.error('[message mark read] Error:', err);
+      console.error('[message mark read] Error:', err.message);
     }
   });
 

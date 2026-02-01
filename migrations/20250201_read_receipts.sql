@@ -3,7 +3,7 @@
 
 -- Main message read receipts (room messages)
 CREATE TABLE IF NOT EXISTS message_read_receipts (
-  id INTEGER PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   message_id INTEGER NOT NULL,
   room_name TEXT NOT NULL,
   user_id INTEGER NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS message_read_receipts (
 
 -- DM thread read tracking (enhanced from in-memory)
 CREATE TABLE IF NOT EXISTS dm_read_tracking (
-  id INTEGER PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   thread_id INTEGER NOT NULL,
   user_id INTEGER NOT NULL,
   last_read_message_id INTEGER,
@@ -30,7 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_dm_read_user ON dm_read_tracking(user_id);
 
 -- Message delivery status (for tracking if message was delivered to client)
 CREATE TABLE IF NOT EXISTS message_delivery_receipts (
-  id INTEGER PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   message_id INTEGER NOT NULL,
   room_name TEXT NOT NULL,
   user_id INTEGER NOT NULL,
