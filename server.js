@@ -811,6 +811,48 @@ const pgInitPromise = PG_ENABLED ? (async () => {
       CREATE INDEX IF NOT EXISTS idx_chess_challenges_status ON chess_challenges(status);
     `);
 
+    // Dice roll history tracking
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS dice_rolls (
+        id BIGSERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        variant TEXT NOT NULL,
+        result INTEGER NOT NULL,
+        breakdown_json TEXT,
+        delta_gold INTEGER NOT NULL,
+        outcome TEXT NOT NULL,
+        is_jackpot BOOLEAN NOT NULL DEFAULT FALSE,
+        rolled_at BIGINT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_dice_rolls_user ON dice_rolls(user_id, rolled_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_dice_rolls_jackpot ON dice_rolls(is_jackpot, rolled_at DESC);
+    `);
+
+    // Add chess time control columns
+    const chessGameCols = [
+      `ALTER TABLE chess_games ADD COLUMN IF NOT EXISTS time_control TEXT`,
+      `ALTER TABLE chess_games ADD COLUMN IF NOT EXISTS time_limit_seconds INTEGER`,
+      `ALTER TABLE chess_games ADD COLUMN IF NOT EXISTS time_increment_seconds INTEGER`,
+      `ALTER TABLE chess_games ADD COLUMN IF NOT EXISTS white_time_remaining INTEGER`,
+      `ALTER TABLE chess_games ADD COLUMN IF NOT EXISTS black_time_remaining INTEGER`,
+      `ALTER TABLE chess_games ADD COLUMN IF NOT EXISTS last_move_color TEXT`,
+    ];
+    for (const q of chessGameCols) {
+      try { await pgPool.query(q); } catch (_) {}
+    }
+
+    const chessStatsCols = [
+      `ALTER TABLE chess_user_stats ADD COLUMN IF NOT EXISTS blitz_elo INTEGER NOT NULL DEFAULT 1200`,
+      `ALTER TABLE chess_user_stats ADD COLUMN IF NOT EXISTS rapid_elo INTEGER NOT NULL DEFAULT 1200`,
+      `ALTER TABLE chess_user_stats ADD COLUMN IF NOT EXISTS classical_elo INTEGER NOT NULL DEFAULT 1200`,
+      `ALTER TABLE chess_user_stats ADD COLUMN IF NOT EXISTS blitz_games INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE chess_user_stats ADD COLUMN IF NOT EXISTS rapid_games INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE chess_user_stats ADD COLUMN IF NOT EXISTS classical_games INTEGER NOT NULL DEFAULT 0`,
+    ];
+    for (const q of chessStatsCols) {
+      try { await pgPool.query(q); } catch (_) {}
+    }
+
     await pgPool.query(`
       CREATE TABLE IF NOT EXISTS memories (
         id BIGSERIAL PRIMARY KEY,
@@ -924,6 +966,11 @@ try {
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS lastDailyLoginGoldAt BIGINT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS lastDiceRollAt BIGINT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS dice_sixes INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS dice_total_rolls INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS dice_total_won INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS dice_biggest_win INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS dice_win_streak INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS dice_current_streak INTEGER NOT NULL DEFAULT 0`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS luck DOUBLE PRECISION NOT NULL DEFAULT 0`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS roll_streak INTEGER NOT NULL DEFAULT 0`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_qual_msg_hash TEXT`,
@@ -3132,7 +3179,7 @@ async function chessGetLatestGameForContext(contextType, contextId) {
   return normalizeChessGameRow(row);
 }
 
-async function chessCreateGame(contextType, contextId, whiteId, blackId) {
+async function chessCreateGame(contextType, contextId, whiteId, blackId, timeControl = null) {
   const now = Date.now();
   const gameId = createChessId();
   const chess = createChessInstance();
@@ -3140,19 +3187,46 @@ async function chessCreateGame(contextType, contextId, whiteId, blackId) {
   const pgn = chess.pgn();
   const status = whiteId && blackId ? "active" : "pending";
   const turn = chess.turn();
+  
+  // Parse time control (format: "blitz:3+2" or "rapid:10+5" or "classical:30+0")
+  let tcType = null;
+  let tcLimit = null;
+  let tcIncrement = null;
+  let whiteTimeRemaining = null;
+  let blackTimeRemaining = null;
+  
+  if (timeControl && typeof timeControl === "string") {
+    const match = timeControl.match(/^(blitz|rapid|classical):(\d+)\+(\d+)$/);
+    if (match) {
+      tcType = match[1];
+      tcLimit = parseInt(match[2], 10) * 60 * 1000; // Convert minutes to milliseconds
+      tcIncrement = parseInt(match[3], 10) * 1000; // Convert seconds to milliseconds
+      whiteTimeRemaining = tcLimit;
+      blackTimeRemaining = tcLimit;
+    }
+  }
+  
   if (await chessPgEnabled()) {
     await pgPool.query(
       `INSERT INTO chess_games
-       (game_id, context_type, context_id, white_user_id, black_user_id, fen, pgn, status, turn, created_at, updated_at, last_move_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-      [gameId, contextType, contextId, whiteId || null, blackId || null, fen, pgn, status, turn, now, now, now]
+       (game_id, context_type, context_id, white_user_id, black_user_id, fen, pgn, status, turn, 
+        time_control, time_limit_seconds, time_increment_seconds, white_time_remaining, black_time_remaining,
+        created_at, updated_at, last_move_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+      [gameId, contextType, contextId, whiteId || null, blackId || null, fen, pgn, status, turn,
+       tcType, tcLimit ? tcLimit / 1000 : null, tcIncrement ? tcIncrement / 1000 : null, 
+       whiteTimeRemaining, blackTimeRemaining, now, now, now]
     );
   } else {
     await dbRunAsync(
       `INSERT INTO chess_games
-       (game_id, context_type, context_id, white_user_id, black_user_id, fen, pgn, status, turn, created_at, updated_at, last_move_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [gameId, contextType, contextId, whiteId || null, blackId || null, fen, pgn, status, turn, now, now, now]
+       (game_id, context_type, context_id, white_user_id, black_user_id, fen, pgn, status, turn,
+        time_control, time_limit_seconds, time_increment_seconds, white_time_remaining, black_time_remaining,
+        created_at, updated_at, last_move_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [gameId, contextType, contextId, whiteId || null, blackId || null, fen, pgn, status, turn,
+       tcType, tcLimit ? tcLimit / 1000 : null, tcIncrement ? tcIncrement / 1000 : null,
+       whiteTimeRemaining, blackTimeRemaining, now, now, now]
     );
   }
   return await chessGetGameById(gameId);
@@ -3176,6 +3250,9 @@ async function chessUpdateGame(gameId, updates = {}) {
     draw_offer_at: updates.draw_offer_at,
     white_elo_change: updates.white_elo_change,
     black_elo_change: updates.black_elo_change,
+    white_time_remaining: updates.white_time_remaining,
+    black_time_remaining: updates.black_time_remaining,
+    last_move_color: updates.last_move_color,
     updated_at: updates.updated_at ?? now,
     last_move_at: updates.last_move_at,
   };
@@ -9298,6 +9375,136 @@ async function fetchChessLeaderboard(limit = 50, offset = 0) {
 app.get("/api/leaderboard", requireLogin, async (_req, res) => sendLeaderboard(res));
 app.get("/api/leaderboards", requireLogin, async (_req, res) => sendLeaderboard(res));
 
+// Dice leaderboard - top players by biggest win, win streak, or total wins
+app.get("/api/dice/leaderboard", requireLogin, async (req, res) => {
+  try {
+    const sortBy = req.query?.sort || "biggest_win";
+    const limit = Math.min(Number(req.query?.limit || 50), 100);
+    const offset = Number(req.query?.offset || 0);
+    
+    // Whitelist of allowed sort columns to prevent SQL injection
+    const allowedSorts = {
+      biggest_win: "dice_biggest_win",
+      win_streak: "dice_win_streak",
+      total_won: "dice_total_won",
+    };
+    
+    // Default to biggest_win if invalid sort requested
+    const safeOrderColumn = allowedSorts[sortBy] || allowedSorts.biggest_win;
+    
+    let rows = [];
+    if (await pgUserExists(req.session.user.id)) {
+      // Build query with whitelisted column name
+      const pgQuery = `SELECT u.id as user_id, u.username, u.dice_biggest_win, u.dice_win_streak, 
+              u.dice_total_won, u.dice_total_rolls, u.dice_sixes
+       FROM users u
+       WHERE u.dice_total_rolls > 0
+       ORDER BY u.${safeOrderColumn} DESC, u.dice_total_rolls DESC
+       LIMIT $1 OFFSET $2`;
+      const result = await pgPool.query(pgQuery, [limit, offset]);
+      rows = result.rows;
+    } else {
+      // Build query with whitelisted column name
+      const sqliteQuery = `SELECT id as user_id, username, dice_biggest_win, dice_win_streak,
+              dice_total_won, dice_total_rolls, dice_sixes
+       FROM users
+       WHERE dice_total_rolls > 0
+       ORDER BY ${safeOrderColumn} DESC, dice_total_rolls DESC
+       LIMIT ? OFFSET ?`;
+      rows = await new Promise((resolve, reject) => {
+        db.all(sqliteQuery, [limit, offset], (err, r) => (err ? reject(err) : resolve(r || [])));
+      });
+    }
+    
+    const payload = rows.map((row) => ({
+      userId: Number(row.user_id),
+      username: row.username,
+      biggestWin: Number(row.dice_biggest_win || 0),
+      winStreak: Number(row.dice_win_streak || 0),
+      totalWon: Number(row.dice_total_won || 0),
+      totalRolls: Number(row.dice_total_rolls || 0),
+      sixes: Number(row.dice_sixes || 0),
+    }));
+    
+    return res.json({ rows: payload, sortBy, limit, offset });
+  } catch (err) {
+    console.warn("[dice] leaderboard failed:", err?.message || err);
+    return res.status(500).json({ ok: false });
+  }
+});
+
+// Dice history - recent rolls for a user
+app.get("/api/dice/history", requireLogin, async (req, res) => {
+  try {
+    const currentUserId = Number(req.session.user.id);
+    let userId = currentUserId;
+
+    if (req.query?.userId !== undefined) {
+      const requestedUserId = Number(req.query.userId);
+      const role = req.session.user.role;
+      const isStaff =
+        role === "admin" ||
+        role === "moderator" ||
+        role === "staff";
+
+      // If requesting a different user's history, enforce staff-only access.
+      if (requestedUserId !== currentUserId) {
+        if (!isStaff) {
+          return res.status(403).json({ ok: false, error: "Forbidden" });
+        }
+        userId = requestedUserId;
+      }
+    }
+
+    if (!Number.isFinite(userId) || userId <= 0) {
+      return res.status(400).json({ ok: false, error: "Invalid userId" });
+    }
+    const limit = Math.min(Number(req.query?.limit || 20), 100);
+    const offset = Number(req.query?.offset || 0);
+    
+    let rows = [];
+    if (await pgUserExists(userId)) {
+      const result = await pgPool.query(
+        `SELECT id, variant, result, breakdown_json, delta_gold, outcome, is_jackpot, rolled_at
+         FROM dice_rolls
+         WHERE user_id = $1
+         ORDER BY rolled_at DESC
+         LIMIT $2 OFFSET $3`,
+        [userId, limit, offset]
+      );
+      rows = result.rows;
+    } else {
+      rows = await new Promise((resolve, reject) => {
+        db.all(
+          `SELECT id, variant, result, breakdown_json, delta_gold, outcome, is_jackpot, rolled_at
+           FROM dice_rolls
+           WHERE user_id = ?
+           ORDER BY rolled_at DESC
+           LIMIT ? OFFSET ?`,
+          [userId, limit, offset],
+          (err, r) => (err ? reject(err) : resolve(r || []))
+        );
+      });
+    }
+    
+    const payload = rows.map((row) => ({
+      id: Number(row.id),
+      variant: row.variant,
+      result: Number(row.result),
+      breakdown: row.breakdown_json ? JSON.parse(row.breakdown_json) : null,
+      deltaGold: Number(row.delta_gold),
+      outcome: row.outcome,
+      isJackpot: !!row.is_jackpot,
+      rolledAt: Number(row.rolled_at),
+    }));
+    
+    return res.json({ rows: payload, limit, offset });
+  } catch (err) {
+    console.warn("[dice] history failed:", err?.message || err);
+    return res.status(500).json({ ok: false });
+  }
+});
+
 app.get("/api/chess/leaderboard", requireLogin, async (req, res) => {
   try {
     const rows = await fetchChessLeaderboard(req.query?.limit, req.query?.offset);
@@ -14863,6 +15070,9 @@ enforceVipGate(desired, (allowed) => {
             "luck",
             "roll_streak",
             "last_qual_msg_at",
+            "dice_current_streak",
+            "dice_win_streak",
+            "dice_biggest_win",
           ]);
           if (!row) {
             socket.emit("dice:error", "Could not roll dice right now.");
@@ -14903,15 +15113,36 @@ enforceVipGate(desired, (allowed) => {
           const didWinForLuck = isLuckWin(variant, roll.result, roll.breakdown);
           const finalLuck = clampLuck(applyWinCut(luckState.nextLuck, didWinForLuck));
 
+          // Update dice statistics
+          const isWin = deltaGold > 0;
+          const currentStreak = Number(row.dice_current_streak || 0);
+          const winStreak = Number(row.dice_win_streak || 0);
+          const biggestWin = Number(row.dice_biggest_win || 0);
+          const newStreak = isWin ? currentStreak + 1 : 0;
+          const newWinStreak = Math.max(winStreak, newStreak);
+          const newBiggestWin = Math.max(biggestWin, deltaGold);
+
           await pgPool.query(
             `UPDATE users
                SET gold = GREATEST(0, gold + $1),
                    lastDiceRollAt = $2,
                    dice_sixes = dice_sixes + $3,
                    luck = $4,
-                   roll_streak = $5
-             WHERE id = $6`,
-            [deltaGold, now, sixGain, finalLuck, luckState.nextStreak, uid]
+                   roll_streak = $5,
+                   dice_total_rolls = dice_total_rolls + 1,
+                   dice_total_won = dice_total_won + CASE WHEN $6 THEN 1 ELSE 0 END,
+                   dice_current_streak = $7,
+                   dice_win_streak = $8,
+                   dice_biggest_win = $9
+             WHERE id = $10`,
+            [deltaGold, now, sixGain, finalLuck, luckState.nextStreak, isWin, newStreak, newWinStreak, newBiggestWin, uid]
+          );
+
+          // Record dice roll history
+          await pgPool.query(
+            `INSERT INTO dice_rolls (user_id, variant, result, breakdown_json, delta_gold, outcome, is_jackpot, rolled_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [uid, variant, roll.result, JSON.stringify(roll.breakdown), deltaGold, reward.outcome, !!reward.isJackpot, now]
           );
 
           const payloadBase = {
@@ -14961,7 +15192,7 @@ enforceVipGate(desired, (allowed) => {
 
       // SQLite fallback (original behavior)
       db.get(
-        `SELECT gold, lastDiceRollAt, luck, roll_streak, last_qual_msg_at FROM users WHERE id=?`,
+        `SELECT gold, lastDiceRollAt, luck, roll_streak, last_qual_msg_at, dice_current_streak, dice_win_streak, dice_biggest_win FROM users WHERE id=?`,
         [uid],
         (err, row) => {
         if (err || !row) {
@@ -15003,20 +15234,41 @@ enforceVipGate(desired, (allowed) => {
         const didWinForLuck = isLuckWin(variant, roll.result, roll.breakdown);
         const finalLuck = clampLuck(applyWinCut(luckState.nextLuck, didWinForLuck));
 
+        // Update dice statistics
+        const isWin = deltaGold > 0;
+        const currentStreak = Number(row.dice_current_streak || 0);
+        const winStreak = Number(row.dice_win_streak || 0);
+        const biggestWin = Number(row.dice_biggest_win || 0);
+        const newStreak = isWin ? currentStreak + 1 : 0;
+        const newWinStreak = Math.max(winStreak, newStreak);
+        const newBiggestWin = Math.max(biggestWin, deltaGold);
+
         db.run(
           `UPDATE users
              SET gold = MAX(0, gold + ?),
                  lastDiceRollAt = ?,
                  dice_sixes = dice_sixes + ?,
                  luck = ?,
-                 roll_streak = ?
+                 roll_streak = ?,
+                 dice_total_rolls = dice_total_rolls + 1,
+                 dice_total_won = dice_total_won + CASE WHEN ? THEN 1 ELSE 0 END,
+                 dice_current_streak = ?,
+                 dice_win_streak = ?,
+                 dice_biggest_win = ?
            WHERE id = ?`,
-          [deltaGold, now, sixGain, finalLuck, luckState.nextStreak, uid],
+          [deltaGold, now, sixGain, finalLuck, luckState.nextStreak, isWin ? 1 : 0, newStreak, newWinStreak, newBiggestWin, uid],
           (uerr) => {
             if (uerr) {
               socket.emit("dice:error", "Could not apply dice result.");
               return;
             }
+
+            // Record dice roll history
+            db.run(
+              `INSERT INTO dice_rolls (user_id, variant, result, breakdown_json, delta_gold, outcome, is_jackpot, rolled_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              [uid, variant, roll.result, JSON.stringify(roll.breakdown), deltaGold, reward.outcome, reward.isJackpot ? 1 : 0, now]
+            );
 
             const payloadBase = {
               userId: uid,
@@ -15773,7 +16025,7 @@ if (!room) {
     }
   });
 
-  socket.on("chess:game:create", async ({ contextType, contextId } = {}, ack) => {
+  socket.on("chess:game:create", async ({ contextType, contextId, timeControl } = {}, ack) => {
     const respond = (payload) => {
       if (typeof ack === "function") ack(payload);
     };
@@ -15787,7 +16039,7 @@ if (!room) {
         await emitChessStateToSocket(socket, existing);
         return respond({ ok: true, gameId: existing.game_id });
       }
-      const game = await chessCreateGame("room", roomId);
+      const game = await chessCreateGame("room", roomId, null, null, timeControl);
       socket.join(`chess:${game.game_id}`);
       await emitChessStateToSocket(socket, game);
       respond({ ok: true, gameId: game.game_id });
@@ -15882,11 +16134,53 @@ if (!room) {
       if ((game.turn === "w" && !isWhite) || (game.turn === "b" && !isBlack)) {
         return respond({ ok: false, error: "Not your turn" });
       }
+      
+      // Store the color that is about to move BEFORE calling chess.move()
+      const colorMoving = game.turn; // This is the color making the move
+      
       const chess = createChessInstance(game.fen);
       const move = chess.move({ from, to, promotion: promotion || undefined });
       if (!move) return respond({ ok: false, error: "Illegal move" });
 
       const now = Date.now();
+      
+      // Handle time controls
+      let whiteTimeRemaining = game.white_time_remaining;
+      let blackTimeRemaining = game.black_time_remaining;
+      const timeControl = game.time_control;
+      const timeIncrement = game.time_increment_seconds ? game.time_increment_seconds * 1000 : 0;
+      
+      if (timeControl && game.last_move_at) {
+        const elapsed = now - game.last_move_at;
+        // Deduct time from the player who just moved (before chess.move() was called)
+        
+        if (colorMoving === "w" && whiteTimeRemaining != null) {
+          whiteTimeRemaining = whiteTimeRemaining - elapsed + timeIncrement;
+          if (whiteTimeRemaining <= 0) {
+            // White ran out of time, black wins
+            const finalResult = await chessFinalizeGame(game, {
+              result: "black",
+              status: "timeout",
+              reason: "White ran out of time"
+            });
+            await emitChessStateToGameRoom(finalResult.game);
+            return respond({ ok: true, timeout: true });
+          }
+        } else if (colorMoving === "b" && blackTimeRemaining != null) {
+          blackTimeRemaining = blackTimeRemaining - elapsed + timeIncrement;
+          if (blackTimeRemaining <= 0) {
+            // Black ran out of time, white wins
+            const finalResult = await chessFinalizeGame(game, {
+              result: "white",
+              status: "timeout",
+              reason: "Black ran out of time"
+            });
+            await emitChessStateToGameRoom(finalResult.game);
+            return respond({ ok: true, timeout: true });
+          }
+        }
+      }
+      
       const nextStatus = chess.isCheckmate() ? "mate" : (chess.isStalemate() || chess.isDraw() ? "draw" : "active");
       const result =
         chess.isCheckmate()
@@ -15898,6 +16192,9 @@ if (!room) {
         turn: chess.turn(),
         plies_count: Number(game.plies_count || 0) + 1,
         last_move_at: now,
+        last_move_color: colorMoving, // The color that just moved (before chess.move() was called)
+        white_time_remaining: whiteTimeRemaining,
+        black_time_remaining: blackTimeRemaining,
         updated_at: now,
         draw_offer_by_user_id: null,
         draw_offer_at: null,
