@@ -1,6 +1,6 @@
 const assert = require("assert");
 const sqlite3 = require("sqlite3").verbose();
-const { rollDiceVariant, computeDiceReward } = require("../dice-utils");
+const { computeDiceReward } = require("../dice-utils");
 
 async function run() {
   const db = new sqlite3.Database(":memory:");
