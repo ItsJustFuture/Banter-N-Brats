@@ -231,6 +231,8 @@ const {
   normalizeLuckMessage,
 } = require("./luck-utils");
 const { SURVIVAL_EVENT_TEMPLATES, SURVIVAL_ITEM_POOL } = require("./survival-events");
+const statePersistence = require("./state-persistence");
+const validators = require("./validators");
 
 // ---- Safety nets (prevents silent crashes in prod) ----
 process.on("unhandledRejection", (err) => {
@@ -16025,17 +16027,34 @@ if (!room) {
     msgRate.set(socket.id, r);
     if (r.count > 10) return;
 
+    // Validate message payload
+    const validation = validators.validate(validators.ChatMessageSchema, {
+      room: room,
+      text: payload.text,
+      replyToId: payload.replyToId ?? undefined
+    });
+    if (!validation.success) {
+      if (IS_DEV_MODE) {
+        console.warn('[socket] Invalid chat message:', validation.error);
+      }
+      socket.emit('system', buildSystemPayload(room, 'Invalid message format: ' + validation.error));
+      return;
+    }
+
+    // Sanitize the text
+    const sanitizedText = validators.sanitizeText(validation.data.text);
+
     isPunished(socket.user.id, "ban", (banned) => {
       if (banned) return;
       isPunished(socket.user.id, "mute", (muted) => {
         if (muted) return;
 
-        const rawText = safeString(payload.text, "");
-        if (rawText.length > MAX_CHAT_MESSAGE_CHARS) {
+        const cleanText = sanitizedText;
+        if (cleanText.length > MAX_CHAT_MESSAGE_CHARS) {
       socket.emit("system", buildSystemPayload(socket.currentRoom || "main", "Message too long (max " + MAX_CHAT_MESSAGE_CHARS + " characters)."));
           return;
         }
-        const text = rawText.slice(0, MAX_CHAT_MESSAGE_CHARS);
+        const text = cleanText.slice(0, MAX_CHAT_MESSAGE_CHARS);
         if (text.trim().startsWith("/")) {
           executeCommand(socket, text, room);
           return;
@@ -17131,6 +17150,15 @@ async function startServer() {
     if (IS_PROD) {
       process.exit(1);
     }
+  }
+
+  // Initialize state persistence
+  try {
+    statePersistence.initStateManagement(dbRunAsync, dbAllAsync, pgPool);
+    await statePersistence.createStateTables();
+    console.log('✓ State persistence tables created');
+  } catch (e) {
+    console.warn("[startup] state persistence init failed", e?.message || e);
   }
 
   try {

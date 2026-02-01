@@ -32,41 +32,63 @@ function all(sql, params = []) {
 }
 
 async function columnExists(table, column) {
-  const rows = await all(`PRAGMA table_info(${table})`);
-  return rows.some((r) => r.name === column);
+  try {
+    const rows = await all(`PRAGMA table_info(${table})`);
+    return rows.some((r) => r.name === column);
+  } catch (err) {
+    console.error(`[database] columnExists error for ${table}.${column}:`, err.message);
+    return false;
+  }
 }
 
 async function addColumnIfMissing(table, column, definition) {
-  const exists = await columnExists(table, column);
-  if (exists) return false;
-  await run(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
-  return true;
+  try {
+    const exists = await columnExists(table, column);
+    if (exists) return false;
+    await run(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
+    return true;
+  } catch (err) {
+    console.error(`[database] addColumnIfMissing error for ${table}.${column}:`, err.message);
+    return false;
+  }
 }
 
 async function ensureColumns(table, cols) {
   for (const [colName, ddl] of cols) {
-    await addColumnIfMissing(table, colName, ddl);
+    try {
+      await addColumnIfMissing(table, colName, ddl);
+    } catch (err) {
+      console.error(`[database] ensureColumns error for ${table}.${colName}:`, err.message);
+    }
   }
 }
 
 async function migrateLegacyPasswords() {
-  const rows = await all("PRAGMA table_info(users)");
-  const hasPasswordHash = rows.some((r) => r.name === "password_hash");
-  const hasLegacyPassword = rows.some((r) => r.name === "password");
-  if (!hasPasswordHash || !hasLegacyPassword) return;
+  try {
+    const rows = await all("PRAGMA table_info(users)");
+    const hasPasswordHash = rows.some((r) => r.name === "password_hash");
+    const hasLegacyPassword = rows.some((r) => r.name === "password");
+    if (!hasPasswordHash || !hasLegacyPassword) return;
 
-  const legacyRows = await all(
-    `SELECT id, password, password_hash FROM users
-       WHERE (password_hash IS NULL OR password_hash = '') AND password IS NOT NULL`
-  );
+    const legacyRows = await all(
+      `SELECT id, password, password_hash FROM users
+         WHERE (password_hash IS NULL OR password_hash = '') AND password IS NOT NULL`
+    );
 
-  if (!legacyRows?.length) return;
+    if (!legacyRows?.length) return;
 
-  for (const row of legacyRows) {
-    const legacy = String(row.password || "");
-    if (!legacy) continue;
-    const hash = legacy.startsWith("$2") ? legacy : await bcrypt.hash(legacy, 10);
-    await run("UPDATE users SET password_hash = ?, password = NULL WHERE id = ?", [hash, row.id]);
+    for (const row of legacyRows) {
+      try {
+        const legacy = String(row.password || "");
+        if (!legacy) continue;
+        const hash = legacy.startsWith("$2") ? legacy : await bcrypt.hash(legacy, 10);
+        await run("UPDATE users SET password_hash = ?, password = NULL WHERE id = ?", [hash, row.id]);
+      } catch (err) {
+        console.error(`[database] migrateLegacyPasswords error for user ${row.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[database] migrateLegacyPasswords error:', err.message);
   }
 }
 

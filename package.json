@@ -14,6 +14,9 @@
     "test:chess": "node scripts/chess-elo-smoke.js",
     "test:smoke": "LOCAL_DEV=1 node scripts/smoke-test.js",
     "test:memory": "node scripts/memory-sanity.js",
+    "test:state": "node scripts/test-state-persistence.js",
+    "test:validators": "node scripts/test-validators.js",
+    "test:tier2": "node scripts/test-tier2-integration.js",
     "check": "node --check server.js && node --check public/app.js && node --check public/theme-init.js && node --check database.js",
     "audit": "npm audit --audit-level=high",
     "fund": "npm fund",
@@ -34,7 +37,8 @@
     "multer": "^2.0.2",
     "pg": "^8.16.3",
     "socket.io": "^4.8.3",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "supertest": "^7.2.2"
