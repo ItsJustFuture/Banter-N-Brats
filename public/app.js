@@ -844,10 +844,17 @@ let socket = null;
 let serverReady = false;
 
 // Promise-based gates to prevent race conditions
+// Factory function to create a new promise for each connection cycle
 let socketReadyResolve;
-const socketReadyPromise = new Promise(resolve => {
+let socketReadyPromise = new Promise(resolve => {
   socketReadyResolve = resolve;
 });
+
+function resetSocketReadyPromise() {
+  socketReadyPromise = new Promise(resolve => {
+    socketReadyResolve = resolve;
+  });
+}
 
 // Message queues for reliability
 const outgoingMessageQueue = [];
@@ -19158,6 +19165,10 @@ initAppealsDurationSelect();
       console.warn('[app.js] Cannot emit', event, '- socket not connected');
       return false;
     }
+    if (!serverReady) {
+      console.warn('[app.js] Cannot emit', event, '- server not ready');
+      return false;
+    }
     if (typeof ack === 'function') {
       window.socket.emit(event, data, ack);
     } else {
@@ -19218,16 +19229,18 @@ initAppealsDurationSelect();
 
   socket.on("connect", () => {
     console.log('[app.js] Socket connected');
+    // Reset the promise for this new connection
+    resetSocketReadyPromise();
     if (socketReadyResolve) {
       socketReadyResolve();
     }
-    try{
+    try {
       socket.emit("client:hello", {
         tz: (Intl.DateTimeFormat && Intl.DateTimeFormat().resolvedOptions().timeZone) || null,
         locale: navigator.language || null,
         platform: navigator.platform || null,
       });
-    }catch(_){}
+    } catch(_) {}
 
     // Join initial room so history + realtime messages work reliably
     joinRoom(currentRoom);
@@ -19240,8 +19253,8 @@ initAppealsDurationSelect();
   socket.on('reconnect', (attemptNumber) => {
     console.log('[app.js] Socket reconnected after', attemptNumber, 'attempts');
     serverReady = false; // Reset until new server-ready signal
-    processOutgoingQueue(); // Process any queued messages
-    // Hide any connection error UI if present
+    // Note: processOutgoingQueue() will be called by server-ready handler
+    // to ensure server listeners are attached before sending queued messages
   });
 
   socket.on('server-ready', (data) => {
@@ -19249,6 +19262,8 @@ initAppealsDurationSelect();
       socketId: data?.socketId || socket.id 
     });
     serverReady = true;
+    // Process queued messages now that server is ready
+    processOutgoingQueue();
   });
 
   socket.on("restriction:status", async (payload) => {
