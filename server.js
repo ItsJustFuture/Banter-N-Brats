@@ -242,6 +242,9 @@ process.on("uncaughtException", (err) => {
   console.error("[uncaughtException]", err);
 });
 const { Server } = require("socket.io");
+const { createAdapter } = require("@socket.io/redis-adapter");
+const { createClient } = require("redis");
+
 const { db, migrationsReady, seedDevUser, DB_FILE } = require("./database");
 const { VIBE_TAGS, VIBE_TAG_LIMIT } = require("./vibe-tags");
 
@@ -315,6 +318,36 @@ for (const dir of [UPLOADS_DIR, AVATARS_DIR]) {
     pingTimeout: 300_000,  // wait 5 minutes for pong before disconnect (mobile suspend)
     upgradeTimeout: 45_000,
   });
+
+  // Redis adapter for horizontal scaling (optional - graceful fallback)
+  const REDIS_URL = process.env.REDIS_URL || process.env.REDIS_PRIVATE_URL;
+  if (REDIS_URL) {
+    console.log("[Redis] Attempting to connect Redis adapter for Socket.IO scaling...");
+    
+    const pubClient = createClient({ url: REDIS_URL });
+    const subClient = pubClient.duplicate();
+    
+    Promise.all([pubClient.connect(), subClient.connect()])
+      .then(() => {
+        io.adapter(createAdapter(pubClient, subClient));
+        console.log("[Redis] ✓ Socket.IO Redis adapter connected successfully");
+      })
+      .catch((err) => {
+        console.error("[Redis] ✗ Failed to connect Redis adapter:", err.message);
+        console.warn("[Redis] Continuing with default in-memory adapter");
+      });
+    
+    // Handle Redis errors gracefully
+    pubClient.on('error', (err) => {
+      console.error('[Redis] Pub client error:', err.message);
+    });
+    
+    subClient.on('error', (err) => {
+      console.error('[Redis] Sub client error:', err.message);
+    });
+  } else {
+    console.log("[Redis] No REDIS_URL configured - using default in-memory adapter");
+  }
 
   const DEBUG_ROOMS = String(process.env.DEBUG_ROOMS || "").toLowerCase() === "true";
 
