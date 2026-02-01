@@ -3179,7 +3179,7 @@ async function chessGetLatestGameForContext(contextType, contextId) {
   return normalizeChessGameRow(row);
 }
 
-async function chessCreateGame(contextType, contextId, whiteId, blackId) {
+async function chessCreateGame(contextType, contextId, whiteId, blackId, timeControl = null) {
   const now = Date.now();
   const gameId = createChessId();
   const chess = createChessInstance();
@@ -3187,19 +3187,46 @@ async function chessCreateGame(contextType, contextId, whiteId, blackId) {
   const pgn = chess.pgn();
   const status = whiteId && blackId ? "active" : "pending";
   const turn = chess.turn();
+  
+  // Parse time control (format: "blitz:3+2" or "rapid:10+5" or "classical:30+0")
+  let tcType = null;
+  let tcLimit = null;
+  let tcIncrement = null;
+  let whiteTimeRemaining = null;
+  let blackTimeRemaining = null;
+  
+  if (timeControl && typeof timeControl === "string") {
+    const match = timeControl.match(/^(blitz|rapid|classical):(\d+)\+(\d+)$/);
+    if (match) {
+      tcType = match[1];
+      tcLimit = parseInt(match[2], 10) * 60 * 1000; // Convert minutes to milliseconds
+      tcIncrement = parseInt(match[3], 10) * 1000; // Convert seconds to milliseconds
+      whiteTimeRemaining = tcLimit;
+      blackTimeRemaining = tcLimit;
+    }
+  }
+  
   if (await chessPgEnabled()) {
     await pgPool.query(
       `INSERT INTO chess_games
-       (game_id, context_type, context_id, white_user_id, black_user_id, fen, pgn, status, turn, created_at, updated_at, last_move_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-      [gameId, contextType, contextId, whiteId || null, blackId || null, fen, pgn, status, turn, now, now, now]
+       (game_id, context_type, context_id, white_user_id, black_user_id, fen, pgn, status, turn, 
+        time_control, time_limit_seconds, time_increment_seconds, white_time_remaining, black_time_remaining,
+        created_at, updated_at, last_move_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+      [gameId, contextType, contextId, whiteId || null, blackId || null, fen, pgn, status, turn,
+       tcType, tcLimit ? tcLimit / 1000 : null, tcIncrement ? tcIncrement / 1000 : null, 
+       whiteTimeRemaining, blackTimeRemaining, now, now, now]
     );
   } else {
     await dbRunAsync(
       `INSERT INTO chess_games
-       (game_id, context_type, context_id, white_user_id, black_user_id, fen, pgn, status, turn, created_at, updated_at, last_move_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [gameId, contextType, contextId, whiteId || null, blackId || null, fen, pgn, status, turn, now, now, now]
+       (game_id, context_type, context_id, white_user_id, black_user_id, fen, pgn, status, turn,
+        time_control, time_limit_seconds, time_increment_seconds, white_time_remaining, black_time_remaining,
+        created_at, updated_at, last_move_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [gameId, contextType, contextId, whiteId || null, blackId || null, fen, pgn, status, turn,
+       tcType, tcLimit ? tcLimit / 1000 : null, tcIncrement ? tcIncrement / 1000 : null,
+       whiteTimeRemaining, blackTimeRemaining, now, now, now]
     );
   }
   return await chessGetGameById(gameId);
@@ -3223,6 +3250,9 @@ async function chessUpdateGame(gameId, updates = {}) {
     draw_offer_at: updates.draw_offer_at,
     white_elo_change: updates.white_elo_change,
     black_elo_change: updates.black_elo_change,
+    white_time_remaining: updates.white_time_remaining,
+    black_time_remaining: updates.black_time_remaining,
+    last_move_color: updates.last_move_color,
     updated_at: updates.updated_at ?? now,
     last_move_at: updates.last_move_at,
   };
@@ -15970,7 +16000,7 @@ if (!room) {
     }
   });
 
-  socket.on("chess:game:create", async ({ contextType, contextId } = {}, ack) => {
+  socket.on("chess:game:create", async ({ contextType, contextId, timeControl } = {}, ack) => {
     const respond = (payload) => {
       if (typeof ack === "function") ack(payload);
     };
@@ -15984,7 +16014,7 @@ if (!room) {
         await emitChessStateToSocket(socket, existing);
         return respond({ ok: true, gameId: existing.game_id });
       }
-      const game = await chessCreateGame("room", roomId);
+      const game = await chessCreateGame("room", roomId, null, null, timeControl);
       socket.join(`chess:${game.game_id}`);
       await emitChessStateToSocket(socket, game);
       respond({ ok: true, gameId: game.game_id });
@@ -16084,6 +16114,44 @@ if (!room) {
       if (!move) return respond({ ok: false, error: "Illegal move" });
 
       const now = Date.now();
+      
+      // Handle time controls
+      let whiteTimeRemaining = game.white_time_remaining;
+      let blackTimeRemaining = game.black_time_remaining;
+      const timeControl = game.time_control;
+      const timeIncrement = game.time_increment_seconds ? game.time_increment_seconds * 1000 : 0;
+      
+      if (timeControl && game.last_move_at) {
+        const elapsed = now - game.last_move_at;
+        const movingColor = game.turn; // Color that just moved
+        
+        if (movingColor === "w" && whiteTimeRemaining != null) {
+          whiteTimeRemaining = whiteTimeRemaining - elapsed + timeIncrement;
+          if (whiteTimeRemaining <= 0) {
+            // White ran out of time, black wins
+            const finalResult = await chessFinalizeGame(game, {
+              result: "black",
+              status: "timeout",
+              reason: "White ran out of time"
+            });
+            await emitChessStateToGameRoom(finalResult.game);
+            return respond({ ok: true, timeout: true });
+          }
+        } else if (movingColor === "b" && blackTimeRemaining != null) {
+          blackTimeRemaining = blackTimeRemaining - elapsed + timeIncrement;
+          if (blackTimeRemaining <= 0) {
+            // Black ran out of time, white wins
+            const finalResult = await chessFinalizeGame(game, {
+              result: "white",
+              status: "timeout",
+              reason: "Black ran out of time"
+            });
+            await emitChessStateToGameRoom(finalResult.game);
+            return respond({ ok: true, timeout: true });
+          }
+        }
+      }
+      
       const nextStatus = chess.isCheckmate() ? "mate" : (chess.isStalemate() || chess.isDraw() ? "draw" : "active");
       const result =
         chess.isCheckmate()
@@ -16095,6 +16163,9 @@ if (!room) {
         turn: chess.turn(),
         plies_count: Number(game.plies_count || 0) + 1,
         last_move_at: now,
+        last_move_color: game.turn, // The color that just moved
+        white_time_remaining: whiteTimeRemaining,
+        black_time_remaining: blackTimeRemaining,
         updated_at: now,
         draw_offer_by_user_id: null,
         draw_offer_at: null,

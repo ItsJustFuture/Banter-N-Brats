@@ -10,6 +10,8 @@
     "dev:seed": "LOCAL_DEV=1 node scripts/dev-seed.js",
     "test": "echo \"No tests yet\" && exit 0",
     "test:dice": "node scripts/dice-variant-smoke.js",
+    "test:dice-stats": "node scripts/test-dice-stats.js",
+    "test:survival": "node scripts/test-survival-events.js",
     "test:couples": "node scripts/couples-regression.js",
     "test:chess": "node scripts/chess-elo-smoke.js",
     "test:smoke": "LOCAL_DEV=1 node scripts/smoke-test.js",
