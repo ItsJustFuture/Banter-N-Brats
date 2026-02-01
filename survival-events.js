@@ -285,6 +285,51 @@ const soloWeird = [
   "{A} stares into the fog until the fog stares back.",
 ];
 
+// Environmental hazards
+const soloEnvironmental = [
+  "{A} gets caught in a sudden rainstorm and seeks shelter.",
+  "{A} navigates through thick fog, barely seeing five feet ahead.",
+  "{A} endures scorching heat and finds shade under a rocky outcrop.",
+  "{A} shivers in the cold night air and builds a small fire.",
+  "{A} hears distant thunder and decides to move to higher ground.",
+  "{A} spots a dust storm approaching and covers their face.",
+];
+
+// Power-ups and special discoveries
+const soloPowerUp = [
+  "{A} finds a {ITEM} that seems unusually powerful.",
+  "{A} discovers a hidden cache with premium {ITEM}.",
+  "{A} stumbles upon an abandoned camp and claims {ITEM}.",
+  "{A} finds {ITEM} with a note: 'You'll need this'.",
+  "{A} unearths {ITEM} from a buried stash.",
+];
+
+// More couple interactions
+const coupleTeamwork = [
+  "{A} and {B} coordinate a pincer move and secure supplies.",
+  "{A} signals {B} with their secret code. They regroup safely.",
+  "{A} and {B} split tasks: one scouts, one guards.",
+  "{A} covers {B} while they heal up.",
+  "{A} and {B} share a moment of calm before the next phase.",
+  "{A} reminds {B} of their promise to make it through together.",
+];
+
+// Final showdown mechanics (2-3 players)
+const duoShowdown = [
+  "{A} and {B} circle each other, knowing only one can win.",
+  "{A} and {B} face off in a tense standoff. Someone must make the first move.",
+  "{A} and {B} exchange nods of respect before the final clash.",
+  "{A} and {B} realize this is it — the moment of truth.",
+];
+
+// Alliance betrayals with more drama
+const duoAllianceBreak = [
+  "{A} waits for {B} to let their guard down, then strikes.",
+  "{A} whispers an apology before turning on {B}.",
+  "{A} realizes {B} was always a threat. Time to act.",
+  "{A} sees an opportunity and breaks the alliance with {B}.",
+];
+
 function makeTemplates(list, build) {
   return list.map((entry, idx) => build(entry, idx));
 }
@@ -472,6 +517,49 @@ const SURVIVAL_EVENT_TEMPLATES = [
     text,
     requiresCouple: true,
     outcome: { type: "protect", protector: "A", protected: "B" },
+  })),
+  ...makeTemplates(soloEnvironmental, (text, idx) => ({
+    id: `solo_env_${idx + 1}`,
+    participants: 1,
+    weight: 2,
+    type: "injure",
+    text,
+    outcome: { type: "injure", target: "A", amount: [5, 15] },
+  })),
+  ...makeTemplates(soloPowerUp, (text, idx) => ({
+    id: `solo_powerup_${idx + 1}`,
+    participants: 1,
+    weight: 1,
+    type: "loot",
+    lootTag: (["weapon","medkit","trap"][idx % 3] || "weapon"),
+    text,
+    outcome: { type: "loot", target: "A" },
+  })),
+  ...makeTemplates(coupleTeamwork, (text, idx) => ({
+    id: `couple_team_${idx + 1}`,
+    participants: 2,
+    weight: 2,
+    type: "couple",
+    text,
+    requiresCouple: true,
+    outcome: { type: "heal", target: "A", amount: [8, 16], splashTarget: "B", splashAmount: [8, 16] },
+  })),
+  ...makeTemplates(duoShowdown, (text, idx) => ({
+    id: `duo_showdown_${idx + 1}`,
+    participants: 2,
+    weight: 1,
+    type: "neutral",
+    text,
+    outcome: { type: "nothing" },
+  })),
+  ...makeTemplates(duoAllianceBreak, (text, idx) => ({
+    id: `duo_break_${idx + 1}`,
+    participants: 2,
+    weight: 1,
+    type: "betray",
+    text: text + " ☠️",
+    requiresAlliance: true,
+    outcome: { type: "betray", killer: "A", victim: "B" },
   })),
 ];
 

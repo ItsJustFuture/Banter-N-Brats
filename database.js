@@ -345,6 +345,11 @@ async function runSqliteMigrations() {
     ["lastDailyLoginGoldAt", "lastDailyLoginGoldAt INTEGER"],
     ["lastDiceRollAt", "lastDiceRollAt INTEGER"],
     ["dice_sixes", "dice_sixes INTEGER NOT NULL DEFAULT 0"],
+    ["dice_total_rolls", "dice_total_rolls INTEGER NOT NULL DEFAULT 0"],
+    ["dice_total_won", "dice_total_won INTEGER NOT NULL DEFAULT 0"],
+    ["dice_biggest_win", "dice_biggest_win INTEGER NOT NULL DEFAULT 0"],
+    ["dice_win_streak", "dice_win_streak INTEGER NOT NULL DEFAULT 0"],
+    ["dice_current_streak", "dice_current_streak INTEGER NOT NULL DEFAULT 0"],
     ["luck", "luck REAL NOT NULL DEFAULT 0"],
     ["roll_streak", "roll_streak INTEGER NOT NULL DEFAULT 0"],
     ["last_qual_msg_hash", "last_qual_msg_hash TEXT"],
@@ -750,6 +755,43 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
   await run(`CREATE INDEX IF NOT EXISTS idx_chess_challenges_thread ON chess_challenges(dm_thread_id)`);
   await run(`CREATE INDEX IF NOT EXISTS idx_chess_challenges_status ON chess_challenges(status)`);
 
+  // Dice roll history table
+  await run(`
+    CREATE TABLE IF NOT EXISTS dice_rolls (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      variant TEXT NOT NULL,
+      result INTEGER NOT NULL,
+      breakdown_json TEXT,
+      delta_gold INTEGER NOT NULL,
+      outcome TEXT NOT NULL,
+      is_jackpot INTEGER NOT NULL DEFAULT 0,
+      rolled_at INTEGER NOT NULL
+    )
+  `);
+  await run(`CREATE INDEX IF NOT EXISTS idx_dice_rolls_user ON dice_rolls(user_id, rolled_at DESC)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_dice_rolls_jackpot ON dice_rolls(is_jackpot, rolled_at DESC)`);
+
+  // Add chess time control columns
+  const chessGameColumns = [
+    ["time_control", "time_control TEXT"],
+    ["time_limit_seconds", "time_limit_seconds INTEGER"],
+    ["time_increment_seconds", "time_increment_seconds INTEGER"],
+    ["white_time_remaining", "white_time_remaining INTEGER"],
+    ["black_time_remaining", "black_time_remaining INTEGER"],
+    ["last_move_color", "last_move_color TEXT"],
+  ];
+  await ensureColumns("chess_games", chessGameColumns);
+
+  const chessStatsColumns = [
+    ["blitz_elo", "blitz_elo INTEGER NOT NULL DEFAULT 1200"],
+    ["rapid_elo", "rapid_elo INTEGER NOT NULL DEFAULT 1200"],
+    ["classical_elo", "classical_elo INTEGER NOT NULL DEFAULT 1200"],
+    ["blitz_games", "blitz_games INTEGER NOT NULL DEFAULT 0"],
+    ["rapid_games", "rapid_games INTEGER NOT NULL DEFAULT 0"],
+    ["classical_games", "classical_games INTEGER NOT NULL DEFAULT 0"],
+  ];
+  await ensureColumns("chess_user_stats", chessStatsColumns);
 
   // --- Role presets + user permission overrides (for Role Debug panel)
   await run(`
