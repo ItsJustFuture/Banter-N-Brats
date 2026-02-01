@@ -842,6 +842,19 @@ const Sound = (() => {
 
 let socket = null;
 let serverReady = false;
+
+// Promise-based gates to prevent race conditions
+let socketReadyResolve;
+const socketReadyPromise = new Promise(resolve => {
+  socketReadyResolve = resolve;
+});
+
+// Message queues for reliability
+const outgoingMessageQueue = [];
+const incomingMessageBuffer = [];
+let listenersAttached = false;
+let isInitialized = false;
+
 let me = null;
 let progression = { gold: 0, xp: 0, level: 1, xpIntoLevel: 0, xpForNextLevel: 100 };
 let activeProfileTab = "profile";
@@ -15131,7 +15144,6 @@ dmText?.addEventListener("input", () => {
 });
 
 async function sendMessage(){
-  if(!socket) return;
   const text = msgInput.value || "";
   const file = pendingFile;
   const attachmentReady = roomPendingAttachment;
@@ -15145,7 +15157,7 @@ async function sendMessage(){
       attachment = await uploadChatFileWithProgress(file);
     }
 
-    socket.emit("chat message", {
+    const messagePayload = {
       text,
       replyToId: replyTarget?.id || null,
       attachmentUrl: attachment?.url || "",
@@ -15153,7 +15165,36 @@ async function sendMessage(){
       attachmentMime: attachment?.mime || "",
       attachmentSize: attachment?.size || 0,
       tone: activeTone || ""
-    });
+    };
+
+    if (!socket || !socket.connected) {
+      console.warn('[chat.js] ⚠️ Socket not connected - queuing message for later delivery');
+      outgoingMessageQueue.push(messagePayload);
+      
+      // Show user feedback
+      const messagesDiv = document.getElementById('messages');
+      if (messagesDiv) {
+        const pendingDiv = document.createElement('div');
+        pendingDiv.className = 'system-message';
+        pendingDiv.textContent = '⏳ Message queued (connecting...)';
+        messagesDiv.appendChild(pendingDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+      
+      // Clear input
+      msgInput.value="";
+      fileInput.value="";
+      clearUploadPreview();
+      roomPendingAttachment = null;
+      roomUploadToken = null;
+      setRoomUploadingState(false);
+      setReplyTarget(null);
+      activeTone = "";
+      updateToneMenu(tonePicker, activeTone);
+      return;
+    }
+
+    socket.emit("chat message", messagePayload);
 
     if (Sound.shouldSent()) Sound.cues.sent();
 
@@ -19125,6 +19166,38 @@ initAppealsDurationSelect();
     return true;
   };
 
+  window.waitForSocketReady = function() {
+    return socketReadyPromise;
+  };
+
+  // Message queue processing functions
+  function flushIncomingMessageBuffer() {
+    if (incomingMessageBuffer.length > 0) {
+      console.log(`[chat.js] ⚠️ Flushing ${incomingMessageBuffer.length} buffered messages...`);
+      incomingMessageBuffer.forEach(msg => {
+        if (msg.type === 'chat') {
+          safeAddMessage(msg.data);
+        } else if (msg.type === 'system') {
+          addSystem(msg.data);
+        }
+      });
+      incomingMessageBuffer.length = 0;
+      console.log('[chat.js] ✓ Message buffer flushed');
+    }
+  }
+
+  function processOutgoingQueue() {
+    if (!socket || !socket.connected) return;
+    if (outgoingMessageQueue.length > 0) {
+      console.log(`[chat.js] ⚠️ Processing ${outgoingMessageQueue.length} queued outgoing messages...`);
+      outgoingMessageQueue.forEach(msg => {
+        socket.emit('chat message', msg);
+      });
+      outgoingMessageQueue.length = 0;
+      console.log('[chat.js] ✓ Outgoing message queue processed');
+    }
+  }
+
   // ---- Mobile suspend/resume: treat common disconnect reasons as benign ----
   let suppressRealtimeNoticesUntil = 0;
 
@@ -19145,6 +19218,9 @@ initAppealsDurationSelect();
 
   socket.on("connect", () => {
     console.log('[app.js] Socket connected');
+    if (socketReadyResolve) {
+      socketReadyResolve();
+    }
     try{
       socket.emit("client:hello", {
         tz: (Intl.DateTimeFormat && Intl.DateTimeFormat().resolvedOptions().timeZone) || null,
@@ -19164,6 +19240,7 @@ initAppealsDurationSelect();
   socket.on('reconnect', (attemptNumber) => {
     console.log('[app.js] Socket reconnected after', attemptNumber, 'attempts');
     serverReady = false; // Reset until new server-ready signal
+    processOutgoingQueue(); // Process any queued messages
     // Hide any connection error UI if present
   });
 
@@ -19822,6 +19899,12 @@ socket.on("mod:case_event", (payload = {}) => {
     const mr = String(m?.room || "");
     if (mr && mr !== cur && mr !== legacyCur) return;
 
+    if (!isInitialized) {
+      console.warn('[chat.js] ⚠️ Message received before UI initialized, buffering...');
+      incomingMessageBuffer.push({ type: 'chat', data: m });
+      return;
+    }
+
     m.__fresh = true;
     safeAddMessage(m);
     applySearch();
@@ -20078,6 +20161,10 @@ socket.on("dm history", (payload = {}) => {
     logProfileModal("initChatApp cleanup: modal visible without target");
     hardHideProfileModal();
   }
+
+  // Mark chat as initialized and flush any buffered messages
+  isInitialized = true;
+  flushIncomingMessageBuffer();
 
 }
 
