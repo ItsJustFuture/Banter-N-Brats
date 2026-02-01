@@ -15174,8 +15174,8 @@ async function sendMessage(){
       tone: activeTone || ""
     };
 
-    if (!socket || !socket.connected) {
-      console.warn('[app.js] ⚠️ Socket not connected - queuing message for later delivery');
+    if (!socket || !socket.connected || !serverReady) {
+      console.warn('[app.js] ⚠️ Socket not ready - queuing message for later delivery');
       outgoingMessageQueue.push(messagePayload);
       
       // Show user feedback
@@ -19229,7 +19229,8 @@ initAppealsDurationSelect();
 
   socket.on("connect", () => {
     console.log('[app.js] Socket connected');
-    // Reset the promise for this new connection
+    // Reset state for new connection
+    serverReady = false;
     resetSocketReadyPromise();
     try {
       socket.emit("client:hello", {
@@ -19247,13 +19248,6 @@ initAppealsDurationSelect();
     }
   });
 
-  socket.on('reconnect', (attemptNumber) => {
-    console.log('[app.js] Socket reconnected after', attemptNumber, 'attempts');
-    serverReady = false; // Reset until new server-ready signal
-    // Note: processOutgoingQueue() will be called by server-ready handler
-    // to ensure server listeners are attached before sending queued messages
-  });
-
   socket.on('server-ready', (data) => {
     console.log('[app.js] Server ready signal received', { 
       socketId: data?.socketId || socket.id 
@@ -19262,6 +19256,7 @@ initAppealsDurationSelect();
     // Resolve the promise so code waiting for socket ready can proceed
     if (socketReadyResolve) {
       socketReadyResolve();
+      socketReadyResolve = null; // Prevent multiple calls
     }
     // Process queued messages now that server is ready
     processOutgoingQueue();
