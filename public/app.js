@@ -38,6 +38,11 @@ const PREFERS_REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-
 const IS_DEV = ["localhost", "127.0.0.1"].includes(window.location.hostname);
 const DELETE_ANIM_MS = PREFERS_REDUCED_MOTION ? 1 : 200;
 
+// Couples flair default gradient colors
+const COUPLE_DEFAULT_GRADIENT_START = "#ff6a2b";
+const COUPLE_DEFAULT_GRADIENT_END = "#2b0f08";
+
+
 function safeJsonParse(raw, fallback) {
   try {
     if (raw === null || raw === undefined || raw === "") return fallback;
@@ -16989,8 +16994,8 @@ function renderCouplesFlair(p) {
   couplesFlair.style.display = "flex";
   
   // Apply gradient from couple card settings
-  const gradientStart = card?.gradientStart || "#ff6a2b";
-  const gradientEnd = card?.gradientEnd || "#2b0f08";
+  const gradientStart = card?.gradientStart || COUPLE_DEFAULT_GRADIENT_START;
+  const gradientEnd = card?.gradientEnd || COUPLE_DEFAULT_GRADIENT_END;
   const gradient = `linear-gradient(90deg, ${gradientStart}, ${gradientEnd})`;
   
   if (couplesFlairConnector) {
@@ -20781,8 +20786,8 @@ async function refreshCouplesUI(){
     if (couplesBonusesToggle) couplesBonusesToggle.checked = !!c.bonuses_enabled;
     
     // Load gradient colors
-    const gradStart = c.gradient_start || c.gradientStart || "#ff6a2b";
-    const gradEnd = c.gradient_end || c.gradientEnd || "#2b0f08";
+    const gradStart = c.gradient_start || c.gradientStart || COUPLE_DEFAULT_GRADIENT_START;
+    const gradEnd = c.gradient_end || c.gradientEnd || COUPLE_DEFAULT_GRADIENT_END;
     if (coupleGradientStart) coupleGradientStart.value = gradStart;
     if (coupleGradientStartText) coupleGradientStartText.value = gradStart;
     if (coupleGradientEnd) coupleGradientEnd.value = gradEnd;
@@ -20805,8 +20810,8 @@ async function refreshCouplesUI(){
 
 function updateGradientPreview() {
   if (!coupleGradientPreview) return;
-  const start = coupleGradientStartText?.value || coupleGradientStart?.value || "#ff6a2b";
-  const end = coupleGradientEndText?.value || coupleGradientEnd?.value || "#2b0f08";
+  const start = coupleGradientStartText?.value || coupleGradientStart?.value || COUPLE_DEFAULT_GRADIENT_START;
+  const end = coupleGradientEndText?.value || coupleGradientEnd?.value || COUPLE_DEFAULT_GRADIENT_END;
   coupleGradientPreview.style.background = `linear-gradient(90deg, ${start}, ${end})`;
 }
 
@@ -20946,8 +20951,8 @@ if (couplesSettingsSaveBtn) {
     couple_bio: couplesBioInput?.value || "",
     show_badge: !!couplesShowBadgeToggle?.checked,
     bonuses_enabled: !!couplesBonusesToggle?.checked,
-    gradient_start: coupleGradientStartText?.value || coupleGradientStart?.value || "#ff6a2b",
-    gradient_end: coupleGradientEndText?.value || coupleGradientEnd?.value || "#2b0f08"
+    gradient_start: coupleGradientStartText?.value || coupleGradientStart?.value || COUPLE_DEFAULT_GRADIENT_START,
+    gradient_end: coupleGradientEndText?.value || coupleGradientEnd?.value || COUPLE_DEFAULT_GRADIENT_END
   });
 }
 if (couplesNudgeBtn) couplesNudgeBtn.onclick = () => sendCoupleNudge();

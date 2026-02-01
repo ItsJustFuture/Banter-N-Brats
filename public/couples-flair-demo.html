@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Couples Flair Demo</title>
+<style>
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #1a1a1a;
+  color: #fff;
+  padding: 20px;
+  margin: 0;
+}
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+h1 {
+  text-align: center;
+  margin-bottom: 40px;
+}
+.demo-section {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 30px;
+  margin-bottom: 30px;
+}
+.demo-section h2 {
+  margin-top: 0;
+  font-size: 18px;
+  color: #60a5fa;
+}
+.profile-header {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255,106,43,.75), rgba(43,15,8,.85));
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+.avatar-section {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.main-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 18px;
+  background: rgba(0,0,0,0.4);
+  border: 2px solid rgba(255,255,255,0.14);
+  display: grid;
+  place-items: center;
+  font-size: 40px;
+}
+.couples-flair {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-left: 8px;
+}
+.gradient-connector {
+  width: 32px;
+  height: 3px;
+  background: linear-gradient(90deg, #ff6a2b, #2b0f08);
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.partner-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.linked-text {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.7);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  white-space: nowrap;
+}
+.partner-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.4);
+  border: 2px solid rgba(255,255,255,0.18);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.partner-avatar:hover {
+  transform: scale(1.08);
+  border-color: rgba(255,255,255,0.32);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.profile-info {
+  flex: 1;
+}
+.profile-name {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+.profile-role {
+  font-size: 14px;
+  opacity: 0.8;
+}
+.gradient-settings {
+  margin-top: 20px;
+  padding: 20px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 12px;
+}
+.color-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+.color-input {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 1;
+}
+input[type="color"] {
+  width: 50px;
+  height: 40px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  cursor: pointer;
+}
+input[type="text"] {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  color: #fff;
+  font-family: monospace;
+}
+.gradient-preview {
+  height: 4px;
+  border-radius: 2px;
+  margin-top: 15px;
+}
+.arrow {
+  opacity: 0.6;
+  font-size: 20px;
+}
+.feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0 0;
+}
+.feature-list li {
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.feature-list li::before {
+  content: "✓";
+  color: #3bd16f;
+  font-weight: bold;
+  font-size: 18px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Couples Flair Feature - Visual Demo</h1>
+  
+  <div class="demo-section">
+    <h2>Profile Header with Couples Flair</h2>
+    <div class="profile-header">
+      <div class="avatar-section">
+        <div class="main-avatar">👤</div>
+        <div class="couples-flair">
+          <div class="gradient-connector"></div>
+          <div class="partner-section">
+            <div class="linked-text">linked with</div>
+            <div class="partner-avatar" title="Click to view partner's profile">💕</div>
+          </div>
+        </div>
+      </div>
+      <div class="profile-info">
+        <div class="profile-name">User Name</div>
+        <div class="profile-role">💜 Linked: PartnerName</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="demo-section">
+    <h2>Gradient Customization (in Couples Settings)</h2>
+    <div class="gradient-settings">
+      <p style="margin-top:0; opacity:0.9; font-size:14px;">Customize the gradient line connecting your profile pictures</p>
+      <div class="color-row">
+        <div class="color-input">
+          <input type="color" value="#ff6a2b" id="color1">
+          <input type="text" value="#ff6a2b" id="text1">
+        </div>
+        <span class="arrow">→</span>
+        <div class="color-input">
+          <input type="color" value="#2b0f08" id="color2">
+          <input type="text" value="#2b0f08" id="text2">
+        </div>
+      </div>
+      <div class="gradient-preview" id="preview" style="background: linear-gradient(90deg, #ff6a2b, #2b0f08);"></div>
+    </div>
+  </div>
+
+  <div class="demo-section">
+    <h2>Key Features</h2>
+    <ul class="feature-list">
+      <li>Stylish flair appears at the top of profile modal for coupled users</li>
+      <li>Partner's avatar shown at 50% size (48px vs 96px)</li>
+      <li>"linked with" text appears above partner avatar</li>
+      <li>Customizable gradient line connects the two avatars</li>
+      <li>Clicking partner's avatar opens their profile</li>
+      <li>Hover effect on partner avatar for interactivity</li>
+      <li>Gradient colors saved in couple card settings</li>
+      <li>Mobile responsive (scales down to 40px on small screens)</li>
+      <li>Only visible when user has an active couple link</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const color1 = document.getElementById('color1');
+const text1 = document.getElementById('text1');
+const color2 = document.getElementById('color2');
+const text2 = document.getElementById('text2');
+const preview = document.getElementById('preview');
+
+function updatePreview() {
+  const start = text1.value || color1.value;
+  const end = text2.value || color2.value;
+  preview.style.background = `linear-gradient(90deg, ${start}, ${end})`;
+  document.querySelector('.gradient-connector').style.background = `linear-gradient(90deg, ${start}, ${end})`;
+}
+
+color1.addEventListener('input', (e) => {
+  text1.value = e.target.value;
+  updatePreview();
+});
+
+text1.addEventListener('input', (e) => {
+  if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+    color1.value = e.target.value;
+  }
+  updatePreview();
+});
+
+color2.addEventListener('input', (e) => {
+  text2.value = e.target.value;
+  updatePreview();
+});
+
+text2.addEventListener('input', (e) => {
+  if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+    color2.value = e.target.value;
+  }
+  updatePreview();
+});
+</script>
+</body>
+</html>
