@@ -841,6 +841,30 @@ const Sound = (() => {
 
 
 let socket = null;
+let serverReady = false;
+
+// Promise-based gates to prevent race conditions
+// Factory function to create a new promise for each connection cycle
+let socketReadyResolve;
+let socketReadyPromise = new Promise(resolve => {
+  socketReadyResolve = resolve;
+});
+
+function resetSocketReadyPromise() {
+  socketReadyPromise = new Promise(resolve => {
+    socketReadyResolve = resolve;
+  });
+}
+
+// Message queues for reliability
+const outgoingMessageQueue = [];
+const incomingMessageBuffer = [];
+let isInitialized = false;
+
+// Queue limits to prevent memory exhaustion
+const MAX_OUTGOING_QUEUE_SIZE = 100;
+const MAX_INCOMING_BUFFER_SIZE = 100;
+
 let me = null;
 let progression = { gold: 0, xp: 0, level: 1, xpIntoLevel: 0, xpForNextLevel: 100 };
 let activeProfileTab = "profile";
@@ -15130,7 +15154,6 @@ dmText?.addEventListener("input", () => {
 });
 
 async function sendMessage(){
-  if(!socket) return;
   const text = msgInput.value || "";
   const file = pendingFile;
   const attachmentReady = roomPendingAttachment;
@@ -15144,7 +15167,7 @@ async function sendMessage(){
       attachment = await uploadChatFileWithProgress(file);
     }
 
-    socket.emit("chat message", {
+    const messagePayload = {
       text,
       replyToId: replyTarget?.id || null,
       attachmentUrl: attachment?.url || "",
@@ -15152,7 +15175,43 @@ async function sendMessage(){
       attachmentMime: attachment?.mime || "",
       attachmentSize: attachment?.size || 0,
       tone: activeTone || ""
-    });
+    };
+
+    if (!socket || !socket.connected || !serverReady) {
+      // Check queue size limit
+      if (outgoingMessageQueue.length >= MAX_OUTGOING_QUEUE_SIZE) {
+        console.error('[app.js] ✗ Message queue full - cannot queue more messages');
+        addSystem('⚠️ Too many queued messages. Please wait for connection to restore.');
+        return;
+      }
+      
+      console.warn('[app.js] ⚠️ Socket not ready - queuing message for later delivery');
+      outgoingMessageQueue.push(messagePayload);
+      
+      // Show user feedback with a class for cleanup
+      const messagesDiv = document.getElementById('messages');
+      if (messagesDiv) {
+        const pendingDiv = document.createElement('div');
+        pendingDiv.className = 'system-message queued-message-status';
+        pendingDiv.textContent = '⏳ Message queued (connecting...)';
+        messagesDiv.appendChild(pendingDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+      
+      // Clear input
+      msgInput.value="";
+      fileInput.value="";
+      clearUploadPreview();
+      roomPendingAttachment = null;
+      roomUploadToken = null;
+      setRoomUploadingState(false);
+      setReplyTarget(null);
+      activeTone = "";
+      updateToneMenu(tonePicker, activeTone);
+      return;
+    }
+
+    socket.emit("chat message", messagePayload);
 
     if (Sound.shouldSent()) Sound.cues.sent();
 
@@ -19105,6 +19164,79 @@ initAppealsDurationSelect();
     timeout: 15000,
   });
 
+  // Connection guard utilities
+  window.socket = socket;
+  window.isSocketConnected = function() {
+    return window.socket && window.socket.connected;
+  };
+
+  window.safeSocketEmit = function(event, data, ack) {
+    if (!window.isSocketConnected()) {
+      console.warn('[app.js] Cannot emit', event, '- socket not connected');
+      return false;
+    }
+    if (!serverReady) {
+      console.warn('[app.js] Cannot emit', event, '- server not ready');
+      return false;
+    }
+    if (typeof ack === 'function') {
+      window.socket.emit(event, data, ack);
+    } else {
+      window.socket.emit(event, data);
+    }
+    return true;
+  };
+
+  window.waitForSocketReady = function() {
+    return socketReadyPromise;
+  };
+
+  // Message queue processing functions
+  function flushIncomingMessageBuffer() {
+    if (incomingMessageBuffer.length > 0) {
+      console.log(`[app.js] ⚠️ Flushing ${incomingMessageBuffer.length} buffered messages...`);
+      incomingMessageBuffer.forEach(msg => {
+        if (msg.type === 'chat') {
+          safeAddMessage(msg.data);
+        } else if (msg.type === 'system') {
+          addSystem(msg.data);
+        }
+      });
+      incomingMessageBuffer.length = 0;
+      console.log('[app.js] ✓ Message buffer flushed');
+    }
+  }
+
+  function processOutgoingQueue() {
+    if (!socket || !socket.connected || !serverReady) return;
+    if (outgoingMessageQueue.length > 0) {
+      console.log(`[app.js] ⚠️ Processing ${outgoingMessageQueue.length} queued outgoing messages...`);
+      const failedMessages = [];
+      outgoingMessageQueue.forEach(msg => {
+        try {
+          socket.emit('chat message', msg);
+        } catch (err) {
+          console.error('[app.js] ✗ Failed to emit queued message', err);
+          failedMessages.push(msg);
+        }
+      });
+      outgoingMessageQueue.length = 0;
+      if (failedMessages.length > 0) {
+        Array.prototype.push.apply(outgoingMessageQueue, failedMessages);
+        console.warn(`[app.js] ⚠️ ${failedMessages.length} queued message(s) failed to send and will be retried`);
+      } else {
+        console.log('[app.js] ✓ Outgoing message queue processed');
+        // Clean up queued status messages from DOM
+        try {
+          const pendingEls = document.querySelectorAll('.queued-message-status');
+          pendingEls.forEach((el) => el.remove());
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
+    }
+  }
+
   // ---- Mobile suspend/resume: treat common disconnect reasons as benign ----
   let suppressRealtimeNoticesUntil = 0;
 
@@ -19124,13 +19256,17 @@ initAppealsDurationSelect();
   }
 
   socket.on("connect", () => {
-    try{
+    console.log('[app.js] Socket connected');
+    // Reset state for new connection
+    serverReady = false;
+    resetSocketReadyPromise();
+    try {
       socket.emit("client:hello", {
         tz: (Intl.DateTimeFormat && Intl.DateTimeFormat().resolvedOptions().timeZone) || null,
         locale: navigator.language || null,
         platform: navigator.platform || null,
       });
-    }catch(_){}
+    } catch(_) {}
 
     // Join initial room so history + realtime messages work reliably
     joinRoom(currentRoom);
@@ -19138,6 +19274,19 @@ initAppealsDurationSelect();
     if (chessState.isOpen && chessState.contextType && chessState.contextId) {
       socket.emit("chess:game:join", { contextType: chessState.contextType, contextId: chessState.contextId });
     }
+  });
+
+  socket.on('server-ready', (data) => {
+    console.log('[app.js] Server ready signal received', { 
+      socketId: data?.socketId || socket.id 
+    });
+    serverReady = true;
+    // Resolve the promise so code waiting for socket ready can proceed
+    if (socketReadyResolve) {
+      socketReadyResolve();
+    }
+    // Process queued messages now that server is ready
+    processOutgoingQueue();
   });
 
   socket.on("restriction:status", async (payload) => {
@@ -19788,6 +19937,17 @@ socket.on("mod:case_event", (payload = {}) => {
     const mr = String(m?.room || "");
     if (mr && mr !== cur && mr !== legacyCur) return;
 
+    if (!isInitialized) {
+      // Check buffer size limit
+      if (incomingMessageBuffer.length >= MAX_INCOMING_BUFFER_SIZE) {
+        console.error('[app.js] ✗ Incoming message buffer full - dropping early message');
+        return;
+      }
+      console.warn('[app.js] ⚠️ Message received before UI initialized, buffering...');
+      incomingMessageBuffer.push({ type: 'chat', data: m });
+      return;
+    }
+
     m.__fresh = true;
     safeAddMessage(m);
     applySearch();
@@ -20044,6 +20204,10 @@ socket.on("dm history", (payload = {}) => {
     logProfileModal("initChatApp cleanup: modal visible without target");
     hardHideProfileModal();
   }
+
+  // Mark chat as initialized and flush any buffered messages
+  isInitialized = true;
+  flushIncomingMessageBuffer();
 
 }
 

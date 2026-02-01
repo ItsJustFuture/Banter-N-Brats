@@ -14535,6 +14535,15 @@ io.on("connection", async (socket) => {
   } catch {}
 
   socket.on("client:hello", (info = {}) => {
+    if (IS_DEV_MODE) {
+      console.log("[socket] client:hello", {
+        socketId: socket.id,
+        username: socket.user?.username,
+        tz: info.tz,
+        locale: info.locale,
+        platform: info.platform
+      });
+    }
     try {
       const meta = sessionMetaBySocketId.get(socket.id) || {};
       meta.tz = info.tz ? String(info.tz).slice(0, 64) : meta.tz;
@@ -14549,7 +14558,14 @@ io.on("connection", async (socket) => {
     void emitLuckStateToSocket(socket);
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", (reason) => {
+    if (IS_DEV_MODE) {
+      console.log("[socket] disconnect", {
+        socketId: socket.id,
+        username: socket.user?.username,
+        reason: reason
+      });
+    }
     try {
       sessionMetaBySocketId.delete(socket.id);
       const uid = socket.user?.id;
@@ -14558,7 +14574,11 @@ io.on("connection", async (socket) => {
         set.delete(socket.id);
         if (!set.size) sessionByUserId.delete(uid);
       }
-    } catch {}
+    } catch (err) {
+      if (IS_DEV_MODE) {
+        console.error("[socket] disconnect cleanup error", err);
+      }
+    }
   });
 
 
@@ -14674,6 +14694,14 @@ if (existingSid && existingSid !== socket.id) {
   );
 
 socket.on("join room", ({ room, status }) => {
+  if (IS_DEV_MODE) {
+    console.log("[socket] join room", {
+      socketId: socket.id,
+      username: socket.user?.username,
+      room: room,
+      status: status
+    });
+  }
   if (socket.restriction?.type && socket.restriction.type !== "none") {
     io.to(socket.id).emit("restriction:status", {
       type: socket.restriction.type,
@@ -15143,6 +15171,13 @@ function doJoin(room, status) {
 }
 
   socket.on("typing", () => {
+    if (IS_DEV_MODE) {
+      console.log("[socket] typing", {
+        socketId: socket.id,
+        username: socket.user?.username,
+        room: socket.currentRoom
+      });
+    }
     let room = socket.currentRoom;
 if (!room) {
   // fallback: join main so the message shows up instead of disappearing
@@ -15157,6 +15192,13 @@ if (!room) {
   });
 
   socket.on("stop typing", () => {
+    if (IS_DEV_MODE) {
+      console.log("[socket] stop typing", {
+        socketId: socket.id,
+        username: socket.user?.username,
+        room: socket.currentRoom
+      });
+    }
     const room = socket.currentRoom;
     if (!room) return;
 
@@ -15948,6 +15990,14 @@ if (!room) {
   });
 
   socket.on("chat message", (payload = {}) => {
+    if (IS_DEV_MODE) {
+      console.log("[socket] chat message", {
+        socketId: socket.id,
+        username: socket.user?.username,
+        room: socket.currentRoom,
+        textLength: payload.text?.length || 0
+      });
+    }
     // If a client sends before it has joined a room (mobile reconnect/race),
     // auto-join main so the message doesn't silently disappear.
     let room = socket.currentRoom;
@@ -16999,7 +17049,15 @@ socket.on("appeals:action", async ({ appealId, action, durationSeconds } = {}, a
     } catch {}
   });
 
-socket.on("disconnect", () => {
+socket.on("disconnect", (reason) => {
+    if (IS_DEV_MODE) {
+      console.log("[socket] disconnect (cleanup)", {
+        socketId: socket.id,
+        username: socket.user?.username,
+        reason: reason,
+        room: socket.currentRoom
+      });
+    }
     // socket.user is attached after successful auth; guard for anonymous / early disconnects
     if (socket.user?.username) ONLINE_USERS.delete(socket.user.username);
     emitOnlineUsers();
@@ -17047,6 +17105,13 @@ socket.on("disconnect", () => {
       }
     } catch {}
   });
+
+  // IMPORTANT: Emit server-ready LAST to ensure all event listeners are attached before client starts using the connection.
+  // This prevents race conditions where client emits events before server is ready to handle them.
+  if (IS_DEV_MODE) {
+    console.log("[socket] server-ready", { socketId: socket.id, username: socket.user?.username });
+  }
+  socket.emit("server-ready", { ok: true, socketId: socket.id });
 
 });
 
