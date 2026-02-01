@@ -131,7 +131,11 @@ async function run() {
 
     // Test 4: Jackpot roll tracking
     const jackpotRoll = { variant: "d100", result: 100, breakdown: null, won: true };
-    const jackpotReward = computeDiceReward("d100", 100, null);
+    const jackpotReward = computeDiceReward(
+      jackpotRoll.variant,
+      jackpotRoll.result,
+      jackpotRoll.breakdown
+    );
     assert.strictEqual(jackpotReward.deltaGold, 5000);
     assert.strictEqual(jackpotReward.isJackpot, true);
 
