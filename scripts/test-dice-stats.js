@@ -148,7 +148,7 @@ async function run() {
        SET dice_total_rolls = dice_total_rolls + 1,
            dice_total_won = dice_total_won + 1,
            dice_current_streak = dice_current_streak + 1,
-           dice_win_streak = MAX(dice_win_streak, dice_current_streak + 1),
+           dice_win_streak = MAX(dice_win_streak, dice_current_streak),
            dice_biggest_win = MAX(dice_biggest_win, ?)
        WHERE id = ?`,
       [5000, 1]
