@@ -17329,7 +17329,7 @@ function updateProfileActions({ isSelf = false, canModerate = false } = {}){
     actionsBtn.style.display = "none";
   }
   if (profileEditBtn) {
-    profileEditBtn.style.display = "none";
+    profileEditBtn.style.display = isSelf ? "" : "none";
   }
   if (profileSettingsBtn) {
     profileSettingsBtn.style.display = isSelf ? "" : "none";
