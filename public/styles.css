@@ -8512,8 +8512,20 @@ body.polish-pack.polish-auras .presenceAura.isVip::after{
   padding: 6px 8px;
 }
 .profileCompactTabs .tab:active{ transform: scale(0.98); }
-.profileQuickActions{ display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
-.quickActionGroup{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.profileQuickActions{ 
+  display:flex; 
+  gap:8px; 
+  align-items:center; 
+  justify-content:flex-start; 
+  flex-wrap:wrap; 
+}
+.quickActionGroup{ 
+  display:flex; 
+  gap:8px; 
+  align-items:center; 
+  flex-wrap:wrap; 
+  width: 100%;
+}
 .quickActionGroup .badge{ height:100%; display:flex; align-items:center; justify-content:center; }
 #profileQuickActions{
   padding: 8px 0 4px;
@@ -8778,6 +8790,23 @@ body.polish-pack.polish-auras .presenceAura.isVip::after{
   }
   .profileInfoCard.profileInfoWide{
     grid-column: span 1;
+  }
+  .profileSections{
+    gap: 10px;
+  }
+  .profileSection summary{
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  .profileSectionBody{
+    padding: 10px 12px 12px;
+  }
+  .quickActionGroup{
+    width: 100%;
+  }
+  .quickActionGroup .btn{
+    flex: 1;
+    min-width: 0;
   }
 }
 
