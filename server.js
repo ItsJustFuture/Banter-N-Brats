@@ -15388,7 +15388,7 @@ if (!room) {
   });
 
   
-  socket.on("dm mark read", (payload = {}) => {
+  socket.on("dm mark read", async (payload = {}) => {
     const tid = Number(payload.threadId);
     const mid = Number(payload.messageId);
     const tms = safeNumber(payload.ts, Date.now());
@@ -15409,6 +15409,14 @@ if (!room) {
            SET last_read_at = CASE WHEN COALESCE(last_read_at,0) < ? THEN ? ELSE COALESCE(last_read_at,0) END
          WHERE thread_id = ? AND user_id = ?`,
         [tms, tms, tid, socket.user.id],
+        () => {}
+      );
+      
+      // Also persist to dm_read_tracking table for enhanced read receipt features
+      db.run(
+        `INSERT OR REPLACE INTO dm_read_tracking (thread_id, user_id, last_read_message_id, last_read_at)
+         VALUES (?, ?, ?, ?)`,
+        [tid, socket.user.id, mid, tms],
         () => {}
       );
 
@@ -15438,6 +15446,36 @@ if (!room) {
         broadcastDmTyping(tid);
       }
     } catch {}
+  });
+
+  // Room message read receipts
+  socket.on("message mark read", async (payload = {}) => {
+    const messageId = Number(payload.messageId);
+    const room = String(payload.room || "").trim();
+    if (!socket.user) return;
+    if (!Number.isInteger(messageId) || !room) return;
+
+    const now = Date.now();
+    
+    // Store read receipt in database
+    try {
+      await dbRunAsync(
+        `INSERT OR REPLACE INTO message_read_receipts (message_id, room_name, user_id, read_at)
+         VALUES (?, ?, ?, ?)`,
+        [messageId, room, socket.user.id, now]
+      );
+      
+      // Optionally broadcast to room that user read this message
+      // (This is less critical for room messages than DMs)
+      io.to(room).emit("message read", {
+        messageId,
+        room,
+        userId: socket.user.id,
+        ts: now
+      });
+    } catch (err) {
+      console.error('[message mark read] Error:', err);
+    }
   });
 
   // DM typing indicators (per thread)
