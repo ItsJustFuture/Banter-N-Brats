@@ -9436,7 +9436,29 @@ app.get("/api/dice/leaderboard", requireLogin, async (req, res) => {
 // Dice history - recent rolls for a user
 app.get("/api/dice/history", requireLogin, async (req, res) => {
   try {
-    const userId = Number(req.query?.userId || req.session.user.id);
+    const currentUserId = Number(req.session.user.id);
+    let userId = currentUserId;
+
+    if (req.query?.userId !== undefined) {
+      const requestedUserId = Number(req.query.userId);
+      const role = req.session.user.role;
+      const isStaff =
+        role === "admin" ||
+        role === "moderator" ||
+        role === "staff";
+
+      // If requesting a different user's history, enforce staff-only access.
+      if (requestedUserId !== currentUserId) {
+        if (!isStaff) {
+          return res.status(403).json({ ok: false, error: "Forbidden" });
+        }
+        userId = requestedUserId;
+      }
+    }
+
+    if (!Number.isFinite(userId) || userId <= 0) {
+      return res.status(400).json({ ok: false, error: "Invalid userId" });
+    }
     const limit = Math.min(Number(req.query?.limit || 20), 100);
     const offset = Number(req.query?.offset || 0);
     
