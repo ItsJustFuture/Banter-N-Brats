@@ -9378,38 +9378,41 @@ app.get("/api/leaderboards", requireLogin, async (_req, res) => sendLeaderboard(
 // Dice leaderboard - top players by biggest win, win streak, or total wins
 app.get("/api/dice/leaderboard", requireLogin, async (req, res) => {
   try {
-    const sortBy = req.query?.sort || "biggest_win"; // biggest_win, win_streak, total_won
+    const sortBy = req.query?.sort || "biggest_win";
     const limit = Math.min(Number(req.query?.limit || 50), 100);
     const offset = Number(req.query?.offset || 0);
     
-    let orderColumn = "dice_biggest_win";
-    if (sortBy === "win_streak") orderColumn = "dice_win_streak";
-    else if (sortBy === "total_won") orderColumn = "dice_total_won";
+    // Whitelist of allowed sort columns to prevent SQL injection
+    const allowedSorts = {
+      biggest_win: "dice_biggest_win",
+      win_streak: "dice_win_streak",
+      total_won: "dice_total_won",
+    };
+    
+    // Default to biggest_win if invalid sort requested
+    const safeOrderColumn = allowedSorts[sortBy] || allowedSorts.biggest_win;
     
     let rows = [];
     if (await pgUserExists(req.session.user.id)) {
-      const result = await pgPool.query(
-        `SELECT u.id as user_id, u.username, u.dice_biggest_win, u.dice_win_streak, 
-                u.dice_total_won, u.dice_total_rolls, u.dice_sixes
-         FROM users u
-         WHERE u.dice_total_rolls > 0
-         ORDER BY u.${orderColumn} DESC, u.dice_total_rolls DESC
-         LIMIT $1 OFFSET $2`,
-        [limit, offset]
-      );
+      // Build query with whitelisted column name
+      const pgQuery = `SELECT u.id as user_id, u.username, u.dice_biggest_win, u.dice_win_streak, 
+              u.dice_total_won, u.dice_total_rolls, u.dice_sixes
+       FROM users u
+       WHERE u.dice_total_rolls > 0
+       ORDER BY u.${safeOrderColumn} DESC, u.dice_total_rolls DESC
+       LIMIT $1 OFFSET $2`;
+      const result = await pgPool.query(pgQuery, [limit, offset]);
       rows = result.rows;
     } else {
+      // Build query with whitelisted column name
+      const sqliteQuery = `SELECT id as user_id, username, dice_biggest_win, dice_win_streak,
+              dice_total_won, dice_total_rolls, dice_sixes
+       FROM users
+       WHERE dice_total_rolls > 0
+       ORDER BY ${safeOrderColumn} DESC, dice_total_rolls DESC
+       LIMIT ? OFFSET ?`;
       rows = await new Promise((resolve, reject) => {
-        db.all(
-          `SELECT id as user_id, username, dice_biggest_win, dice_win_streak,
-                  dice_total_won, dice_total_rolls, dice_sixes
-           FROM users
-           WHERE dice_total_rolls > 0
-           ORDER BY ${orderColumn} DESC, dice_total_rolls DESC
-           LIMIT ? OFFSET ?`,
-          [limit, offset],
-          (err, r) => (err ? reject(err) : resolve(r || []))
-        );
+        db.all(sqliteQuery, [limit, offset], (err, r) => (err ? reject(err) : resolve(r || [])));
       });
     }
     
