@@ -24,7 +24,8 @@ function mockDbRunAsync(sql, params = []) {
     } else if (sql.includes("DELETE")) {
       if (sql.includes("LIKE")) {
         const pattern = params[0];
-        const prefix = pattern.replace('%', '').replace(/\\\\/g, '\\').replace(/\\%/g, '%').replace(/\\_/g, '_');
+        // Unescape the pattern: remove ^ escape char and the % wildcard
+        const prefix = pattern.replace(/\^\^/g, '\x00').replace(/\^%/g, '%').replace(/\^_/g, '_').replace(/\x00/g, '^').replace(/%$/, '');
         for (const [k] of testData) {
           if (k.startsWith(prefix)) {
             testData.delete(k);
@@ -53,7 +54,8 @@ function mockDbAllAsync(sql, params = []) {
     } else if (sql.includes("SELECT key")) {
       const pattern = params[0];
       const now = params[1];
-      const prefix = pattern.replace('%', '');
+      // Unescape the pattern: remove ^ escape char and the % wildcard
+      const prefix = pattern.replace(/\^\^/g, '\x00').replace(/\^%/g, '%').replace(/\^_/g, '_').replace(/\x00/g, '^').replace(/%$/, '');
       const keys = [];
       for (const [k, v] of testData) {
         if (k.startsWith(prefix)) {

@@ -220,12 +220,13 @@ async function hasState(key) {
 
 /**
  * Escape special characters in LIKE patterns
+ * Using ^ as escape character for simplicity
  */
 function escapeLikePattern(pattern) {
   return pattern
-    .replace(/\\/g, '\\\\')  // Escape backslash first
-    .replace(/%/g, '\\%')    // Escape %
-    .replace(/_/g, '\\_');   // Escape _
+    .replace(/\^/g, '^^')   // Escape the escape char first
+    .replace(/%/g, '^%')    // Escape %
+    .replace(/_/g, '^_');   // Escape _
 }
 
 /**
@@ -246,7 +247,7 @@ async function getKeysByPrefix(prefix) {
   if (dbAllAsync) {
     try {
       const rows = await dbAllAsync(
-        "SELECT key FROM state_kv WHERE key LIKE ? ESCAPE '\\' AND (expires_at IS NULL OR expires_at > ?)",
+        "SELECT key FROM state_kv WHERE key LIKE ? ESCAPE '^' AND (expires_at IS NULL OR expires_at > ?)",
         [pattern, now]
       );
       sqliteKeys = rows.map(row => row.key);
@@ -259,7 +260,7 @@ async function getKeysByPrefix(prefix) {
   if (pgPool) {
     try {
       const res = await pgSafe(
-        "SELECT key FROM state_kv WHERE key LIKE $1 ESCAPE '\\' AND (expires_at IS NULL OR expires_at > $2)",
+        "SELECT key FROM state_kv WHERE key LIKE $1 ESCAPE '^' AND (expires_at IS NULL OR expires_at > $2)",
         [pattern, now]
       );
       if (res && res.rows) {
@@ -285,14 +286,14 @@ async function deleteByPrefix(prefix) {
   const pattern = `${escapedPrefix}%`;
   
   try {
-    await dbRunAsync("DELETE FROM state_kv WHERE key LIKE ? ESCAPE '\\'", [pattern]);
+    await dbRunAsync("DELETE FROM state_kv WHERE key LIKE ? ESCAPE '^'", [pattern]);
   } catch (err) {
     // Silent fail
   }
   
   if (pgPool) {
     try {
-      await pgSafe("DELETE FROM state_kv WHERE key LIKE $1 ESCAPE '\\'", [pattern]);
+      await pgSafe("DELETE FROM state_kv WHERE key LIKE $1 ESCAPE '^'", [pattern]);
     } catch (err) {
       // Silent fail
     }
