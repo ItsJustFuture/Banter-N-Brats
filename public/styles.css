@@ -8883,7 +8883,6 @@ body.polish-pack.polish-auras .presenceAura.isVip::after{
     padding: 10px 12px 12px;
   }
   .quickActionGroup{
-    width: 100%;
   }
   .quickActionGroup .btn{
     flex: 1;
