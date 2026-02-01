@@ -901,8 +901,8 @@
 </div>
 </div>
 </details>
-<details class="profileSection" data-section="customize">
-<summary>Customization</summary>
+<details class="profileSection profileOwnerOnly" data-section="customize">
+<summary>Profile Settings</summary>
 <div class="profileSectionBody">
 <div class="panelBox">
 <div class="small">Jump into the full customization panel or apply a theme.</div>
@@ -931,8 +931,9 @@
 <div class="small" style="margin-bottom:6px;">Pending</div>
 <div id="couplesPendingList"></div>
 </div>
-<div class="panelBox" id="couplesActiveBox" style="margin-top:10px; display:none;">
-<div class="small" id="couplesActiveTitle">Linked</div>
+<details class="panelBox" id="couplesActiveBox" style="margin-top:10px; display:none;">
+<summary class="small" id="couplesActiveTitle" style="cursor:pointer; font-weight:600; list-style:none;">Linked (click to expand)</summary>
+<div style="margin-top:10px;">
 <div class="row couplesStatusRow" style="margin-top:8px; gap:8px; align-items:center;">
 <select aria-label="Couple status emoji" id="couplesStatusEmoji" style="width:72px;">
 <option value="💜">💜</option>
@@ -1047,6 +1048,7 @@
 <button class="btn danger" id="couplesUnlinkBtn" type="button">Unlink</button>
 </div>
 </div>
+</details>
 <div class="msgline" id="couplesMsg"></div>
 </div>
 <div class="field">

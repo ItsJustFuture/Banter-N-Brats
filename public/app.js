@@ -17069,6 +17069,7 @@ function fillProfileUI(p, isSelf){
   }
   fillProfileSheetHeader(p, isSelf);
   syncProfileEditUi();
+  applyProfileSectionVisibility(isSelf);
   if (levelPanel){
     levelPanel.style.display = "none";
     const title = levelPanel.previousElementSibling;
@@ -17196,6 +17197,17 @@ function syncProfileEditUi(){
   const showAvatarActions = currentProfileIsSelf && profileEditMode;
   if (profileSheetAvatarActions) profileSheetAvatarActions.style.display = showAvatarActions ? "flex" : "none";
   if (profileEditSection) profileEditSection.style.display = (currentProfileIsSelf && profileEditMode) ? "block" : "none";
+}
+
+function applyProfileSectionVisibility(isSelf){
+  // Hide spectator-only sections when viewing your own profile
+  document.querySelectorAll(".profileSpectatorOnly").forEach(el => {
+    el.style.display = isSelf ? "none" : "";
+  });
+  // Hide owner-only sections when viewing someone else's profile
+  document.querySelectorAll(".profileOwnerOnly").forEach(el => {
+    el.style.display = isSelf ? "" : "none";
+  });
 }
 
 function updateProfileActions({ isSelf = false, canModerate = false } = {}){
