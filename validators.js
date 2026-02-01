@@ -54,9 +54,15 @@ function validate(schema, data) {
     return { success: true, data: result.data };
   }
   
-  const errorMessages = result.error.errors.map(err => {
-    return `${err.path.join('.')}: ${err.message}`;
-  }).join(', ');
+  let errorMessages = "Invalid input";
+  if (result.error && result.error.errors && Array.isArray(result.error.errors)) {
+    errorMessages = result.error.errors.map(err => {
+      const path = err.path && err.path.length ? err.path.join('.') : 'field';
+      return `${path}: ${err.message}`;
+    }).join(', ');
+  } else if (result.error && result.error.message) {
+    errorMessages = result.error.message;
+  }
   
   return { success: false, error: errorMessages };
 }
