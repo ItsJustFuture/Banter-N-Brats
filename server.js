@@ -10886,41 +10886,74 @@ app.post("/api/dnd-story/sessions/:id/end", dndLimiter, requireCoOwner, express.
 });
 
 // Spectator gold influence (buff/sabotage)
-app.post("/api/dnd-story/spectate/influence", requireLogin, express.json({ limit: "8kb" }), async (req, res) => {
+app.post("/api/dnd-story/spectate/influence", dndLimiter, requireLogin, express.json({ limit: "8kb" }), async (req, res) => {
   try {
     const userId = Number(req.session?.user?.id);
     if (!userId) return res.status(401).send("Unauthorized");
-    
+
     const { sessionId, characterId, influenceType, goldAmount } = req.body;
-    
-    if (!sessionId || !characterId || !influenceType) {
+
+    if (sessionId == null || characterId == null || !influenceType) {
       return res.status(400).json({ message: "Missing required fields" });
     }
-    
+
+    const sessionIdNum = Number(sessionId);
+    const characterIdNum = Number(characterId);
+
+    if (!Number.isInteger(sessionIdNum) || sessionIdNum <= 0) {
+      return res.status(400).json({ message: "Invalid sessionId" });
+    }
+    if (!Number.isInteger(characterIdNum) || characterIdNum <= 0) {
+      return res.status(400).json({ message: "Invalid characterId" });
+    }
+
+    const allowedInfluences = ["buff", "sabotage"];
+    if (!allowedInfluences.includes(influenceType)) {
+      return res.status(400).json({ message: "Invalid influenceType" });
+    }
+
+    // Validate session exists and is active
+    const session = await dndDb.getDndSession(pgPool, sessionIdNum);
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+    if (session.status !== "active") {
+      return res.status(400).json({ message: "Session is not active" });
+    }
+
+    // Validate that the character belongs to this session (when character list is available)
+    if (!Array.isArray(session.characters)) {
+      return res.status(400).json({ message: "Character data unavailable for this session" });
+    }
+    const characterInSession = session.characters.some(c => Number(c?.id) === characterIdNum);
+    if (!characterInSession) {
+      return res.status(400).json({ message: "Character does not belong to this session" });
+    }
+
     const amount = Math.floor(Math.max(10, Math.min(100, Number(goldAmount) || 10)));
-    
+
     // Spend gold
     const spendResult = await spendGold(userId, amount, `dnd_influence:${influenceType}`);
     if (!spendResult.ok) {
       return res.status(400).json({ message: spendResult.message });
     }
-    
+
     // Apply influence effect (stored for next event resolution)
     // For now, just broadcast to room
     io.to(DND_ROOM_ID).emit("dnd:spectatorInfluence", {
       userId,
       username: req.session.user.username,
-      characterId,
+      sessionId: sessionIdNum,
+      characterId: characterIdNum,
       influenceType,
       amount
     });
-    
-    const msg = influenceType === "buff" 
+
+    const msg = influenceType === "buff"
       ? `✨ ${req.session.user.username} blessed a hero with ${amount} gold!`
-      : `💀 ${req.session.user.username} cursed a hero with ${amount} gold!`;
-    
+      : `💀 ${req.session.user.username} sabotaged a hero with ${amount} gold!`;
+
     emitRoomSystem(DND_ROOM_ID, msg, { kind: "dnd" });
-    
     return res.json({ ok: true, gold: spendResult.gold });
   } catch (e) {
     console.warn("[dnd] spectator influence failed", e?.message || e);
