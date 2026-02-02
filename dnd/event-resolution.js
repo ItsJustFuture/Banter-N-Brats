@@ -366,7 +366,7 @@ function applyEventOutcome(template, outcome, characters, worldState = {}, rng =
       name: monsterName,
       hp: 100,
       summoned_at: Date.now(),
-      checkPenalty: outcomeData.monsterPenalty || -2 // Applies penalty to all checks while active
+      checkPenalty: outcomeData.monsterPenalty ?? -2 // Applies penalty to all checks while active
     };
     changes.worldStateChanges.monsterSummoned = true;
     changes.statusChanges.push({
