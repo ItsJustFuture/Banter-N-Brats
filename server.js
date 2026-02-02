@@ -10803,7 +10803,8 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
       template,
       checkResult.outcome,
       selectedChars,
-      worldState
+      worldState,
+      rng
     );
     
     // Update characters in database

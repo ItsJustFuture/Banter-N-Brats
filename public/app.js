@@ -5038,8 +5038,12 @@ function updateDndPointsRemaining() {
   const remaining = 28 - total;
   if (dndPointsRemaining) {
     dndPointsRemaining.textContent = `Points: ${remaining} / 28`;
-    dndPointsRemaining.style.color = remaining === 0 ? 'var(--success-color, #10b981)' : 
-                                     remaining < 0 ? 'var(--error-color, #ef4444)' : '';
+    dndPointsRemaining.classList.remove('points-valid', 'points-exceeded');
+    if (remaining === 0) {
+      dndPointsRemaining.classList.add('points-valid');
+    } else if (remaining < 0) {
+      dndPointsRemaining.classList.add('points-exceeded');
+    }
   }
 }
 

@@ -12832,3 +12832,12 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* DnD Character Creation Validation */
+.points-valid {
+  color: var(--success-color, #10b981) !important;
+}
+
+.points-exceeded {
+  color: var(--error-color, #ef4444) !important;
+}

@@ -125,9 +125,10 @@ function performCheck(character, attribute, dc, rng, context = {}) {
  * @param {string} outcome - Outcome tier
  * @param {Array<Object>} characters - Characters involved
  * @param {Object} worldState - Mutable world state
+ * @param {Function} rng - Seeded RNG function
  * @returns {Object} Changes made { hpChanges, itemChanges, statusChanges, narrative }
  */
-function applyEventOutcome(template, outcome, characters, worldState = {}) {
+function applyEventOutcome(template, outcome, characters, worldState = {}, rng = Math.random) {
   const outcomeData = template.outcomes[outcome];
   if (!outcomeData) return { narrative: "Unknown outcome", hpChanges: [] };
   
@@ -178,7 +179,7 @@ function applyEventOutcome(template, outcome, characters, worldState = {}) {
       changes.itemChanges.push({
         characterId: characters[0]?.id,
         action: "gain",
-        item: generateRandomItem()
+        item: generateRandomItem(rng)
       });
     }
   }
@@ -228,9 +229,10 @@ function applyEventOutcome(template, outcome, characters, worldState = {}) {
 
 /**
  * Generate a random item for loot
+ * @param {Function} rng - Seeded RNG function
  * @returns {string} Item name
  */
-function generateRandomItem() {
+function generateRandomItem(rng = Math.random) {
   const items = [
     "Health Potion",
     "Mana Potion",
@@ -248,7 +250,7 @@ function generateRandomItem() {
     "Healing Herb",
     "Smoke Bomb"
   ];
-  return items[Math.floor(Math.random() * items.length)];
+  return items[Math.floor(rng() * items.length)];
 }
 
 /**
