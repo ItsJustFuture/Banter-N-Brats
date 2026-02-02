@@ -27,7 +27,6 @@ eventsToCheck.forEach(event => {
   console.log(`\n📌 ${event.name}:`);
   
   event.outcomes.forEach(outcome => {
-    const outcomeData = template.outcomes[outcome];
     const mockChar = { id: 1, hp: 50, max_hp: 100, gold: 100, 
                       might: 4, finesse: 5, wit: 3, instinct: 4, 
                       presence: 3, resolve: 5, chaos: 4 };
