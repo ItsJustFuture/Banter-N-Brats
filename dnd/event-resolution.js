@@ -233,6 +233,146 @@ function applyEventOutcome(template, outcome, characters, worldState = {}, rng =
     changes.worldStateChanges.allyGained = true;
   }
   
+  // Apply gold changes
+  if (outcomeData.gold !== undefined) {
+    characters.forEach(char => {
+      const oldGold = char.gold || 0;
+      char.gold = Math.max(0, oldGold + outcomeData.gold);
+      changes.itemChanges.push({
+        characterId: char.id,
+        action: outcomeData.gold > 0 ? "gain_gold" : "lose_gold",
+        amount: Math.abs(outcomeData.gold),
+        newTotal: char.gold
+      });
+    });
+  }
+  
+  // Apply intel (information/knowledge gains)
+  if (outcomeData.intel !== undefined) {
+    characters.forEach(char => {
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "intel",
+        amount: outcomeData.intel
+      });
+    });
+  }
+  
+  // Handle item loss
+  if (outcomeData.loseItem) {
+    characters.forEach(char => {
+      changes.itemChanges.push({
+        characterId: char.id,
+        action: "lose_random",
+        item: "Random Item"
+      });
+    });
+  }
+  
+  // Handle monster summoning
+  if (outcomeData.summonMonster) {
+    changes.worldStateChanges.monsterSummoned = true;
+    worldState.activeMonster = {
+      type: "summoned_creature",
+      hp: 50,
+      summoned_at: Date.now()
+    };
+  }
+  
+  // Handle attribute modifications
+  if (outcomeData.chooseAttributeSwap) {
+    characters.forEach(char => {
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "attribute_choice",
+        effect: "choose_swap"
+      });
+    });
+  }
+  
+  if (outcomeData.randomAttributeBoost !== undefined) {
+    const attributes = ["might", "finesse", "wit", "instinct", "presence", "resolve", "chaos"];
+    characters.forEach(char => {
+      const randomAttr = attributes[Math.floor(rng() * attributes.length)];
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "attribute_boost",
+        attribute: randomAttr,
+        amount: outcomeData.randomAttributeBoost
+      });
+    });
+  }
+  
+  if (outcomeData.randomAttributeSwap) {
+    const attributes = ["might", "finesse", "wit", "instinct", "presence", "resolve", "chaos"];
+    characters.forEach(char => {
+      const idx1 = Math.floor(rng() * attributes.length);
+      let idx2 = (idx1 + 1 + Math.floor(rng() * (attributes.length - 1))) % attributes.length;
+      
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "attribute_swap",
+        attr1: attributes[idx1],
+        attr2: attributes[idx2]
+      });
+    });
+  }
+  
+  if (outcomeData.scrambleAttributes) {
+    characters.forEach(char => {
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "attribute_scramble",
+        effect: "all_attributes_randomized"
+      });
+    });
+  }
+  
+  // Handle check modifiers
+  if (outcomeData.redoCheck) {
+    characters.forEach(char => {
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "check_modifier",
+        effect: "redo_last_check"
+      });
+    });
+  }
+  
+  if (outcomeData.nextCheckBonus !== undefined) {
+    characters.forEach(char => {
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "check_modifier",
+        effect: "next_check_bonus",
+        bonus: outcomeData.nextCheckBonus
+      });
+    });
+  }
+  
+  if (outcomeData.loseTurn) {
+    characters.forEach(char => {
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "turn_skip",
+        effect: "lose_next_turn"
+      });
+    });
+  }
+  
+  // Handle random debuff
+  if (outcomeData.randomDebuff) {
+    const debuffs = ["weakened", "slowed", "confused", "cursed", "poisoned", "stunned"];
+    characters.forEach(char => {
+      const randomDebuff = debuffs[Math.floor(rng() * debuffs.length)];
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "debuff",
+        effect: randomDebuff
+      });
+    });
+  }
+  
   return changes;
 }
 
