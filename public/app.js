@@ -12490,7 +12490,9 @@ function closeEditProfileModal(){
   if (!editProfileModal) return;
   editProfileModal.classList.add("modal-closing");
   editProfileModal.setAttribute("aria-hidden", "true");
-  editProfileMsg.textContent = "";
+  if (editProfileMsg) {
+    editProfileMsg.textContent = "";
+  }
   setTimeout(() => {
     editProfileModal.classList.remove("modal-closing");
     try { editProfileModal.hidden = true; } catch {}
