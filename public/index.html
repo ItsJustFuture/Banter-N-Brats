@@ -1247,18 +1247,18 @@
 </button>
 </div>
 <div class="customizeSubpages" id="customizeSubpages">
-<div class="customizeSubpage" data-category="chat" id="customizeChatPage">
+<div class="customizeSubpage neonModal" data-category="chat" id="customizeChatPage" style="display:none;">
 <div class="customizeHeader">
 <button aria-label="Back" class="iconBtn customizeBackBtn" data-back="chat" type="button">←</button>
 <div>
-<div class="title">Chat &amp; Identity</div>
-<div class="small muted">Message layout, fonts, and readability.</div>
+<div class="title">💬 Chat &amp; Identity</div>
+<div class="small muted">Customize message layout, fonts, and text styling with live preview.</div>
 </div>
 </div>
 <div class="customizeChatLayout">
 <aside class="customizeChatPreview">
 <div class="chatFxPreviewWrap">
-<div class="small" style="margin-bottom:10px;">Preview your chat appearance before saving.</div>
+<div class="small" style="margin-bottom:10px;"><strong>Live Preview</strong> - See your changes in real-time</div>
 <div class="chatFxPreview chat-main" id="chatFxPreview">
 <div class="chatFxPreviewRow self">
 <div class="msgItem msg--main self chatFxPreviewItem">
@@ -1356,14 +1356,40 @@
 </div>
 </section></div>
 
-<div class="customizeSubpage" data-category="profile" id="customizeProfilePage">
+<div class="customizeSubpage neonModal" data-category="profile" id="customizeProfilePage" style="display:none;">
 <div class="customizeHeader">
 <button aria-label="Back" class="iconBtn customizeBackBtn" data-back="profile" type="button">←</button>
 <div>
-<div class="title">Profile Appearance</div>
-<div class="small muted">Header gradient and avatar accents.</div>
+<div class="title">🎨 Profile Appearance</div>
+<div class="small muted">Customize your profile header gradient and avatar effects with live preview.</div>
 </div>
 </div>
+<div class="editProfileLayout">
+<aside class="editProfilePreview">
+<div class="previewShell">
+<div class="small" style="margin-bottom:10px;"><strong>Live Preview</strong> - See your changes in real-time</div>
+<div class="profilePreviewCard" id="profileAppearancePreviewCard">
+<div class="profileSheetBg" id="profileAppearancePreviewBg" style="background: linear-gradient(135deg, #ff6a2b, #2b0f08);"></div>
+<div class="profileSheetContent compact">
+<div class="profileAvatarWrap">
+<div class="profileSheetAvatar" id="profileAppearancePreviewAvatar"></div>
+</div>
+<div class="profileSheetMeta">
+<div class="profileSheetNameRow">
+<span class="profileSheetName">Your Name</span>
+</div>
+<div class="profileSheetMood"><span>Your mood</span></div>
+</div>
+</div>
+<div class="profileBioPreview">Your profile with custom colors...</div>
+</div>
+<div class="previewActions">
+<button class="btn btnPrimary" id="saveProfileAppearanceBtn" type="button">✓ Done</button>
+<button class="btn btnSecondary" id="cancelProfileAppearanceBtn" type="button">Cancel</button>
+</div>
+</div>
+</aside>
+<div class="editProfileControls">
 <div class="customizeSection">
 <div class="sectionTitle">Basic</div>
 <div class="panelBox" id="profileAppearanceBasic">
@@ -1417,18 +1443,37 @@
 </div>
 </div>
 </details>
-<div class="customizeResetRow">
-<button class="btn secondary" id="resetProfileAppearanceBtn" type="button">Reset this section</button>
 </div>
 </div>
-<div class="customizeSubpage" data-category="effects" id="customizeEffectsPage">
+</div>
+<button id="resetProfileAppearanceBtn" class="secondaryBtn" type="button">Reset profile appearance</button>
+<div class="customizeSubpage neonModal" data-category="effects" id="customizeEffectsPage" style="display:none;">
 <div class="customizeHeader">
 <button aria-label="Back" class="iconBtn customizeBackBtn" data-back="effects" type="button">←</button>
 <div>
-<div class="title">Effects</div>
-<div class="small muted">Animation and polish options.</div>
+<div class="title">✨ Effects</div>
+<div class="small muted">Control animations, visual polish, and effect presets.</div>
 </div>
 </div>
+<div class="editProfileLayout">
+<aside class="editProfilePreview">
+<div class="previewShell">
+<div class="small" style="margin-bottom:10px;"><strong>Effect Preview</strong> - See animations & polish</div>
+<div class="effectsPreviewCard" style="padding:20px; background: var(--card-bg, rgba(255,255,255,0.05)); border-radius: 12px;">
+<div class="effectsPreviewIcon" style="text-align:center; font-size: 48px; margin-bottom:16px;">✨</div>
+<div class="effectsPreviewText" style="text-align:center;">
+<div style="margin-bottom:8px;">Animations: <strong id="effectsPreviewAnimStatus">On</strong></div>
+<div style="margin-bottom:8px;">Comfort Mode: <strong id="effectsPreviewComfortStatus">Off</strong></div>
+<div>Polish Pack: <strong id="effectsPreviewPolishStatus">Off</strong></div>
+</div>
+</div>
+<div class="previewActions">
+<button class="btn btnPrimary" id="saveEffectsBtn" type="button">✓ Done</button>
+<button class="btn btnSecondary" id="cancelEffectsBtn" type="button">Cancel</button>
+</div>
+</div>
+</aside>
+<div class="editProfileControls">
 <div class="customizeSection">
 <div class="sectionTitle">Basic</div>
 <div class="panelBox" id="effectsBasic">
@@ -1478,18 +1523,36 @@
 </div>
 </div>
 </details>
-<div class="customizeResetRow">
-<button class="btn secondary" id="resetEffectsBtn" type="button">Reset this section</button>
 </div>
 </div>
-<div class="customizeSubpage" data-category="layout" id="customizeLayoutPage">
+</div>
+<div class="customizeSubpage neonModal" data-category="layout" id="customizeLayoutPage" style="display:none;">
 <div class="customizeHeader">
 <button aria-label="Back" class="iconBtn customizeBackBtn" data-back="layout" type="button">←</button>
 <div>
-<div class="title">Layout &amp; Accessibility</div>
-<div class="small muted">Scale, clarity, and motion overrides.</div>
+<div class="title">⚙️ Layout &amp; Accessibility</div>
+<div class="small muted">Adjust UI scale, sound settings, and badge colors.</div>
 </div>
 </div>
+<div class="editProfileLayout">
+<aside class="editProfilePreview">
+<div class="previewShell">
+<div class="small" style="margin-bottom:10px;"><strong>Settings Preview</strong></div>
+<div class="layoutPreviewCard" style="padding:20px; background: var(--card-bg, rgba(255,255,255,0.05)); border-radius: 12px;">
+<div class="layoutPreviewIcon" style="text-align:center; font-size: 48px; margin-bottom:16px;">⚙️</div>
+<div class="layoutPreviewText" style="text-align:center;">
+<div style="margin-bottom:8px;">UI Scale: <strong id="layoutPreviewScaleStatus">100%</strong></div>
+<div style="margin-bottom:8px;">Sound: <strong id="layoutPreviewSoundStatus">Off</strong></div>
+<div>Motion: <strong id="layoutPreviewMotionStatus">Normal</strong></div>
+</div>
+</div>
+<div class="previewActions">
+<button class="btn btnPrimary" id="saveLayoutBtn" type="button">✓ Done</button>
+<button class="btn btnSecondary" id="cancelLayoutBtn" type="button">Cancel</button>
+</div>
+</div>
+</aside>
+<div class="editProfileControls">
 <div class="customizeSection">
 <div class="sectionTitle">Basic</div>
 <div class="panelBox" id="layoutBasic">
@@ -1616,8 +1679,7 @@
 <div class="msgline" id="customizeMsg"></div>
 </div>
 </details>
-<div class="customizeResetRow">
-<button class="btn secondary" id="resetLayoutBtn" type="button">Reset this section</button>
+</div>
 </div>
 </div>
 <div class="customizeSubpage neonModal" data-category="edit-profile" id="customizeEditProfilePage" style="display:none;">
