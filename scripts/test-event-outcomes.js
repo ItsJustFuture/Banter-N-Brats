@@ -94,7 +94,7 @@ test("Gold cannot go negative", () => {
     outcomes: { catastrophic: { gold: -50 } }
   };
   
-  const changes = applyEventOutcome(template, "catastrophic", [char], {}, () => 0.5);
+  applyEventOutcome(template, "catastrophic", [char], {}, () => 0.5);
   
   assert(char.gold === 0, `Expected gold to be 0 (capped), got ${char.gold}`);
 });
