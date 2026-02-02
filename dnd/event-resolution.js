@@ -7,7 +7,7 @@
 // Reuses Survival Simulator's outcome application pattern
 
 const { getAttributeModifier, PERK_DEFINITIONS } = require("./character-system");
-const { determineOutcome, OUTCOME_TIERS } = require("./event-templates");
+const { determineOutcome } = require("./event-templates");
 
 /**
  * Roll a D20 with modifiers
