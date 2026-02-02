@@ -10687,7 +10687,7 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
         sessionId,
         userId,
         displayName: user.username,
-        avatarUrl: user.avatar_url || null,
+        avatarUrl: user.avatar || null,
         attributes: finalAttributes,
         skills,
         perks,
