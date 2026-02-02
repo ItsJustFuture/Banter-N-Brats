@@ -351,7 +351,12 @@ function applySkillBonuses(baseAttributes, skills) {
       if (attr === "hp") {
         hpBonus += bonus;
       } else if (CORE_ATTRIBUTES.includes(attr)) {
-        modified[attr] = (modified[attr] || 0) + bonus;
+        const newValue = (modified[attr] || 0) + bonus;
+        const clampedValue = Math.max(
+          ATTRIBUTE_CONFIG.minPerAttribute,
+          Math.min(ATTRIBUTE_CONFIG.maxPerAttribute, newValue)
+        );
+        modified[attr] = clampedValue;
       }
     }
   }
