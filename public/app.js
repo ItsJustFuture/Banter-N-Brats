@@ -3845,7 +3845,6 @@ const dndCreateCharBtn = document.getElementById("dndCreateCharBtn");
 const dndLobbyCount = document.getElementById("dndLobbyCount");
 const dndCharacterPanel = document.getElementById("dndCharacterPanel");
 const dndCharacterClose = document.getElementById("dndCharacterClose");
-const dndAttributesGrid = document.getElementById("dndAttributesGrid");
 const dndPointsRemaining = document.getElementById("dndPointsRemaining");
 const dndSkillsList = document.getElementById("dndSkillsList");
 const dndPerksList = document.getElementById("dndPerksList");
