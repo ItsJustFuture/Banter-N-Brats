@@ -4863,9 +4863,18 @@ async function loadDndCurrent() {
 }
 
 function applyDndPayload(payload) {
-  if (payload.session) dndState.session = payload.session;
-  if (payload.characters) dndState.characters = payload.characters;
-  if (payload.events) dndState.events = payload.events;
+  // Always update session, even when null, so UI does not show stale session data.
+  dndState.session = payload.session ?? null;
+
+  if (!dndState.session) {
+    // No active session: clear related state.
+    dndState.characters = [];
+    dndState.events = [];
+  } else {
+    // Active session: update related state when provided.
+    if (payload.characters !== undefined) dndState.characters = payload.characters;
+    if (payload.events !== undefined) dndState.events = payload.events;
+  }
   renderDndPanel();
 }
 
