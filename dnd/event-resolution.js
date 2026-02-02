@@ -77,7 +77,7 @@ function calculateModifier(character, attribute, context = {}) {
   
   // Active monster penalty (NEW: Issue #1)
   if (context.worldState && context.worldState.activeMonster) {
-    const penalty = context.worldState.activeMonster.checkPenalty || -2;
+    const penalty = context.worldState.activeMonster.checkPenalty ?? -2;
     total += penalty;
     breakdown.push({ source: "active_monster", value: penalty });
   }
