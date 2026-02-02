@@ -12596,13 +12596,13 @@ async function saveEditProfile(){
     editProfileMsg.textContent = "Saved! Refreshing...";
     pushNotification({ type: "system", text: "Profile saved." });
     
-    // Refresh profile data
-    setTimeout(() => {
-      closeEditProfileModal();
-      if (currentProfileIsSelf) {
-        openProfile(me);
-      }
-    }, 500);
+    // Refresh profile data and close modal
+    await loadMyProfile();
+    await loadProgression();
+    closeEditProfileModal();
+    if (currentProfileIsSelf && modal && !modal.hidden) {
+      openProfile(me);
+    }
   } catch (err) {
     editProfileMsg.textContent = "Network error. Please try again.";
     console.error("Profile save error:", err);
@@ -12621,8 +12621,8 @@ editProfileSaveBtn?.addEventListener("click", saveEditProfile);
 // Handle username change separately
 editProfileChangeUsernameBtn?.addEventListener("click", async () => {
   if (!editProfileUsername) return;
-  const desired = String(editProfileUsername.value || "").trim();
-  if (!desired) {
+  const newUsername = String(editProfileUsername.value || "").trim();
+  if (!newUsername) {
     editProfileUsernameMsg.textContent = "Enter a new username.";
     return;
   }
@@ -12632,7 +12632,7 @@ editProfileChangeUsernameBtn?.addEventListener("click", async () => {
     const res = await fetch("/api/me/username", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: desired }),
+      body: JSON.stringify({ username: newUsername }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
