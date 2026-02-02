@@ -6,8 +6,6 @@
 // Reuses Survival Simulator's event resolution pattern
 // But with D20-based checks and narrative depth
 
-const { getAttributeModifier } = require("./character-system");
-
 // Event outcome tiers
 const OUTCOME_TIERS = {
   CRITICAL_SUCCESS: "critical_success",
