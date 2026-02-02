@@ -466,7 +466,7 @@ node scripts/test-dnd-gameplay-features.js
 
 Expected output:
 - ✅ All original module tests pass
-- ✅ All 42 gameplay feature tests pass
+- ✅ All 44 gameplay feature tests pass
 - ✅ No regressions in existing functionality
 
 ---
