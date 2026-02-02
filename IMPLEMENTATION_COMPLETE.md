@@ -78,7 +78,7 @@ Successfully implemented comprehensive enhancements to the DnD Story Room game, 
 ✅ 10/10 module tests pass
 ✅ Couple detection verified
 ✅ Event selection logic tested
-✅ CodeQL: 0 security issues
+✅ CodeQL scan expected to report 0 security issues (pending CI run)
 ✅ Full backward compatibility
 ```
 
