@@ -1802,7 +1802,7 @@
 <!-- EDIT PROFILE MODAL -->
 <!-- Modal for editing profile information with real-time preview -->
 <div id="editProfileModal" aria-hidden="true" aria-label="Edit Profile" hidden role="dialog">
-  <div class="modalCard profileEditModalCard" style="box-shadow: 0 0 20px 2px var(--accent, #6c5ce7);">
+  <div class="modalCard profileEditModalCard">
     <div class="modalTop">
       <strong>Edit Profile</strong>
       <button class="iconBtn" id="editProfileModalClose" type="button" title="Close" aria-label="Close edit profile">✕</button>
@@ -1863,8 +1863,14 @@
           </div>
           <div class="field">
             <label for="editProfileUsername">Change Username</label>
-            <input id="editProfileUsername" placeholder="New username" maxlength="32"/>
-            <div class="small muted">Costs 5,000 gold. Leave blank to keep current username.</div>
+            <div class="row" style="gap:8px; align-items:flex-end;">
+              <div style="flex:1;">
+                <input id="editProfileUsername" placeholder="New username" maxlength="32"/>
+                <div class="small muted">Costs 5,000 gold. This action cannot be undone.</div>
+              </div>
+              <button class="btn secondary" id="editProfileChangeUsernameBtn" type="button">Change</button>
+            </div>
+            <div class="msgline" id="editProfileUsernameMsg"></div>
           </div>
           <div class="msgline" id="editProfileMsg"></div>
           <div class="row" style="gap:8px; margin-top:12px;">

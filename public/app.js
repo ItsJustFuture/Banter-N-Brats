@@ -4893,6 +4893,8 @@ const editProfileAge = document.getElementById("editProfileAge");
 const editProfileGender = document.getElementById("editProfileGender");
 const editProfileBio = document.getElementById("editProfileBio");
 const editProfileUsername = document.getElementById("editProfileUsername");
+const editProfileChangeUsernameBtn = document.getElementById("editProfileChangeUsernameBtn");
+const editProfileUsernameMsg = document.getElementById("editProfileUsernameMsg");
 const editProfileVibeOptions = document.getElementById("editProfileVibeOptions");
 const editProfileVibeLimit = document.getElementById("editProfileVibeLimit");
 const profilePreviewCard = document.getElementById("profilePreviewCard");
@@ -12584,13 +12586,6 @@ async function saveEditProfile(){
     form.append("avatar", editProfileAvatar.files[0]);
   }
   
-  // Handle username change (if provided)
-  const newUsername = editProfileUsername?.value?.trim();
-  if (newUsername && newUsername !== me?.username) {
-    // This will be handled by the separate username change endpoint
-    // For now, we'll just save the profile and handle username separately
-  }
-  
   try {
     const res = await fetch("/profile", { method: "POST", body: form });
     if (!res.ok) {
@@ -12623,6 +12618,45 @@ editProfileModalClose?.addEventListener("click", closeEditProfileModal);
 editProfileCancelBtn?.addEventListener("click", closeEditProfileModal);
 editProfileSaveBtn?.addEventListener("click", saveEditProfile);
 
+// Handle username change separately
+editProfileChangeUsernameBtn?.addEventListener("click", async () => {
+  if (!editProfileUsername) return;
+  const desired = String(editProfileUsername.value || "").trim();
+  if (!desired) {
+    editProfileUsernameMsg.textContent = "Enter a new username.";
+    return;
+  }
+  editProfileUsernameMsg.textContent = "Changing username...";
+  editProfileChangeUsernameBtn.disabled = true;
+  try {
+    const res = await fetch("/api/me/username", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: desired }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      editProfileUsernameMsg.textContent = data.message || "Could not change username.";
+      editProfileChangeUsernameBtn.disabled = false;
+      return;
+    }
+    editProfileUsernameMsg.textContent = `Username changed to ${data.username}!`;
+    editProfileUsername.value = "";
+    await loadMyProfile();
+    await loadProgression();
+    // Update preview with new username
+    updateProfilePreview();
+    setTimeout(() => {
+      editProfileUsernameMsg.textContent = "";
+    }, 3000);
+  } catch (err) {
+    console.error("Username change failed", err);
+    editProfileUsernameMsg.textContent = "Could not change username.";
+  } finally {
+    editProfileChangeUsernameBtn.disabled = false;
+  }
+});
+
 editProfileModal?.addEventListener("click", (e) => {
   if (e.target === editProfileModal) closeEditProfileModal();
 });
@@ -12647,9 +12681,6 @@ editProfileAvatar?.addEventListener("change", (e) => {
 openCouplesCardBtn?.addEventListener("click", () => {
   openCouplesModal();
 });
-
-// Remove old couples button listener (it no longer exists in HTML)
-// couplesBtn?.addEventListener("click", openCouplesModal); // This line is now removed below
 
 couplesModalClose?.addEventListener("click", closeCouplesModal);
 couplesModal?.addEventListener("click", (e) => {
@@ -17540,11 +17571,7 @@ function applyProfileSectionVisibility(isSelf){
 }
 
 function updateProfileActions({ isSelf = false, canModerate = false } = {}){
-  // Edit profile button is now in customization tab, not in actions
   if (!isSelf) closeProfileSettingsMenu();
-  // Remove old button references - they no longer exist
-  // if (profileEditToggleBtn) profileEditToggleBtn.style.display = isSelf ? "" : "none";
-  // if (profileEditToggleRow) profileEditToggleRow.style.display = "none";
   applyCustomizeVisibility();
   if (dmChessQuickBtn) dmChessQuickBtn.style.display = isSelf ? "none" : "";
   if (addFriendBtn) addFriendBtn.style.display = isSelf ? "none" : "";
@@ -17583,10 +17610,6 @@ function updateProfileActions({ isSelf = false, canModerate = false } = {}){
   if (actionsBtn) {
     actionsBtn.style.display = "none";
   }
-  // Remove old profileEditBtn reference - button no longer exists
-  // if (profileEditBtn) {
-  //   profileEditBtn.style.display = isSelf ? "" : "none";
-  // }
   if (profileSettingsBtn) {
     profileSettingsBtn.style.display = isSelf ? "" : "none";
   }
