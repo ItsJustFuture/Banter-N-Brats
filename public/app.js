@@ -12640,7 +12640,11 @@ editProfileChangeUsernameBtn?.addEventListener("click", async () => {
       editProfileChangeUsernameBtn.disabled = false;
       return;
     }
-    editProfileUsernameMsg.textContent = `Username changed to ${data.username}!`;
+    // Use textContent to safely display username (prevents XSS)
+    const usernameText = document.createElement("span");
+    usernameText.textContent = `Username changed to ${data.username}!`;
+    editProfileUsernameMsg.textContent = "";
+    editProfileUsernameMsg.appendChild(usernameText);
     editProfileUsername.value = "";
     await loadMyProfile();
     await loadProgression();
@@ -12687,14 +12691,19 @@ couplesModal?.addEventListener("click", (e) => {
   if (e.target === couplesModal) closeCouplesModal();
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && editProfileModal && !editProfileModal.hidden) {
-    closeEditProfileModal();
-  }
-  if (e.key === "Escape" && couplesModal && couplesModal.style.display !== "none") {
-    closeCouplesModal();
-  }
-  if (e.key === "Escape" && roomActionsMenu && !roomActionsMenu.hidden) {
-    closeRoomActionsMenu();
+  if (e.key === "Escape") {
+    if (editProfileModal && !editProfileModal.hidden) {
+      closeEditProfileModal();
+      return;
+    }
+    if (couplesModal && couplesModal.style.display !== "none") {
+      closeCouplesModal();
+      return;
+    }
+    if (roomActionsMenu && !roomActionsMenu.hidden) {
+      closeRoomActionsMenu();
+      return;
+    }
   }
   if (e.key === "Escape" && roomManageModal && roomManageModal.style.display !== "none") {
     closeRoomManageModal();
