@@ -90,7 +90,7 @@ Successfully implemented comprehensive enhancements to the DnD Story Room game, 
 
 **Code Review**
 - Extracted COUPLE_BONUS constant
-- Fixed array mutation issues
+- Improved character selection to avoid unnecessary array mutations
 - Proper error handling
 - Clean, maintainable code
 
