@@ -12596,7 +12596,6 @@ function loadEditProfileData() {
   const editProfileGenderCustomize = document.getElementById("editProfileGender");
   const editProfileBioCustomize = document.getElementById("editProfileBio");
   const editProfileUsernameCustomize = document.getElementById("editProfileUsername");
-  const editVibeTagOptionsCustomize = document.getElementById("editVibeTagOptions");
   
   if (editProfileMoodCustomize) editProfileMoodCustomize.value = me?.mood || "";
   if (editProfileAgeCustomize) editProfileAgeCustomize.value = me?.age || "";
