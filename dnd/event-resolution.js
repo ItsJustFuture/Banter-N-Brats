@@ -261,10 +261,11 @@ function applyEventOutcome(template, outcome, characters, worldState = {}, rng =
   // Handle item loss
   if (outcomeData.loseItem) {
     characters.forEach(char => {
-      changes.itemChanges.push({
+      // Narrative-only effect: there is no inventory system, so we record this as a status change
+      changes.statusChanges.push({
         characterId: char.id,
-        action: "lose_random",
-        item: "Random Item"
+        type: "narrative_item_loss",
+        description: "The character loses an unspecified item (narrative effect only)."
       });
     });
   }
