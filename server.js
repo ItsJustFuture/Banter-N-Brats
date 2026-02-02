@@ -10861,10 +10861,18 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
     const isCouple = selectedChars.length >= 2 && 
                      dndEventResolution.areCouple(selectedChars[0], selectedChars[1], couplePairs);
     
-    // Perform check for first character (with couple bonus if applicable)
+    // Get world state for context (including active monster)
+    const worldState = session.world_state_json ? JSON.parse(session.world_state_json) : {};
+    
+    // Perform check for first character (with couple bonus, worldState, and status effects)
     const mainChar = selectedChars[0];
     const checkContext = {
-      coupleBonus: isCouple && template.coupleBonus
+      coupleBonus: isCouple && template.coupleBonus,
+      worldState, // Pass worldState for monster penalty
+      // Note: This check currently does not load/apply any active status effects.
+      // Status effects may be recorded in event outcomes (e.g., outcome_json),
+      // but they are not yet persisted/loaded as active gameplay state across rounds.
+      statusEffects: [] // Empty array - active status effect state not yet wired in
     };
     
     const checkResult = dndEventResolution.performCheck(
@@ -10876,7 +10884,6 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
     );
     
     // Apply outcome
-    const worldState = session.world_state_json ? JSON.parse(session.world_state_json) : {};
     const outcomeChanges = dndEventResolution.applyEventOutcome(
       template,
       checkResult.outcome,
@@ -10885,12 +10892,29 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
       rng
     );
     
-    // Update characters in database
+    // Update characters in database (including attribute changes)
     for (const char of selectedChars) {
-      await dndDb.updateDndCharacter(pgPool, char.id, {
+      const updates = {
         hp: char.hp,
         alive: char.alive
-      });
+      };
+      
+      // Add attribute updates if they were changed
+      const charAttrChanges = outcomeChanges.attributeChanges?.filter(
+        change => change.characterId === char.id
+      );
+      if (charAttrChanges && charAttrChanges.length > 0) {
+        // Update all core attributes
+        updates.might = char.might;
+        updates.finesse = char.finesse;
+        updates.wit = char.wit;
+        updates.instinct = char.instinct;
+        updates.presence = char.presence;
+        updates.resolve = char.resolve;
+        updates.chaos = char.chaos;
+      }
+      
+      await dndDb.updateDndCharacter(pgPool, char.id, updates);
     }
     
     // Format narrative

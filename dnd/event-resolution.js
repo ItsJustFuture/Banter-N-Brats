@@ -6,11 +6,12 @@
 // D20-based resolution engine
 // Reuses Survival Simulator's outcome application pattern
 
-const { getAttributeModifier, PERK_DEFINITIONS } = require("./character-system");
+const { getAttributeModifier, PERK_DEFINITIONS, CORE_ATTRIBUTES, ATTRIBUTE_CONFIG } = require("./character-system");
 const { determineOutcome } = require("./event-templates");
 
 // Constants
 const COUPLE_BONUS = 2; // Small bonus for couples participating together
+const MAX_ATTRIBUTE_VALUE = ATTRIBUTE_CONFIG.maxPerAttribute; // Maximum value for any core attribute (from ATTRIBUTE_CONFIG)
 
 /**
  * Roll a D20 with modifiers
@@ -25,7 +26,7 @@ function rollD20(rng) {
  * Calculate total modifier for a check
  * @param {Object} character - Character object with attributes, skills, perks
  * @param {string} attribute - Attribute being checked
- * @param {Object} context - Additional context (situational modifiers, etc.)
+ * @param {Object} context - Additional context (situational modifiers, worldState, etc.)
  * @returns {Object} { modifier, breakdown }
  */
 function calculateModifier(character, attribute, context = {}) {
@@ -63,6 +64,13 @@ function calculateModifier(character, attribute, context = {}) {
     breakdown.push({ source: "couple_synergy", value: COUPLE_BONUS });
   }
   
+  // Active monster penalty (NEW: Issue #1)
+  if (context.worldState && context.worldState.activeMonster) {
+    const penalty = context.worldState.activeMonster.checkPenalty ?? -2;
+    total += penalty;
+    breakdown.push({ source: "active_monster", value: penalty });
+  }
+  
   // Situational modifiers from context
   if (context.situational) {
     total += context.situational;
@@ -84,12 +92,27 @@ function calculateModifier(character, attribute, context = {}) {
  * @param {string} attribute - Attribute to check
  * @param {number} dc - Difficulty Class
  * @param {Function} rng - Seeded RNG function
- * @param {Object} context - Additional context
- * @returns {Object} { roll, modifier, total, dc, outcome, breakdown, isCrit, isCritFail }
+ * @param {Object} context - Additional context (includes statusEffects for check modifiers)
+ * @returns {Object} { roll, modifier, total, dc, outcome, breakdown, isCrit, isCritFail, usedStatusEffects }
  */
 function performCheck(character, attribute, dc, rng, context = {}) {
   let roll = rollD20(rng);
   const { modifier, breakdown } = calculateModifier(character, attribute, context);
+  const usedStatusEffects = [];
+  
+  // Check for active status effects that modify checks
+  let checkBonus = 0;
+  if (context.statusEffects && Array.isArray(context.statusEffects)) {
+    // Look for next_check_bonus status effects
+    const bonusEffect = context.statusEffects.find(
+      effect => effect.type === "check_modifier" && effect.effect === "next_check_bonus"
+    );
+    if (bonusEffect && bonusEffect.value) {
+      checkBonus = bonusEffect.value;
+      breakdown.push({ source: "status_bonus", value: checkBonus });
+      usedStatusEffects.push(bonusEffect.id || bonusEffect);
+    }
+  }
   
   // Check for critical range expansion (perk)
   const perks = character.perks_json ? JSON.parse(character.perks_json) : [];
@@ -113,7 +136,8 @@ function performCheck(character, attribute, dc, rng, context = {}) {
     if (isCritFail) roll = 1; // Min out fails
   }
   
-  const total = roll + modifier;
+  // Apply check bonus from status effects
+  const total = roll + modifier + checkBonus;
   const outcome = determineOutcome(roll === 1 ? 1 : (roll === 20 ? 20 : total), dc);
   
   return {
@@ -124,7 +148,8 @@ function performCheck(character, attribute, dc, rng, context = {}) {
     outcome,
     breakdown,
     isCrit,
-    isCritFail
+    isCritFail,
+    usedStatusEffects
   };
 }
 
@@ -135,16 +160,17 @@ function performCheck(character, attribute, dc, rng, context = {}) {
  * @param {Array<Object>} characters - Characters involved
  * @param {Object} worldState - Mutable world state
  * @param {Function} rng - Seeded RNG function
- * @returns {Object} Changes made { hpChanges, itemChanges, statusChanges, narrative }
+ * @returns {Object} Changes made { hpChanges, itemChanges, statusChanges, attributeChanges, narrative }
  */
 function applyEventOutcome(template, outcome, characters, worldState = {}, rng = Math.random) {
   const outcomeData = template.outcomes[outcome];
-  if (!outcomeData) return { narrative: "Unknown outcome", hpChanges: [] };
+  if (!outcomeData) return { narrative: "Unknown outcome", hpChanges: [], attributeChanges: [] };
   
   const changes = {
     hpChanges: [],
     itemChanges: [],
     statusChanges: [],
+    attributeChanges: [],
     worldStateChanges: {},
     narrative: template.text[outcome] || "Something happened."
   };
@@ -178,6 +204,168 @@ function applyEventOutcome(template, outcome, characters, worldState = {}, rng =
       const oldHp = char.hp;
       char.hp = Math.min(char.max_hp, char.hp + heal);
       changes.hpChanges.push({ characterId: char.id, change: char.hp - oldHp, newHp: char.hp });
+    });
+  }
+  
+  // Apply attribute modifications (NEW: Issue #2)
+  if (outcomeData.randomAttributeBoost !== undefined) {
+    const boost = outcomeData.randomAttributeBoost;
+    characters.forEach(char => {
+      // Select a random attribute
+      const randomAttr = CORE_ATTRIBUTES[Math.floor(rng() * CORE_ATTRIBUTES.length)];
+      const oldValue = char[randomAttr] || 3;
+      const newValue = Math.min(MAX_ATTRIBUTE_VALUE, oldValue + boost); // Cap at max
+      char[randomAttr] = newValue;
+      
+      changes.attributeChanges.push({
+        characterId: char.id,
+        attribute: randomAttr,
+        oldValue,
+        newValue,
+        change: newValue - oldValue
+      });
+      
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "attribute_change",
+        effect: `${randomAttr} +${newValue - oldValue}`
+      });
+    });
+  }
+  
+  if (outcomeData.randomAttributeSwap) {
+    characters.forEach(char => {
+      // Select two random different attributes to swap
+      const firstIndex = Math.floor(rng() * CORE_ATTRIBUTES.length);
+      let secondIndex = Math.floor(rng() * (CORE_ATTRIBUTES.length - 1));
+      if (secondIndex >= firstIndex) {
+        secondIndex++;
+      }
+      const attr1 = CORE_ATTRIBUTES[firstIndex];
+      const attr2 = CORE_ATTRIBUTES[secondIndex];
+      
+      const value1 = char[attr1] || 3;
+      const value2 = char[attr2] || 3;
+      
+      // Swap the values
+      char[attr1] = value2;
+      char[attr2] = value1;
+      
+      changes.attributeChanges.push({
+        characterId: char.id,
+        type: "swap",
+        attributes: [attr1, attr2],
+        values: [value2, value1]
+      });
+      
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "attribute_change",
+        effect: `swapped ${attr1} ↔ ${attr2}`
+      });
+    });
+  }
+  
+  if (outcomeData.scrambleAttributes) {
+    characters.forEach(char => {
+      // Collect current attribute values
+      const values = CORE_ATTRIBUTES.map(attr => char[attr] || 3);
+      
+      // Shuffle the values using Fisher-Yates algorithm
+      for (let i = values.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [values[i], values[j]] = [values[j], values[i]];
+      }
+      
+      // Apply shuffled values back to attributes
+      const oldValues = {};
+      CORE_ATTRIBUTES.forEach((attr, idx) => {
+        oldValues[attr] = char[attr] || 3;
+        char[attr] = values[idx];
+      });
+      
+      changes.attributeChanges.push({
+        characterId: char.id,
+        type: "scramble",
+        oldValues,
+        newValues: CORE_ATTRIBUTES.reduce((acc, attr) => {
+          acc[attr] = char[attr];
+          return acc;
+        }, {})
+      });
+      
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "attribute_change",
+        effect: "all attributes scrambled!"
+      });
+    });
+  }
+  
+  if (outcomeData.chooseAttributeSwap) {
+    // This is a UI-driven action, just notify via statusChanges
+    characters.forEach(char => {
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "attribute_choice",
+        effect: "choose_two_attributes_to_swap",
+        pendingAction: true
+      });
+    });
+  }
+  
+  // Apply check modifiers (NEW: Issue #3)
+  if (outcomeData.nextCheckBonus !== undefined) {
+    const bonus = outcomeData.nextCheckBonus;
+    characters.forEach(char => {
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "check_modifier",
+        effect: "next_check_bonus",
+        value: bonus,
+        expiresAfter: "next_check" // Will be consumed on next check
+      });
+    });
+  }
+  
+  if (outcomeData.redoCheck) {
+    characters.forEach(char => {
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "check_modifier",
+        effect: "redo_last_check",
+        allowRedo: true,
+        expiresAfter: "next_check"
+      });
+    });
+  }
+  
+  if (outcomeData.loseTurn) {
+    characters.forEach(char => {
+      changes.statusChanges.push({
+        characterId: char.id,
+        type: "turn_skip",
+        effect: "loses next turn",
+        skipTurn: true,
+        expiresAfter: "next_turn"
+      });
+    });
+  }
+  
+  // Apply monster summoning (NEW: Issue #1)
+  if (outcomeData.summonMonster) {
+    const monsterName = outcomeData.monsterName || "Summoned Horror";
+    worldState.activeMonster = {
+      name: monsterName,
+      hp: 100,
+      summoned_at: Date.now(),
+      checkPenalty: outcomeData.monsterPenalty ?? -2 // Applies penalty to all checks while active
+    };
+    changes.worldStateChanges.monsterSummoned = true;
+    changes.statusChanges.push({
+      type: "monster_summoned",
+      effect: "A monster has been summoned!",
+      monsterName: worldState.activeMonster.name
     });
   }
   
