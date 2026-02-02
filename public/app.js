@@ -12138,19 +12138,37 @@ customizeCards.forEach((card) => {
       openThemesModal();
       return;
     }
-    // Handle Edit Profile card
+    // Handle Edit Profile card - load data and show preview
     if (card.dataset.category === "edit-profile") {
-      openEditProfileModal();
+      setCustomizePage("edit-profile");
+      loadEditProfileData();
+      updateEditProfilePreview();
       return;
     }
     // Handle Couples card
     if (card.dataset.category === "couples") {
-      openCouplesModal();
+      setCustomizePage("couples");
+      // Load couples data if needed
       return;
     }
     // Show couple gradient field when viewing profile appearance
     if (card.dataset.category === "profile") {
       updateCoupleGradientFieldVisibility();
+      setCustomizePage("profile");
+      updateProfileAppearancePreview();
+      return;
+    }
+    // Handle Effects card
+    if (card.dataset.category === "effects") {
+      setCustomizePage("effects");
+      updateEffectsPreview();
+      return;
+    }
+    // Handle Layout card
+    if (card.dataset.category === "layout") {
+      setCustomizePage("layout");
+      updateLayoutPreview();
+      return;
     }
     setCustomizePage(card.dataset.category || null);
   });
@@ -12672,6 +12690,67 @@ function updateEditProfilePreview() {
   }
 }
 
+// Update Profile Appearance Preview
+function updateProfileAppearancePreview() {
+  const previewBg = document.getElementById("profileAppearancePreviewBg");
+  const previewAvatar = document.getElementById("profileAppearancePreviewAvatar");
+  const headerColorA = document.getElementById("headerColorA");
+  const headerColorB = document.getElementById("headerColorB");
+  
+  if (previewBg && headerColorA && headerColorB) {
+    const colorA = headerColorA.value || "#ff6a2b";
+    const colorB = headerColorB.value || "#2b0f08";
+    previewBg.style.background = `linear-gradient(135deg, ${colorA}, ${colorB})`;
+  }
+  
+  if (previewAvatar && me?.avatar) {
+    previewAvatar.style.backgroundImage = `url(${me.avatar})`;
+  }
+}
+
+// Update Effects Preview
+function updateEffectsPreview() {
+  const animStatus = document.getElementById("effectsPreviewAnimStatus");
+  const comfortStatus = document.getElementById("effectsPreviewComfortStatus");
+  const polishStatus = document.getElementById("effectsPreviewPolishStatus");
+  
+  const chatFxPolishAnimations = document.getElementById("chatFxPolishAnimations");
+  const prefComfortMode = document.getElementById("prefComfortMode");
+  const chatFxPolishPack = document.getElementById("chatFxPolishPack");
+  
+  if (animStatus && chatFxPolishAnimations) {
+    animStatus.textContent = chatFxPolishAnimations.checked ? "On" : "Off";
+  }
+  if (comfortStatus && prefComfortMode) {
+    comfortStatus.textContent = prefComfortMode.checked ? "On" : "Off";
+  }
+  if (polishStatus && chatFxPolishPack) {
+    polishStatus.textContent = chatFxPolishPack.checked ? "On" : "Off";
+  }
+}
+
+// Update Layout Preview
+function updateLayoutPreview() {
+  const scaleStatus = document.getElementById("layoutPreviewScaleStatus");
+  const soundStatus = document.getElementById("layoutPreviewSoundStatus");
+  const motionStatus = document.getElementById("layoutPreviewMotionStatus");
+  
+  const uiScaleRange = document.getElementById("uiScaleRange");
+  const prefSoundEnabled = document.getElementById("prefSoundEnabled");
+  const reduceMotionToggle = document.getElementById("reduceMotionToggle");
+  
+  if (scaleStatus && uiScaleRange) {
+    const scale = Math.round(parseFloat(uiScaleRange.value) * 100);
+    scaleStatus.textContent = `${scale}%`;
+  }
+  if (soundStatus && prefSoundEnabled) {
+    soundStatus.textContent = prefSoundEnabled.checked ? "On" : "Off";
+  }
+  if (motionStatus && reduceMotionToggle) {
+    motionStatus.textContent = reduceMotionToggle.checked ? "Reduced" : "Normal";
+  }
+}
+
 // Sync couples UI data into customization tab
 function syncCouplesCustomizeUI() {
   const couplesActiveSection = document.getElementById("couplesActiveSection");
@@ -12830,6 +12909,18 @@ const removeAvatarBtn = document.getElementById("removeAvatarBtn");
 const editBioHelperToggle = document.getElementById("editBioHelperToggle");
 const editBioHelper = document.getElementById("editBioHelper");
 
+// Wire up new modal buttons for Profile Appearance
+const saveProfileAppearanceBtn = document.getElementById("saveProfileAppearanceBtn");
+const cancelProfileAppearanceBtn = document.getElementById("cancelProfileAppearanceBtn");
+
+// Wire up new modal buttons for Effects
+const saveEffectsBtn = document.getElementById("saveEffectsBtn");
+const cancelEffectsBtn = document.getElementById("cancelEffectsBtn");
+
+// Wire up new modal buttons for Layout
+const saveLayoutBtn = document.getElementById("saveLayoutBtn");
+const cancelLayoutBtn = document.getElementById("cancelLayoutBtn");
+
 saveEditProfileBtn?.addEventListener("click", async () => {
   const editProfileMoodCustomize = document.getElementById("editProfileMood");
   const editProfileAgeCustomize = document.getElementById("editProfileAge");
@@ -12880,6 +12971,42 @@ saveEditProfileBtn?.addEventListener("click", async () => {
 
 cancelEditProfileBtn?.addEventListener("click", () => {
   setCustomizePage(null);
+});
+
+// Wire up Profile Appearance modal buttons
+cancelProfileAppearanceBtn?.addEventListener("click", () => {
+  setCustomizePage(null);
+});
+
+saveProfileAppearanceBtn?.addEventListener("click", async () => {
+  // Profile appearance settings are already saved real-time via existing handlers
+  // Just close the modal
+  setCustomizePage(null);
+  toast?.("Profile appearance saved!");
+});
+
+// Wire up Effects modal buttons
+cancelEffectsBtn?.addEventListener("click", () => {
+  setCustomizePage(null);
+});
+
+saveEffectsBtn?.addEventListener("click", async () => {
+  // Effects settings are already saved real-time via existing handlers
+  // Just close the modal
+  setCustomizePage(null);
+  toast?.("Effects settings saved!");
+});
+
+// Wire up Layout modal buttons
+cancelLayoutBtn?.addEventListener("click", () => {
+  setCustomizePage(null);
+});
+
+saveLayoutBtn?.addEventListener("click", async () => {
+  // Layout settings are already saved real-time via existing handlers
+  // Just close the modal
+  setCustomizePage(null);
+  toast?.("Layout settings saved!");
 });
 
 confirmUsernameChangeBtn?.addEventListener("click", async () => {
@@ -17329,11 +17456,13 @@ logoutBtn?.addEventListener("click", doLogout);
     const v = Number(uiScaleRange.value);
     applyUiScale(v);
     uiScaleValue.textContent = Math.round(v * 100) + "%";
+    updateLayoutPreview(); // Update layout modal preview
   });
 
   uiScaleResetBtn?.addEventListener("click", ()=>{
     applyUiScale(null);
     syncUiScaleUi();
+    updateLayoutPreview(); // Update layout modal preview
   });
 
   window.addEventListener("resize", syncUiScaleUi, { passive:true });
@@ -17684,6 +17813,7 @@ function scheduleProfileHeaderPreview(colorA, colorB){
   headerGradientPreviewNext = next;
   if(prefersReducedMotion?.matches){
     applyProfileHeaderGradient(next.a, next.b, currentProfileHeaderRole);
+    updateProfileAppearancePreview(); // Update modal preview
     return;
   }
   if(headerGradientPreviewFrame) return;
@@ -17692,6 +17822,7 @@ function scheduleProfileHeaderPreview(colorA, colorB){
     const vals = headerGradientPreviewNext || next;
     headerGradientPreviewNext = null;
     applyProfileHeaderGradient(vals.a, vals.b, currentProfileHeaderRole);
+    updateProfileAppearancePreview(); // Update modal preview
   });
 }
 function syncHeaderGradientInputs(colorA, colorB){
@@ -18183,6 +18314,7 @@ function wireSoundPrefs(){
     Sound.set.setBool(k.KEY_ENABLED, prefSoundEnabled.checked);
     syncSoundPrefsUI(true);
     queuePersistPrefs({ sound: Sound.exportPrefs() });
+    updateLayoutPreview(); // Update layout modal preview
 
     // User gesture here: attempt to unlock + play a tiny confirmation
     if (prefSoundEnabled.checked) {
@@ -18247,6 +18379,7 @@ function wireComfortMode(){
   prefComfortMode.addEventListener("change", () => {
     applyComfortMode(prefComfortMode.checked, { persistLocal: true, persistServer: true });
     if (reduceMotionToggle) reduceMotionToggle.checked = prefComfortMode.checked;
+    updateEffectsPreview(); // Update effects modal preview
   });
 }
 
@@ -18393,6 +18526,7 @@ function handleChatFxInput(){
   updateChatFxSliderValue(chatFxPrefEls.textGradientAngleValue, normalized.textGradientAngle);
   updatePolishPackClasses(normalized);
   updateChatFxPreview(normalized);
+  updateEffectsPreview(); // Update effects modal preview
 }
 
 function applyChatFxToSelfBubbles(fx){
@@ -19168,6 +19302,7 @@ function wireChatFxPrefs(){
       if (!prefComfortMode) return;
       prefComfortMode.checked = reduceMotionToggle.checked;
       prefComfortMode.dispatchEvent(new Event("change", { bubbles: true }));
+      updateLayoutPreview(); // Update layout modal preview
     });
   }
 
