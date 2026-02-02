@@ -10778,7 +10778,7 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
     const rng = createSeededRng(`${session.rng_seed}:${session.round}`);
     
     // Select event template
-    const { key: templateKey, template } = dndEventResolution.selectEventTemplate(
+    const { template } = dndEventResolution.selectEventTemplate(
       dndEventTemplates.EVENT_TEMPLATES,
       aliveChars.length,
       session.round,
