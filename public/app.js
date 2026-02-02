@@ -13139,29 +13139,19 @@ const couplesGroupToggleCustomize = document.getElementById("couplesGroupToggleC
 const couplesAllowPingToggleCustomize = document.getElementById("couplesAllowPingToggleCustomize");
 
 couplesEnabledToggleCustomize?.addEventListener("change", () => {
-  if (typeof setCouplePrefs === "function") {
-    setCouplePrefs({ enabled: !!couplesEnabledToggleCustomize.checked });
-  }
+  setCouplePrefs({ enabled: !!couplesEnabledToggleCustomize.checked });
 });
 couplesShowProfileToggleCustomize?.addEventListener("change", () => {
-  if (typeof setCouplePrefs === "function") {
-    setCouplePrefs({ showProfile: !!couplesShowProfileToggleCustomize.checked });
-  }
+  setCouplePrefs({ showProfile: !!couplesShowProfileToggleCustomize.checked });
 });
 couplesBadgeToggleCustomize?.addEventListener("change", () => {
-  if (typeof setCouplePrefs === "function") {
-    setCouplePrefs({ badge: !!couplesBadgeToggleCustomize.checked });
-  }
+  setCouplePrefs({ badge: !!couplesBadgeToggleCustomize.checked });
 });
 couplesAuraToggleCustomize?.addEventListener("change", () => {
-  if (typeof setCouplePrefs === "function") {
-    setCouplePrefs({ aura: !!couplesAuraToggleCustomize.checked });
-  }
+  setCouplePrefs({ aura: !!couplesAuraToggleCustomize.checked });
 });
 couplesShowMembersToggleCustomize?.addEventListener("change", () => {
-  if (typeof setCouplePrefs === "function") {
-    setCouplePrefs({ showMembers: !!couplesShowMembersToggleCustomize.checked });
-  }
+  setCouplePrefs({ showMembers: !!couplesShowMembersToggleCustomize.checked });
 });
 couplesGroupToggleCustomize?.addEventListener("change", () => {
   if (typeof setCouplePrefs === "function") {
