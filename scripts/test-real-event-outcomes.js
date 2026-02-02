@@ -40,7 +40,7 @@ function test(eventKey, outcome, expectedProperties) {
     const changes = applyEventOutcome(template, outcome, [mockChar], worldState, () => 0.5);
     
     // Check if expected properties are present in changes
-    for (const [prop, value] of Object.entries(expectedProperties)) {
+    for (const [prop] of Object.entries(expectedProperties)) {
       if (prop === "gold") {
         if (changes.itemChanges.length === 0 || !changes.itemChanges.some(c => c.action.includes("gold"))) {
           throw new Error(`Expected gold change but got none`);
