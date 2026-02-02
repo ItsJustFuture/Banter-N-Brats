@@ -10869,10 +10869,10 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
     const checkContext = {
       coupleBonus: isCouple && template.coupleBonus,
       worldState, // Pass worldState for monster penalty
-      // Note: Status effects are not persisted to database, so they will not
-      // survive page reloads or server restarts. See DND_GAMEPLAY_FEATURES.md
-      // "Future Enhancements" section for status effect persistence design.
-      statusEffects: [] // Empty array - status effects not yet persisted
+      // Note: This check currently does not load/apply any active status effects.
+      // Status effects may be recorded in event outcomes (e.g., outcome_json),
+      // but they are not yet persisted/loaded as active gameplay state across rounds.
+      statusEffects: [] // Empty array - active status effect state not yet wired in
     };
     
     const checkResult = dndEventResolution.performCheck(
