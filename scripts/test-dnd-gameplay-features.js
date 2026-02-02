@@ -84,7 +84,7 @@ const mockTemplate1b = {
   }
 };
 const worldState1b = {};
-const result1b = dndEventResolution.applyEventOutcome(mockTemplate1b, "catastrophic", mockChars1, worldState1b, rng);
+dndEventResolution.applyEventOutcome(mockTemplate1b, "catastrophic", mockChars1, worldState1b, rng);
 assertEqual(worldState1b.activeMonster?.name, "Ancient Dragon", "Monster has custom name");
 assertEqual(worldState1b.activeMonster?.checkPenalty, -3, "Monster has custom check penalty");
 
