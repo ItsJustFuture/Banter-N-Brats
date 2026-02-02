@@ -4969,7 +4969,157 @@ async function dndEndSession() {
 function openDndCharacterCreator() {
   if (!dndCharacterPanel) return;
   dndCharacterPanel.hidden = false;
-  // TODO: Populate skills and perks lists
+  
+  // Populate skills list
+  if (dndSkillsList) {
+    const skills = {
+      warrior: "Warrior (Might-based combat)",
+      brawler: "Brawler (Unarmed combat)",
+      rogue: "Rogue (Stealth & precision)",
+      ranger: "Ranger (Tracking & survival)",
+      mage: "Mage (Arcane magic)",
+      scholar: "Scholar (Knowledge)",
+      scout: "Scout (Awareness)",
+      hunter: "Hunter (Tracking prey)",
+      leader: "Leader (Command)",
+      diplomat: "Diplomat (Negotiation)",
+      cleric: "Cleric (Divine power)",
+      paladin: "Paladin (Holy warrior)",
+      wildcard: "Wildcard (Unpredictable)",
+      gambler: "Gambler (Risk-taker)",
+      spellblade: "Spellblade (Magic + combat)",
+      trickster: "Trickster (Deception)"
+    };
+    
+    dndSkillsList.innerHTML = Object.entries(skills).map(([id, name]) => `
+      <label>
+        <input type="checkbox" name="skill" value="${id}"/> ${escapeHtml(name)}
+      </label>
+    `).join("");
+  }
+  
+  // Populate perks list
+  if (dndPerksList) {
+    const perks = {
+      critical_eye: "Critical Eye (Crit on 19-20)",
+      lucky_dodge: "Lucky Dodge (Reroll failed defense)",
+      iron_will: "Iron Will (+2 Resolve)",
+      second_wind: "Second Wind (Heal 20 HP once)",
+      quick_reflexes: "Quick Reflexes (+2 Finesse)",
+      silver_tongue: "Silver Tongue (+2 Presence)",
+      intimidating: "Intimidating (Less targeted)",
+      fate_touched: "Fate Touched (+3 to one roll)",
+      chaos_magnet: "Chaos Magnet (Extreme outcomes)"
+    };
+    
+    dndPerksList.innerHTML = Object.entries(perks).map(([id, name]) => `
+      <label>
+        <input type="checkbox" name="perk" value="${id}"/> ${escapeHtml(name)}
+      </label>
+    `).join("");
+  }
+  
+  // Add attribute change listeners
+  const attrInputs = document.querySelectorAll('[id^="attr_"]');
+  attrInputs.forEach(input => {
+    input.addEventListener('input', updateDndPointsRemaining);
+  });
+  
+  updateDndPointsRemaining();
+}
+
+function updateDndPointsRemaining() {
+  const attrInputs = document.querySelectorAll('[id^="attr_"]');
+  let total = 0;
+  attrInputs.forEach(input => {
+    total += parseInt(input.value) || 3;
+  });
+  
+  const remaining = 28 - total;
+  if (dndPointsRemaining) {
+    dndPointsRemaining.textContent = `Points: ${remaining} / 28`;
+    dndPointsRemaining.style.color = remaining === 0 ? 'var(--success-color, #10b981)' : 
+                                     remaining < 0 ? 'var(--error-color, #ef4444)' : '';
+  }
+}
+
+async function saveDndCharacter() {
+  try {
+    if (!dndState.session) {
+      alert("No active session");
+      return;
+    }
+    
+    // Get attributes
+    const attributes = {
+      might: parseInt(document.getElementById('attr_might')?.value) || 3,
+      finesse: parseInt(document.getElementById('attr_finesse')?.value) || 3,
+      wit: parseInt(document.getElementById('attr_wit')?.value) || 3,
+      instinct: parseInt(document.getElementById('attr_instinct')?.value) || 3,
+      presence: parseInt(document.getElementById('attr_presence')?.value) || 3,
+      resolve: parseInt(document.getElementById('attr_resolve')?.value) || 3,
+      chaos: parseInt(document.getElementById('attr_chaos')?.value) || 3
+    };
+    
+    // Validate total points
+    const total = Object.values(attributes).reduce((sum, val) => sum + val, 0);
+    if (total !== 28) {
+      alert(`Total attribute points must equal 28 (currently ${total})`);
+      return;
+    }
+    
+    // Get selected skills
+    const skillInputs = document.querySelectorAll('input[name="skill"]:checked');
+    const skills = Array.from(skillInputs).map(input => input.value);
+    
+    if (skills.length < 3 || skills.length > 6) {
+      alert("Must select 3-6 skills");
+      return;
+    }
+    
+    // Get selected perks
+    const perkInputs = document.querySelectorAll('input[name="perk"]:checked');
+    const perks = Array.from(perkInputs).map(input => input.value);
+    
+    if (perks.length > 3) {
+      alert("Maximum 3 perks allowed");
+      return;
+    }
+    
+    if (dndCharMsg) dndCharMsg.textContent = "Saving...";
+    
+    const res = await fetch("/api/dnd-story/characters", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        sessionId: dndState.session.id,
+        attributes,
+        skills,
+        perks
+      })
+    });
+    
+    if (!res.ok) {
+      const text = await res.text();
+      if (dndCharMsg) dndCharMsg.textContent = `Error: ${text}`;
+      return;
+    }
+    
+    const data = await res.json();
+    dndState.myCharacter = data.character;
+    
+    if (dndCharMsg) dndCharMsg.textContent = "Character saved!";
+    setTimeout(() => {
+      closeDndCharacterPanel();
+      if (dndCharMsg) dndCharMsg.textContent = "";
+    }, 1500);
+    
+    await loadDndCurrent();
+  } catch (e) {
+    console.warn("[dnd] Save character failed:", e);
+    if (dndCharMsg) dndCharMsg.textContent = "Failed to save character";
+  }
 }
 
 function isHighRoll(variant, result){
@@ -13752,6 +13902,7 @@ dndEndBtn?.addEventListener("click", dndEndSession);
 dndLobbyBtn?.addEventListener("click", dndJoinLobby);
 dndCreateCharBtn?.addEventListener("click", openDndCharacterCreator);
 dndCharacterClose?.addEventListener("click", closeDndCharacterPanel);
+dndSaveCharBtn?.addEventListener("click", saveDndCharacter);
 
 survivalAutoRunBtn?.addEventListener("click", () => {
   if (!survivalAutoRunning) startSurvivalAutoRun();

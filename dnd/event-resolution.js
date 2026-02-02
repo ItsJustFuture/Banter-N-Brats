@@ -293,8 +293,15 @@ function formatNarrative(text, characters) {
   let formatted = text;
   
   characters.forEach((char, idx) => {
-    const placeholder = idx === 0 ? "{CHAR}" : `{CHAR${idx + 1}}`;
-    formatted = formatted.replace(new RegExp(`\\${placeholder}`, "g"), char.display_name);
+    if (idx === 0) {
+      // First character: {CHAR} or {CHAR1}
+      formatted = formatted.replace(/{CHAR1}/g, char.display_name);
+      formatted = formatted.replace(/{CHAR}/g, char.display_name);
+    } else {
+      // Subsequent characters: {CHAR2}, {CHAR3}, etc.
+      const placeholder = `{CHAR${idx + 1}}`;
+      formatted = formatted.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), "g"), char.display_name);
+    }
   });
   
   // Handle {A}, {B} variants (legacy from survival)
