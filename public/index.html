@@ -343,6 +343,7 @@
 <button aria-label="Notifications" class="iconBtn withBadge" id="notificationsBtn" title="Notifications" type="button">🔔<span class="notifDot" id="notificationsDot" title="New notifications"></span></button>
 <button class="iconBtn" id="roomChessBtn" title="Chess Table" type="button">♟</button>
 <button aria-label="Open Simulator" class="btn secondary small survivalOpenBtn" hidden id="survivalOpenBtn" title="Open Simulator" type="button">🧭</button>
+<button aria-label="Open DnD Story Room" class="btn secondary small dndOpenBtn" hidden id="dndOpenBtn" title="Open DnD Story Room" type="button">📖</button>
 <button class="iconBtn mobOnly" id="openMembersBtn" title="Members" type="button">👥</button>
 </div>
 </div>
@@ -505,6 +506,89 @@
 </div>
 </div>
 </div>
+
+<!-- DnD Story Room Modal -->
+<div class="modal" hidden="" id="dndModal">
+<div class="modalCard dndModal dndModalShell">
+<div class="modalTop dndModalTop">
+<div class="dndModalHeading">
+<strong>🎲 DnD Story Room</strong>
+<div class="dndModalMeta">
+<span class="dndModalSession" id="dndSessionTitle">No session</span>
+<span class="dndModalStatus" id="dndStatus">No session</span>
+<span class="dndModalRound" id="dndRound">Round 0</span>
+<span class="dndModalAlive" id="dndAliveCount">Alive: 0</span>
+</div>
+</div>
+<button aria-label="Close" class="iconBtn" id="dndModalClose" type="button">✕</button>
+</div>
+<div class="dndModalTabs">
+<button class="pillBtn active" id="dndCharactersBtn" type="button">Characters</button>
+<button class="pillBtn" id="dndEventsBtn" type="button">Events</button>
+<button class="pillBtn" id="dndControlsBtn" type="button">Controls</button>
+</div>
+<div class="modalBody dndModalBody">
+<!-- Characters Tab -->
+<section class="dndModalSection" data-dnd-view="characters">
+<div class="dndCharactersGrid" id="dndCharactersGrid"></div>
+</section>
+<!-- Events Tab -->
+<section class="dndModalSection" data-dnd-view="events" hidden>
+<div class="dndEventsList" id="dndEventsList"></div>
+</section>
+<!-- Controls Tab -->
+<section class="dndModalSection" data-dnd-view="controls" hidden>
+<div class="dndPanelControls">
+<div class="dndPanelGroup">
+<button class="btn secondary small" id="dndNewSessionBtn" type="button">New Session</button>
+<button class="btn secondary small" id="dndStartSessionBtn" type="button">Start Session</button>
+<button class="btn secondary small" id="dndAdvanceBtn" type="button">Advance Event</button>
+<button class="btn secondary small" id="dndEndBtn" type="button">End Session</button>
+</div>
+<div class="dndPanelGroup">
+<button class="btn secondary small" id="dndLobbyBtn" type="button">Join Lobby</button>
+<button class="btn secondary small" id="dndCreateCharBtn" type="button">Create Character</button>
+</div>
+<div class="small muted" id="dndLobbyCount"></div>
+</div>
+<!-- Character Creation Panel -->
+<div class="dndCharacterPanel" hidden id="dndCharacterPanel">
+<div class="dndPanelHeader">
+<div class="dndPanelTitle">
+<strong>Create Your Character</strong>
+<button aria-label="Close character panel" class="iconBtn" id="dndCharacterClose" type="button">✕</button>
+</div>
+</div>
+<div class="dndCharacterForm">
+<div class="dndAttributesGrid" id="dndAttributesGrid">
+<label>Might <input type="number" id="attr_might" min="1" max="7" value="3"/></label>
+<label>Finesse <input type="number" id="attr_finesse" min="1" max="7" value="3"/></label>
+<label>Wit <input type="number" id="attr_wit" min="1" max="7" value="3"/></label>
+<label>Instinct <input type="number" id="attr_instinct" min="1" max="7" value="3"/></label>
+<label>Presence <input type="number" id="attr_presence" min="1" max="7" value="3"/></label>
+<label>Resolve <input type="number" id="attr_resolve" min="1" max="7" value="3"/></label>
+<label>Chaos <input type="number" id="attr_chaos" min="1" max="7" value="3"/></label>
+</div>
+<div class="small muted" id="dndPointsRemaining">Points: 28 / 28</div>
+<div class="dndSkillsSection">
+<label class="small muted">Select 3-6 Skills</label>
+<div class="dndSkillsList" id="dndSkillsList"></div>
+</div>
+<div class="dndPerksSection">
+<label class="small muted">Select up to 3 Perks</label>
+<div class="dndPerksList" id="dndPerksList"></div>
+</div>
+<div class="modalActions">
+<button class="btn" id="dndSaveCharBtn" type="button">Save Character</button>
+</div>
+<div class="small muted" id="dndCharMsg"></div>
+</div>
+</div>
+</section>
+</div>
+</div>
+</div>
+
 <div class="luckMeter" id="luckMeter">
   <div class="luckMeterHeader">
     <span class="luckMeterTitle">🍀 Luck</span>

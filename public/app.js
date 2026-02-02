@@ -922,7 +922,8 @@ let roomCollapseState = { master: {}, category: {} };
 const memoryCacheByFilter = new Map();
 const DICE_ROOM_ID = "diceroom";
 const SURVIVAL_ROOM_ID = "survivalsimulator";
-const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator"]);
+const DND_ROOM_ID = "dndstoryroom";
+const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator", "dndstoryroom"]);
 function isDiceRoom(activeRoom){
   const roomName = typeof activeRoom === "string"
     ? activeRoom
@@ -935,9 +936,16 @@ function isSurvivalRoom(activeRoom){
     : (activeRoom?.name ?? activeRoom?.id ?? "");
   return String(roomName || "").toLowerCase() === SURVIVAL_ROOM_ID;
 }
+function isDndRoom(activeRoom){
+  const roomName = typeof activeRoom === "string"
+    ? activeRoom
+    : (activeRoom?.name ?? activeRoom?.id ?? "");
+  return String(roomName || "").toLowerCase() === DND_ROOM_ID;
+}
 function displayRoomName(room){
   if (isDiceRoom(room)) return "Dice Room";
   if (isSurvivalRoom(room)) return "Survival Simulator";
+  if (isDndRoom(room)) return "DnD Story Room";
   return room;
 }
 
@@ -2665,6 +2673,19 @@ let survivalState = {
 };
 let survivalAutoRunTimer = null;
 let survivalAutoRunning = false;
+
+// DnD Story Room state
+let dndState = {
+  session: null,
+  characters: [],
+  events: [],
+  lobbyUserIds: [],
+  myCharacter: null,
+  view: "none",
+};
+let dndModalOpen = false;
+let dndModalTab = "characters";
+
 const luckState = {
   luck: 0,
   rollStreak: 0,
@@ -3802,6 +3823,34 @@ const survivalRosterList = document.getElementById("survivalRosterList");
 const survivalLogModalList = document.getElementById("survivalLogModalList");
 const survivalLogLoadBtn = document.getElementById("survivalLogLoadBtn");
 
+// DnD Story Room elements
+const dndOpenBtn = document.getElementById("dndOpenBtn");
+const dndModal = document.getElementById("dndModal");
+const dndModalClose = document.getElementById("dndModalClose");
+const dndSessionTitle = document.getElementById("dndSessionTitle");
+const dndStatus = document.getElementById("dndStatus");
+const dndRound = document.getElementById("dndRound");
+const dndAliveCount = document.getElementById("dndAliveCount");
+const dndCharactersBtn = document.getElementById("dndCharactersBtn");
+const dndEventsBtn = document.getElementById("dndEventsBtn");
+const dndControlsBtn = document.getElementById("dndControlsBtn");
+const dndCharactersGrid = document.getElementById("dndCharactersGrid");
+const dndEventsList = document.getElementById("dndEventsList");
+const dndNewSessionBtn = document.getElementById("dndNewSessionBtn");
+const dndStartSessionBtn = document.getElementById("dndStartSessionBtn");
+const dndAdvanceBtn = document.getElementById("dndAdvanceBtn");
+const dndEndBtn = document.getElementById("dndEndBtn");
+const dndLobbyBtn = document.getElementById("dndLobbyBtn");
+const dndCreateCharBtn = document.getElementById("dndCreateCharBtn");
+const dndLobbyCount = document.getElementById("dndLobbyCount");
+const dndCharacterPanel = document.getElementById("dndCharacterPanel");
+const dndCharacterClose = document.getElementById("dndCharacterClose");
+const dndPointsRemaining = document.getElementById("dndPointsRemaining");
+const dndSkillsList = document.getElementById("dndSkillsList");
+const dndPerksList = document.getElementById("dndPerksList");
+const dndSaveCharBtn = document.getElementById("dndSaveCharBtn");
+const dndCharMsg = document.getElementById("dndCharMsg");
+
 let mediaMenuOpen = false;
 let voiceRec = { recorder: null, stream: null, chunks: [], startedAt: 0 };
 let dicePayoutOpen = false;
@@ -3873,6 +3922,11 @@ try {
   if (luckMeter) luckMeter.style.display = nowDiceRoom ? "" : "none";
   const nowSurvivalRoom = isSurvivalRoom(currentRoom);
   if (survivalOpenBtn) survivalOpenBtn.hidden = !nowSurvivalRoom;
+  const nowDndRoom = isDndRoom(currentRoom);
+  if (dndOpenBtn) dndOpenBtn.hidden = !nowDndRoom;
+  if (nowDndRoom && !dndState.session) {
+    loadDndCurrent().catch(console.error);
+  }
 } catch {}
 
 function closeMediaMenu(){
@@ -4613,6 +4667,474 @@ async function loadOlderSurvivalLog() {
   survivalState.logBeforeId = payload.events[0]?.id || survivalState.logBeforeId;
   survivalState.events = [...payload.events, ...survivalState.events];
   renderSurvivalLog(survivalLogModalList, survivalState.events);
+}
+
+// ============================================
+// DND STORY ROOM MODAL FUNCTIONS
+// ============================================
+
+function setDndModalTab(tab){
+  const next = (tab === "characters" || tab === "events" || tab === "controls") ? tab : "characters";
+  dndModalTab = next;
+  dndState.view = next;
+  if (dndCharactersBtn) dndCharactersBtn.classList.toggle("active", next === "characters");
+  if (dndEventsBtn) dndEventsBtn.classList.toggle("active", next === "events");
+  if (dndControlsBtn) dndControlsBtn.classList.toggle("active", next === "controls");
+  document.querySelectorAll("[data-dnd-view]").forEach((section) => {
+    section.classList.toggle("active", section.dataset.dndView === next);
+    section.hidden = section.dataset.dndView !== next;
+  });
+}
+
+function openDndModal(){
+  if (!dndModal || !isDndRoom(currentRoom)) return;
+  closeMemberMenu();
+  closeMembersAdminMenu();
+  closeChessMenu?.();
+  closeDiceVariantMenu();
+  closeAllDMMenus();
+  closeThreadFlair();
+  closeAllReactMenus();
+  closeChangelogPanel();
+  closeMediaMenu();
+  closeChallengesPanel();
+  dndModalOpen = true;
+  dndModal.hidden = false;
+  dndModal.style.display = "flex";
+  setDndModalTab(dndModalTab || "characters");
+  renderDndPanel();
+}
+
+function closeDndModal(){
+  if (!dndModal) return;
+  dndModalOpen = false;
+  dndModal.hidden = true;
+  dndModal.style.display = "none";
+  closeDndCharacterPanel();
+}
+
+function closeDndCharacterPanel(){
+  if (!dndCharacterPanel) return;
+  dndCharacterPanel.hidden = true;
+}
+
+function getDndAliveCount() {
+  return (dndState.characters || []).filter(c => c.alive).length;
+}
+
+function renderDndPanel() {
+  const session = dndState.session;
+  
+  // Update header
+  if (dndSessionTitle) {
+    dndSessionTitle.textContent = session ? session.title : "No session";
+  }
+  if (dndStatus) {
+    dndStatus.textContent = session ? session.status : "—";
+  }
+  if (dndRound) {
+    dndRound.textContent = session ? `Round ${session.round}` : "—";
+  }
+  if (dndAliveCount) {
+    const alive = getDndAliveCount();
+    dndAliveCount.textContent = `Alive: ${alive}`;
+  }
+  
+  // Render characters tab
+  renderDndCharacters();
+  
+  // Render events tab
+  renderDndEvents();
+  
+  // Update controls
+  updateDndControls();
+  
+  // Update lobby count
+  if (dndLobbyCount) {
+    const count = (dndState.lobbyUserIds || []).length;
+    dndLobbyCount.textContent = count > 0 ? `${count} in lobby` : "";
+  }
+}
+
+function renderDndCharacters() {
+  if (!dndCharactersGrid) return;
+  const characters = dndState.characters || [];
+  
+  if (characters.length === 0) {
+    dndCharactersGrid.innerHTML = '<div class="small muted">No characters yet</div>';
+    return;
+  }
+  
+  const html = characters.map(char => {
+    const skills = Array.isArray(char.skills) ? char.skills : (char.skills_json ? JSON.parse(char.skills_json) : []);
+    const statusClass = char.alive ? "alive" : "dead";
+    const statusIcon = char.alive ? "💚" : "💀";
+    
+    return `
+      <div class="dndCharCard ${statusClass}">
+        <div class="dndCharHeader">
+          <strong>${escapeHtml(char.display_name)}</strong>
+          <span>${statusIcon} ${char.hp}/${char.max_hp} HP</span>
+        </div>
+        <div class="dndCharAttributes">
+          <span title="Might">💪 ${char.might}</span>
+          <span title="Finesse">🎯 ${char.finesse}</span>
+          <span title="Wit">🧠 ${char.wit}</span>
+          <span title="Instinct">👁️ ${char.instinct}</span>
+          <span title="Presence">✨ ${char.presence}</span>
+          <span title="Resolve">🛡️ ${char.resolve}</span>
+          <span title="Chaos">🎲 ${char.chaos}</span>
+        </div>
+        <div class="dndCharSkills small muted">
+          ${skills.length > 0 ? skills.slice(0, 3).join(", ") : "No skills"}
+        </div>
+      </div>
+    `;
+  }).join("");
+  
+  dndCharactersGrid.innerHTML = html;
+}
+
+function renderDndEvents() {
+  if (!dndEventsList) return;
+  const events = dndState.events || [];
+  
+  if (events.length === 0) {
+    dndEventsList.innerHTML = '<div class="small muted">No events yet</div>';
+    return;
+  }
+  
+  const html = events.slice().reverse().map((event, idx) => {
+    const outcome = event.outcome_json ? JSON.parse(event.outcome_json) : event.outcome || {};
+    const rollInfo = outcome.roll ? `Roll: ${outcome.roll} + ${outcome.modifier} = ${outcome.total} vs DC ${outcome.dc}` : "";
+    const outcomeClass =
+      outcome.outcome === "critical_success" || outcome.outcome === "success" ? "success" :
+      outcome.outcome === "catastrophic" || outcome.outcome === "failure" ? "fail" : "partial";
+    
+    return `
+      <div class="dndEventCard ${outcomeClass}">
+        <div class="dndEventHeader">
+          <span class="small muted">Round ${event.round}</span>
+          <span class="small muted">${event.event_type}</span>
+        </div>
+        <div class="dndEventText">${escapeHtml(event.text)}</div>
+        ${rollInfo ? `<div class="small muted dndEventRoll">${rollInfo}</div>` : ""}
+      </div>
+    `;
+  }).join("");
+  
+  dndEventsList.innerHTML = html;
+}
+
+function updateDndControls() {
+  const session = dndState.session;
+  const isActive = session && session.status === "active";
+  const isLobby = session && session.status === "lobby";
+  const hasSession = !!session;
+  const isCoOwner = me?.role && ["Owner", "Co-owner"].includes(me.role);
+  
+  if (dndNewSessionBtn) dndNewSessionBtn.disabled = hasSession && session.status !== "completed";
+  if (dndStartSessionBtn) dndStartSessionBtn.disabled = !isLobby || !isCoOwner;
+  if (dndAdvanceBtn) dndAdvanceBtn.disabled = !isActive || !isCoOwner;
+  if (dndEndBtn) dndEndBtn.disabled = !hasSession || session.status === "completed" || !isCoOwner;
+  if (dndCreateCharBtn) dndCreateCharBtn.disabled = !isLobby;
+  
+  // Update lobby button text
+  if (dndLobbyBtn) {
+    const inLobby = (dndState.lobbyUserIds || []).includes(me?.id);
+    dndLobbyBtn.textContent = inLobby ? "Leave Lobby" : "Join Lobby";
+    dndLobbyBtn.disabled = !isLobby;
+  }
+}
+
+async function loadDndCurrent() {
+  try {
+    const res = await fetch("/api/dnd-story/current", { credentials: "include" });
+    if (!res.ok) throw new Error("Failed to load DnD session");
+    const data = await res.json();
+    applyDndPayload(data);
+  } catch (e) {
+    console.warn("[dnd] Failed to load current session:", e);
+  }
+}
+
+function applyDndPayload(payload) {
+  // Always update session, even when null, so UI does not show stale session data.
+  dndState.session = payload.session ?? null;
+
+  if (!dndState.session) {
+    // No active session: clear related state.
+    dndState.characters = [];
+    dndState.events = [];
+  } else {
+    // Active session: update related state when provided.
+    if (payload.characters !== undefined) dndState.characters = payload.characters;
+    if (payload.events !== undefined) dndState.events = payload.events;
+  }
+  renderDndPanel();
+}
+
+async function dndJoinLobby() {
+  try {
+    const inLobby = (dndState.lobbyUserIds || []).includes(me?.id);
+    const endpoint = inLobby ? "/api/dnd-story/lobby/leave" : "/api/dnd-story/lobby/join";
+    const res = await fetch(endpoint, { method: "POST", credentials: "include" });
+    if (!res.ok) throw new Error("Failed");
+    const data = await res.json();
+    dndState.lobbyUserIds = data.user_ids || [];
+    renderDndPanel();
+  } catch (e) {
+    console.warn("[dnd] Join/leave lobby failed:", e);
+  }
+}
+
+async function dndCreateSession() {
+  try {
+    const title = prompt("Enter session title:", "Adventure Awaits");
+    if (!title) return;
+    
+    const res = await fetch("/api/dnd-story/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ title })
+    });
+    
+    if (!res.ok) {
+      const text = await res.text();
+      alert(`Failed to create session: ${text}`);
+      return;
+    }
+    
+    const data = await res.json();
+    dndState.session = data.session;
+    await loadDndCurrent();
+  } catch (e) {
+    console.warn("[dnd] Create session failed:", e);
+    alert("Failed to create session");
+  }
+}
+
+async function dndStartSession() {
+  if (!dndState.session) return;
+  try {
+    const res = await fetch(`/api/dnd-story/sessions/${dndState.session.id}/start`, {
+      method: "POST",
+      credentials: "include"
+    });
+    
+    if (!res.ok) {
+      const text = await res.text();
+      alert(`Failed to start: ${text}`);
+      return;
+    }
+    
+    await loadDndCurrent();
+  } catch (e) {
+    console.warn("[dnd] Start session failed:", e);
+  }
+}
+
+async function dndAdvance() {
+  if (!dndState.session) return;
+  try {
+    const res = await fetch(`/api/dnd-story/sessions/${dndState.session.id}/advance`, {
+      method: "POST",
+      credentials: "include"
+    });
+    
+    if (!res.ok) {
+      const text = await res.text();
+      alert(`Failed to advance: ${text}`);
+      return;
+    }
+    
+    await loadDndCurrent();
+  } catch (e) {
+    console.warn("[dnd] Advance failed:", e);
+  }
+}
+
+async function dndEndSession() {
+  if (!dndState.session) return;
+  if (!confirm("End this session?")) return;
+  
+  try {
+    const res = await fetch(`/api/dnd-story/sessions/${dndState.session.id}/end`, {
+      method: "POST",
+      credentials: "include"
+    });
+    
+    if (!res.ok) throw new Error("Failed");
+    await loadDndCurrent();
+  } catch (e) {
+    console.warn("[dnd] End session failed:", e);
+  }
+}
+
+function openDndCharacterCreator() {
+  if (!dndCharacterPanel) return;
+  dndCharacterPanel.hidden = false;
+  
+  // Populate skills list
+  if (dndSkillsList) {
+    const skills = {
+      warrior: "Warrior (Might-based combat)",
+      brawler: "Brawler (Unarmed combat)",
+      rogue: "Rogue (Stealth & precision)",
+      ranger: "Ranger (Tracking & survival)",
+      mage: "Mage (Arcane magic)",
+      scholar: "Scholar (Knowledge)",
+      scout: "Scout (Awareness)",
+      hunter: "Hunter (Tracking prey)",
+      leader: "Leader (Command)",
+      diplomat: "Diplomat (Negotiation)",
+      cleric: "Cleric (Divine power)",
+      paladin: "Paladin (Holy warrior)",
+      wildcard: "Wildcard (Unpredictable)",
+      gambler: "Gambler (Risk-taker)",
+      spellblade: "Spellblade (Magic + combat)",
+      trickster: "Trickster (Deception)"
+    };
+    
+    dndSkillsList.innerHTML = Object.entries(skills).map(([id, name]) => `
+      <label>
+        <input type="checkbox" name="skill" value="${id}"/> ${escapeHtml(name)}
+      </label>
+    `).join("");
+  }
+  
+  // Populate perks list
+  if (dndPerksList) {
+    const perks = {
+      critical_eye: "Critical Eye (Crit on 19-20)",
+      lucky_dodge: "Lucky Dodge (Reroll failed defense)",
+      iron_will: "Iron Will (+2 Resolve)",
+      second_wind: "Second Wind (Heal 20 HP once)",
+      quick_reflexes: "Quick Reflexes (+2 Finesse)",
+      silver_tongue: "Silver Tongue (+2 Presence)",
+      intimidating: "Intimidating (Less targeted)",
+      fate_touched: "Fate Touched (+3 to one roll)",
+      chaos_magnet: "Chaos Magnet (Extreme outcomes)"
+    };
+    
+    dndPerksList.innerHTML = Object.entries(perks).map(([id, name]) => `
+      <label>
+        <input type="checkbox" name="perk" value="${id}"/> ${escapeHtml(name)}
+      </label>
+    `).join("");
+  }
+  
+  // Add attribute change listeners
+  const attrInputs = document.querySelectorAll('[id^="attr_"]');
+  attrInputs.forEach(input => {
+    // Guard to avoid attaching duplicate listeners if the creator is reopened
+    if (input._dndWired) {
+      return;
+    }
+    input.addEventListener('input', updateDndPointsRemaining);
+    input._dndWired = true;
+  });
+  
+  updateDndPointsRemaining();
+}
+
+function updateDndPointsRemaining() {
+  const attrInputs = document.querySelectorAll('[id^="attr_"]');
+  let total = 0;
+  attrInputs.forEach(input => {
+    total += parseInt(input.value) || 3;
+  });
+  
+  const remaining = 28 - total;
+  if (dndPointsRemaining) {
+    dndPointsRemaining.textContent = `Points: ${remaining} / 28`;
+    dndPointsRemaining.classList.remove('points-valid', 'points-exceeded');
+    if (remaining === 0) {
+      dndPointsRemaining.classList.add('points-valid');
+    } else if (remaining < 0) {
+      dndPointsRemaining.classList.add('points-exceeded');
+    }
+  }
+}
+
+async function saveDndCharacter() {
+  try {
+    if (!dndState.session) {
+      alert("No active session");
+      return;
+    }
+    
+    // Get attributes
+    const attributes = {
+      might: parseInt(document.getElementById('attr_might')?.value) || 3,
+      finesse: parseInt(document.getElementById('attr_finesse')?.value) || 3,
+      wit: parseInt(document.getElementById('attr_wit')?.value) || 3,
+      instinct: parseInt(document.getElementById('attr_instinct')?.value) || 3,
+      presence: parseInt(document.getElementById('attr_presence')?.value) || 3,
+      resolve: parseInt(document.getElementById('attr_resolve')?.value) || 3,
+      chaos: parseInt(document.getElementById('attr_chaos')?.value) || 3
+    };
+    
+    // Validate total points
+    const total = Object.values(attributes).reduce((sum, val) => sum + val, 0);
+    if (total !== 28) {
+      alert(`Total attribute points must equal 28 (currently ${total})`);
+      return;
+    }
+    
+    // Get selected skills
+    const skillInputs = document.querySelectorAll('input[name="skill"]:checked');
+    const skills = Array.from(skillInputs).map(input => input.value);
+    
+    if (skills.length < 3 || skills.length > 6) {
+      alert("Must select 3-6 skills");
+      return;
+    }
+    
+    // Get selected perks
+    const perkInputs = document.querySelectorAll('input[name="perk"]:checked');
+    const perks = Array.from(perkInputs).map(input => input.value);
+    
+    if (perks.length > 3) {
+      alert("Maximum 3 perks allowed");
+      return;
+    }
+    
+    if (dndCharMsg) dndCharMsg.textContent = "Saving...";
+    
+    const res = await fetch("/api/dnd-story/characters", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        sessionId: dndState.session.id,
+        attributes,
+        skills,
+        perks
+      })
+    });
+    
+    if (!res.ok) {
+      const text = await res.text();
+      if (dndCharMsg) dndCharMsg.textContent = `Error: ${text}`;
+      return;
+    }
+    
+    const data = await res.json();
+    dndState.myCharacter = data.character;
+    
+    if (dndCharMsg) dndCharMsg.textContent = "Character saved!";
+    setTimeout(() => {
+      closeDndCharacterPanel();
+      if (dndCharMsg) dndCharMsg.textContent = "";
+    }, 1500);
+    
+    await loadDndCurrent();
+  } catch (e) {
+    console.warn("[dnd] Save character failed:", e);
+    if (dndCharMsg) dndCharMsg.textContent = "Failed to save character";
+  }
 }
 
 function isHighRoll(variant, result){
@@ -13369,6 +13891,34 @@ survivalLobbyBtn?.addEventListener("click", async () => {
   } catch {}
   renderSurvivalArena();
 });
+
+// DnD Story Room event listeners
+dndOpenBtn?.addEventListener("click", openDndModal);
+dndModalClose?.addEventListener("click", closeDndModal);
+dndModal?.addEventListener("click", (e) => {
+  if (e.target === dndModal) closeDndModal();
+});
+dndCharactersBtn?.addEventListener("click", () => {
+  setDndModalTab("characters");
+  renderDndCharacters();
+});
+dndEventsBtn?.addEventListener("click", () => {
+  setDndModalTab("events");
+  renderDndEvents();
+});
+dndControlsBtn?.addEventListener("click", () => {
+  setDndModalTab("controls");
+  updateDndControls();
+});
+dndNewSessionBtn?.addEventListener("click", dndCreateSession);
+dndStartSessionBtn?.addEventListener("click", dndStartSession);
+dndAdvanceBtn?.addEventListener("click", dndAdvance);
+dndEndBtn?.addEventListener("click", dndEndSession);
+dndLobbyBtn?.addEventListener("click", dndJoinLobby);
+dndCreateCharBtn?.addEventListener("click", openDndCharacterCreator);
+dndCharacterClose?.addEventListener("click", closeDndCharacterPanel);
+dndSaveCharBtn?.addEventListener("click", saveDndCharacter);
+
 survivalAutoRunBtn?.addEventListener("click", () => {
   if (!survivalAutoRunning) startSurvivalAutoRun();
   else stopSurvivalAutoRun();
@@ -20519,6 +21069,70 @@ initAppealsDurationSelect();
     const ids = Array.isArray(payload.user_ids) ? payload.user_ids : [];
     survivalState.lobbyUserIds = ids.map((x) => Number(x)).filter((x) => x > 0);
     renderSurvivalArena();
+  });
+
+  // DnD Story Room socket events
+  socket.on("dnd:sessionCreated", (payload = {}) => {
+    if (!isDndRoom(currentRoom)) return;
+    if (payload.session) {
+      dndState.session = payload.session;
+      renderDndPanel();
+    }
+  });
+
+  socket.on("dnd:sessionStarted", (payload = {}) => {
+    if (!isDndRoom(currentRoom)) return;
+    if (payload.session) {
+      dndState.session = payload.session;
+      renderDndPanel();
+    }
+  });
+
+  socket.on("dnd:characterUpdated", (payload = {}) => {
+    if (!isDndRoom(currentRoom)) return;
+    if (payload.character) {
+      // Update or add character in state
+      const idx = dndState.characters.findIndex(c => c.id === payload.character.id);
+      if (idx >= 0) {
+        dndState.characters[idx] = payload.character;
+      } else {
+        dndState.characters.push(payload.character);
+      }
+      renderDndCharacters();
+    }
+  });
+
+  socket.on("dnd:eventResolved", (payload = {}) => {
+    if (!isDndRoom(currentRoom)) return;
+    if (payload.event) {
+      dndState.events.push(payload.event);
+      renderDndEvents();
+    }
+    if (payload.session) {
+      dndState.session = payload.session;
+      renderDndPanel();
+    }
+  });
+
+  socket.on("dnd:sessionEnded", (payload = {}) => {
+    if (!isDndRoom(currentRoom)) return;
+    if (dndState.session && dndState.session.id === payload.sessionId) {
+      dndState.session.status = "completed";
+      renderDndPanel();
+    }
+  });
+
+  socket.on("dnd:lobby", (payload = {}) => {
+    if (!isDndRoom(currentRoom)) return;
+    const ids = Array.isArray(payload.user_ids) ? payload.user_ids : [];
+    dndState.lobbyUserIds = ids.map((x) => Number(x)).filter((x) => x > 0);
+    renderDndPanel();
+  });
+
+  socket.on("dnd:spectatorInfluence", (payload = {}) => {
+    if (!isDndRoom(currentRoom)) return;
+    // Just show a notification for now
+    console.log("[dnd] Spectator influence:", payload);
   });
 
 socket.on("disconnect", (reason) => {
