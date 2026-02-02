@@ -6,23 +6,12 @@
 // D20-based resolution engine
 // Reuses Survival Simulator's outcome application pattern
 
-const { getAttributeModifier, PERK_DEFINITIONS } = require("./character-system");
+const { getAttributeModifier, PERK_DEFINITIONS, CORE_ATTRIBUTES, ATTRIBUTE_CONFIG } = require("./character-system");
 const { determineOutcome } = require("./event-templates");
-
-// Core attributes for random selection and swapping
-const CORE_ATTRIBUTES = [
-  "might",
-  "finesse",
-  "wit",
-  "instinct",
-  "presence",
-  "resolve",
-  "chaos"
-];
 
 // Constants
 const COUPLE_BONUS = 2; // Small bonus for couples participating together
-const MAX_ATTRIBUTE_VALUE = 7; // Maximum value for any core attribute (from ATTRIBUTE_CONFIG)
+const MAX_ATTRIBUTE_VALUE = ATTRIBUTE_CONFIG.maxPerAttribute; // Maximum value for any core attribute (from ATTRIBUTE_CONFIG)
 
 /**
  * Roll a D20 with modifiers
