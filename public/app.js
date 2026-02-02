@@ -4767,7 +4767,6 @@ function renderDndCharacters() {
   
   const html = characters.map(char => {
     const skills = Array.isArray(char.skills) ? char.skills : (char.skills_json ? JSON.parse(char.skills_json) : []);
-    const perks = Array.isArray(char.perks) ? char.perks : (char.perks_json ? JSON.parse(char.perks_json) : []);
     const statusClass = char.alive ? "alive" : "dead";
     const statusIcon = char.alive ? "💚" : "💀";
     
