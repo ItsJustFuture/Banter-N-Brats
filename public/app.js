@@ -13122,7 +13122,7 @@ couplesUnlinkBtnCustomize?.addEventListener("click", async () => {
     couplesState = await r.json();
     await refreshCouplesUI();
     syncCouplesCustomizeUI();
-    if (typeof emitLocalMembersRefresh === "function") emitLocalMembersRefresh();
+    emitLocalMembersRefresh();
     if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Partnership unlinked.";
   } catch (e) {
     if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not unlink";
