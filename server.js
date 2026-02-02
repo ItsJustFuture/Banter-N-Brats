@@ -10774,8 +10774,8 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
       return res.json({ ok: true, message: "Session ended - all characters died" });
     }
     
-    // Create seeded RNG
-    const rng = createSeededRng(`${session.rng_seed}:${session.round}:${now}`);
+    // Create seeded RNG (deterministic per session + round)
+    const rng = createSeededRng(`${session.rng_seed}:${session.round}`);
     
     // Select event template
     const { key: templateKey, template } = dndEventResolution.selectEventTemplate(
