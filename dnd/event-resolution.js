@@ -247,9 +247,13 @@ function applyEventOutcome(template, outcome, characters, worldState = {}, rng =
   if (outcomeData.randomAttributeSwap) {
     characters.forEach(char => {
       // Select two random different attributes to swap
-      const shuffled = [...CORE_ATTRIBUTES].sort(() => rng() - 0.5);
-      const attr1 = shuffled[0];
-      const attr2 = shuffled[1];
+      const firstIndex = Math.floor(rng() * CORE_ATTRIBUTES.length);
+      let secondIndex = Math.floor(rng() * (CORE_ATTRIBUTES.length - 1));
+      if (secondIndex >= firstIndex) {
+        secondIndex++;
+      }
+      const attr1 = CORE_ATTRIBUTES[firstIndex];
+      const attr2 = CORE_ATTRIBUTES[secondIndex];
       
       const value1 = char[attr1] || 3;
       const value2 = char[attr2] || 3;
