@@ -10774,32 +10774,95 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
       return res.json({ ok: true, message: "Session ended - all characters died" });
     }
     
+    // Fetch couple information for all characters in session
+    const userIds = aliveChars.map(c => c.user_id).filter(id => id);
+    let couplePairs = [];
+    if (userIds.length > 0) {
+      try {
+        const coupleResult = await pgPool.query(
+          `SELECT user1_id, user2_id FROM couple_links 
+           WHERE status='active' 
+           AND (user1_id = ANY($1::int[]) OR user2_id = ANY($1::int[]))`,
+          [userIds]
+        );
+        couplePairs = coupleResult.rows || [];
+      } catch (err) {
+        console.warn("[dnd] Failed to fetch couple info:", err?.message);
+        // Continue without couple bonuses if query fails
+      }
+    }
+    
     // Create seeded RNG (deterministic per session + round)
     const rng = createSeededRng(`${session.rng_seed}:${session.round}`);
     
-    // Select event template
+    // Select event template (now with couple awareness)
     const { template } = dndEventResolution.selectEventTemplate(
       dndEventTemplates.EVENT_TEMPLATES,
       aliveChars.length,
       session.round,
-      rng
+      rng,
+      aliveChars,
+      couplePairs
     );
     
     // Select characters for this event
     const numChars = Math.min(template.minPlayers, aliveChars.length);
     const selectedChars = [];
-    for (let i = 0; i < numChars; i++) {
-      const idx = Math.floor(rng() * aliveChars.length);
-      selectedChars.push(aliveChars.splice(idx, 1)[0]);
+    
+    // If it's a couple event and we have couples, try to select a couple
+    if (template.coupleBonus && numChars >= 2 && couplePairs.length > 0) {
+      // Try to find a couple pair
+      let coupleFound = false;
+      for (let i = 0; i < aliveChars.length && !coupleFound; i++) {
+        for (let j = i + 1; j < aliveChars.length && !coupleFound; j++) {
+          if (dndEventResolution.areCouple(aliveChars[i], aliveChars[j], couplePairs)) {
+            selectedChars.push(aliveChars[i], aliveChars[j]);
+            coupleFound = true;
+          }
+        }
+      }
+      
+      // If no couple found, select randomly
+      if (!coupleFound) {
+        for (let i = 0; i < numChars; i++) {
+          const idx = Math.floor(rng() * aliveChars.length);
+          selectedChars.push(aliveChars.splice(idx, 1)[0]);
+        }
+      } else {
+        // Fill remaining slots if needed
+        const remaining = numChars - selectedChars.length;
+        for (let i = 0; i < remaining; i++) {
+          const availableChars = aliveChars.filter(c => !selectedChars.includes(c));
+          if (availableChars.length > 0) {
+            const idx = Math.floor(rng() * availableChars.length);
+            selectedChars.push(availableChars[idx]);
+          }
+        }
+      }
+    } else {
+      // Random selection for non-couple events
+      for (let i = 0; i < numChars; i++) {
+        const idx = Math.floor(rng() * aliveChars.length);
+        selectedChars.push(aliveChars.splice(idx, 1)[0]);
+      }
     }
     
-    // Perform check for first character
+    // Check if selected characters are a couple
+    const isCouple = selectedChars.length >= 2 && 
+                     dndEventResolution.areCouple(selectedChars[0], selectedChars[1], couplePairs);
+    
+    // Perform check for first character (with couple bonus if applicable)
     const mainChar = selectedChars[0];
+    const checkContext = {
+      coupleBonus: isCouple && template.coupleBonus
+    };
+    
     const checkResult = dndEventResolution.performCheck(
       mainChar,
       template.check.attribute,
       template.check.dc,
-      rng
+      rng,
+      checkContext
     );
     
     // Apply outcome
@@ -10821,10 +10884,15 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
     }
     
     // Format narrative
-    const narrative = dndEventResolution.formatNarrative(
+    let narrative = dndEventResolution.formatNarrative(
       template.text.intro + " " + outcomeChanges.narrative,
       selectedChars
     );
+    
+    // Add couple indicator if applicable
+    if (isCouple && template.coupleBonus) {
+      narrative = `💕 ${narrative}`;
+    }
     
     // Create event record
     const event = await dndDb.createDndEvent(pgPool, {
@@ -10839,7 +10907,8 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
         total: checkResult.total,
         dc: checkResult.dc,
         outcome: checkResult.outcome,
-        changes: outcomeChanges
+        changes: outcomeChanges,
+        coupleBonus: isCouple && template.coupleBonus
       }
     });
     

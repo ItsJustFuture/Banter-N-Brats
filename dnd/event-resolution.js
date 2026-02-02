@@ -54,6 +54,13 @@ function calculateModifier(character, attribute, context = {}) {
     }
   }
   
+  // Couple bonus (small +1 to +2 bonus)
+  if (context.coupleBonus) {
+    const bonus = 2;
+    total += bonus;
+    breakdown.push({ source: "couple_synergy", value: bonus });
+  }
+  
   // Situational modifiers from context
   if (context.situational) {
     total += context.situational;
@@ -254,21 +261,61 @@ function generateRandomItem(rng = Math.random) {
 }
 
 /**
+ * Check if two characters are a couple
+ * @param {Object} char1 - First character
+ * @param {Object} char2 - Second character
+ * @param {Array<Object>} couplePairs - Array of couple pairs {user1_id, user2_id}
+ * @returns {boolean} True if they're a couple
+ */
+function areCouple(char1, char2, couplePairs = []) {
+  if (!char1 || !char2 || !couplePairs || couplePairs.length === 0) return false;
+  
+  const userId1 = char1.user_id;
+  const userId2 = char2.user_id;
+  
+  return couplePairs.some(pair => 
+    (pair.user1_id === userId1 && pair.user2_id === userId2) ||
+    (pair.user1_id === userId2 && pair.user2_id === userId1)
+  );
+}
+
+/**
  * Select a random event template based on context
  * @param {Object} templates - Event templates object
  * @param {number} aliveCount - Number of alive characters
  * @param {number} round - Current round number
  * @param {Function} rng - Seeded RNG
+ * @param {Array<Object>} characters - All alive characters (to detect couples)
+ * @param {Array<Object>} couplePairs - Array of couple pairs
  * @returns {Object} Selected template with key
  */
-function selectEventTemplate(templates, aliveCount, round, rng) {
+function selectEventTemplate(templates, aliveCount, round, rng, characters = [], couplePairs = []) {
   const eligible = [];
+  
+  // Check if there are any couples in the session
+  let hasCouples = false;
+  if (characters.length >= 2 && couplePairs.length > 0) {
+    for (let i = 0; i < characters.length; i++) {
+      for (let j = i + 1; j < characters.length; j++) {
+        if (areCouple(characters[i], characters[j], couplePairs)) {
+          hasCouples = true;
+          break;
+        }
+      }
+      if (hasCouples) break;
+    }
+  }
   
   for (const [key, template] of Object.entries(templates)) {
     if (aliveCount >= template.minPlayers && aliveCount <= template.maxPlayers) {
       // Weight by round (more intense events later)
-      const weight = round >= 5 ? 
+      let weight = round >= 5 ? 
         (template.type === "combat" || template.type === "dilemma" ? 2 : 1) : 1;
+      
+      // Boost weight for couple events if couples are present
+      if (hasCouples && template.coupleBonus) {
+        weight *= 3; // 3x more likely to select couple events
+      }
       
       for (let i = 0; i < weight; i++) {
         eligible.push({ key, template });
@@ -324,5 +371,6 @@ module.exports = {
   applyEventOutcome,
   selectEventTemplate,
   formatNarrative,
-  generateRandomItem
+  generateRandomItem,
+  areCouple
 };
