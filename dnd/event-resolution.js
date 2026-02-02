@@ -233,16 +233,16 @@ function applyEventOutcome(template, outcome, characters, worldState = {}, rng =
     changes.worldStateChanges.allyGained = true;
   }
   
-  // Apply gold changes
+  // Apply gold changes (track for display only; do not mutate character state)
   if (outcomeData.gold !== undefined) {
     characters.forEach(char => {
-      const oldGold = char.gold || 0;
-      char.gold = Math.max(0, oldGold + outcomeData.gold);
+      const previousGold = char.gold || 0;
+      const newTotal = Math.max(0, previousGold + outcomeData.gold);
       changes.itemChanges.push({
         characterId: char.id,
         action: outcomeData.gold > 0 ? "gain_gold" : "lose_gold",
         amount: Math.abs(outcomeData.gold),
-        newTotal: char.gold
+        newTotal
       });
     });
   }
