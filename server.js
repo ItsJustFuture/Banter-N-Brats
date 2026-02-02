@@ -10808,6 +10808,7 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
     // Select characters for this event
     const numChars = Math.min(template.minPlayers, aliveChars.length);
     const selectedChars = [];
+    const selectedIndices = new Set();
     
     // If it's a couple event and we have couples, try to select a couple
     if (template.coupleBonus && numChars >= 2 && couplePairs.length > 0) {
@@ -10817,33 +10818,42 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
         for (let j = i + 1; j < aliveChars.length && !coupleFound; j++) {
           if (dndEventResolution.areCouple(aliveChars[i], aliveChars[j], couplePairs)) {
             selectedChars.push(aliveChars[i], aliveChars[j]);
+            selectedIndices.add(i);
+            selectedIndices.add(j);
             coupleFound = true;
           }
         }
       }
       
-      // If no couple found, select randomly
-      if (!coupleFound) {
-        for (let i = 0; i < numChars; i++) {
-          const idx = Math.floor(rng() * aliveChars.length);
-          selectedChars.push(aliveChars.splice(idx, 1)[0]);
-        }
-      } else {
-        // Fill remaining slots if needed
-        const remaining = numChars - selectedChars.length;
-        for (let i = 0; i < remaining; i++) {
-          const availableChars = aliveChars.filter(c => !selectedChars.includes(c));
-          if (availableChars.length > 0) {
-            const idx = Math.floor(rng() * availableChars.length);
-            selectedChars.push(availableChars[idx]);
+      // Fill remaining slots if needed
+      const remaining = numChars - selectedChars.length;
+      for (let i = 0; i < remaining; i++) {
+        const availableIndices = [];
+        for (let j = 0; j < aliveChars.length; j++) {
+          if (!selectedIndices.has(j)) {
+            availableIndices.push(j);
           }
+        }
+        if (availableIndices.length > 0) {
+          const idx = availableIndices[Math.floor(rng() * availableIndices.length)];
+          selectedChars.push(aliveChars[idx]);
+          selectedIndices.add(idx);
         }
       }
     } else {
       // Random selection for non-couple events
       for (let i = 0; i < numChars; i++) {
-        const idx = Math.floor(rng() * aliveChars.length);
-        selectedChars.push(aliveChars.splice(idx, 1)[0]);
+        const availableIndices = [];
+        for (let j = 0; j < aliveChars.length; j++) {
+          if (!selectedIndices.has(j)) {
+            availableIndices.push(j);
+          }
+        }
+        if (availableIndices.length > 0) {
+          const idx = availableIndices[Math.floor(rng() * availableIndices.length)];
+          selectedChars.push(aliveChars[idx]);
+          selectedIndices.add(idx);
+        }
       }
     }
     

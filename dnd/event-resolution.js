@@ -9,6 +9,9 @@
 const { getAttributeModifier, PERK_DEFINITIONS } = require("./character-system");
 const { determineOutcome } = require("./event-templates");
 
+// Constants
+const COUPLE_BONUS = 2; // Small bonus for couples participating together
+
 /**
  * Roll a D20 with modifiers
  * @param {Function} rng - Seeded RNG function (0-1)
@@ -54,11 +57,10 @@ function calculateModifier(character, attribute, context = {}) {
     }
   }
   
-  // Couple bonus (small +1 to +2 bonus)
+  // Couple bonus (small bonus for couples)
   if (context.coupleBonus) {
-    const bonus = 2;
-    total += bonus;
-    breakdown.push({ source: "couple_synergy", value: bonus });
+    total += COUPLE_BONUS;
+    breakdown.push({ source: "couple_synergy", value: COUPLE_BONUS });
   }
   
   // Situational modifiers from context
