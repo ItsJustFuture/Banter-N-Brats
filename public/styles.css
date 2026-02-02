@@ -12462,3 +12462,106 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
     max-width:100%;
   }
 }
+
+/* Neon Modal Styles */
+.neonModal {
+  box-shadow: 0 0 20px rgba(138, 43, 226, 0.3);
+  border: 1px solid rgba(138, 43, 226, 0.5);
+  border-radius: 12px;
+  overflow-y: auto;
+  max-height: 85vh;
+}
+
+/* Edit Profile Layout */
+.editProfileLayout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+  padding: 16px;
+}
+
+.editProfilePreview {
+  position: sticky;
+  top: 16px;
+  height: fit-content;
+}
+
+.previewShell {
+  background: var(--card-bg, rgba(255,255,255,0.05));
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.profilePreviewCard {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  min-height: 180px;
+  background: var(--card-bg, rgba(0,0,0,0.3));
+}
+
+.profileBioPreview {
+  padding: 12px;
+  background: var(--card-bg, rgba(255,255,255,0.03));
+  border-radius: 6px;
+  min-height: 80px;
+  font-size: 14px;
+  color: var(--text-secondary, rgba(255,255,255,0.8));
+  margin-bottom: 12px;
+}
+
+.previewActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editProfileControls {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+
+/* Couples Layout */
+.couplesLayout {
+  padding: 16px;
+  overflow-y: auto;
+  max-height: 75vh;
+}
+
+/* Toggle Label Improvements */
+.toggleLabel strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.toggleLabel .small {
+  margin-top: 2px;
+}
+
+/* Responsive Edit Profile */
+@media (max-width: 860px) {
+  .editProfileLayout {
+    grid-template-columns: 1fr;
+  }
+  
+  .editProfilePreview {
+    position: relative;
+    top: 0;
+  }
+}
+
+/* Card Preview Styles */
+.profileEditPreview {
+  background: linear-gradient(135deg, rgba(138, 43, 226, 0.2), rgba(75, 0, 130, 0.2));
+  border-radius: 6px;
+  height: 60px;
+}
+
+.couplesPreview {
+  background: linear-gradient(135deg, rgba(199, 21, 133, 0.2), rgba(138, 43, 226, 0.2));
+  border-radius: 6px;
+  height: 60px;
+}
