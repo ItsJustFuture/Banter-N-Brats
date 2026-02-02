@@ -51,6 +51,13 @@ const CORE_ROOMS = [
 const CORE_ROOM_NAMES = new Set(CORE_ROOMS.map((room) => room.name));
 const SURVIVAL_SEASON_COOLDOWN_MS = 2 * 60 * 1000;
 const SURVIVAL_ADVANCE_COOLDOWN_MS = 2000;
+
+// DnD Story Room constants
+const DND_ROOM_ID = "dndstoryroom";
+const DND_ROOM_DB_ID = 2; // Will be created dynamically if needed
+const DND_SESSION_COOLDOWN_MS = 2 * 60 * 1000;
+const DND_ADVANCE_COOLDOWN_MS = 2000;
+
 const CHESS_DEFAULT_ELO = 1200;
 const CHESS_MIN_PLIES_RATED = 6;
 const CHESS_SEAT_CLAIM_TIMEOUT_MS = 10 * 60 * 1000;
@@ -75,6 +82,15 @@ const SURVIVAL_AUTOFILL_POOL = {
 };
 const survivalSeasonCooldownByRoom = new Map();
 const survivalAdvanceCooldownBySeason = new Map();
+
+// DnD Story Room in-memory maps
+const dndSessionCooldownByRoom = new Map();
+const dndAdvanceCooldownBySession = new Map();
+const dndLobbyByRoom = new Map(); // roomDbId -> Set<userId>
+function getDndLobbySet(roomDbId) {
+  if (!dndLobbyByRoom.has(roomDbId)) dndLobbyByRoom.set(roomDbId, new Set());
+  return dndLobbyByRoom.get(roomDbId);
+}
 
 // Survival lobby (opt-in list) — in-memory, per room. Used to quickly add participants.
 const survivalLobbyByRoom = new Map(); // roomDbId -> Set<userId>
@@ -235,6 +251,12 @@ const {
 const { SURVIVAL_EVENT_TEMPLATES, SURVIVAL_ITEM_POOL } = require("./survival-events");
 const statePersistence = require("./state-persistence");
 const validators = require("./validators");
+
+// DnD Story Room modules
+const dndCharacterSystem = require("./dnd/character-system");
+const dndEventTemplates = require("./dnd/event-templates");
+const dndEventResolution = require("./dnd/event-resolution");
+const dndDb = require("./dnd/database-helpers");
 
 // ---- Safety nets (prevents silent crashes in prod) ----
 process.on("unhandledRejection", (err) => {
@@ -1928,6 +1950,15 @@ const dmLimiter = rateLimit({
 const survivalLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: Number(process.env.RATE_LIMIT_SURVIVAL_HTTP || 40),
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  handler: genericRateLimitHandler,
+  keyGenerator: (req) => String(req.session?.user?.id || getClientIp(req)),
+});
+
+const dndLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: Number(process.env.RATE_LIMIT_DND_HTTP || 40),
   standardHeaders: "draft-7",
   legacyHeaders: false,
   handler: genericRateLimitHandler,
@@ -10481,6 +10512,418 @@ app.post("/api/survival/seasons/:id/end", survivalLimiter, requireCoOwner, expre
   const payload = await buildSurvivalPayload(await fetchSurvivalSeasonById(seasonId));
   io.to(SURVIVAL_ROOM_ID).emit("survival:update", payload);
   return res.json(payload);
+});
+
+// ============================================
+// DND STORY ROOM API ENDPOINTS
+// ============================================
+
+// Get lobby participants
+app.get("/api/dnd-story/lobby", requireLogin, async (_req, res) => {
+  try {
+    const set = getDndLobbySet(DND_ROOM_DB_ID);
+    return res.json({ user_ids: Array.from(set.values()) });
+  } catch {
+    return res.json({ user_ids: [] });
+  }
+});
+
+// Join lobby
+app.post("/api/dnd-story/lobby/join", requireLogin, async (req, res) => {
+  try {
+    const uid = Number(req.session?.user?.id);
+    if (!uid) return res.status(401).send("Unauthorized");
+    const set = getDndLobbySet(DND_ROOM_DB_ID);
+    set.add(uid);
+    io.to(DND_ROOM_ID).emit("dnd:lobby", { user_ids: Array.from(set.values()) });
+    return res.json({ ok: true, user_ids: Array.from(set.values()) });
+  } catch (e) {
+    return res.status(500).send("Failed");
+  }
+});
+
+// Leave lobby
+app.post("/api/dnd-story/lobby/leave", requireLogin, async (req, res) => {
+  try {
+    const uid = Number(req.session?.user?.id);
+    if (!uid) return res.status(401).send("Unauthorized");
+    const set = getDndLobbySet(DND_ROOM_DB_ID);
+    set.delete(uid);
+    io.to(DND_ROOM_ID).emit("dnd:lobby", { user_ids: Array.from(set.values()) });
+    return res.json({ ok: true, user_ids: Array.from(set.values()) });
+  } catch (e) {
+    return res.status(500).send("Failed");
+  }
+});
+
+// Get current active session
+app.get("/api/dnd-story/current", requireLogin, async (_req, res) => {
+  try {
+    const session = await dndDb.getActiveDndSession(pgPool, DND_ROOM_DB_ID);
+    if (!session) return res.json({ session: null });
+    
+    const characters = await dndDb.getDndCharacters(pgPool, session.id);
+    const events = await dndDb.getDndEvents(pgPool, session.id, 50);
+    
+    return res.json({
+      session: {
+        ...session,
+        world_state: session.world_state_json ? JSON.parse(session.world_state_json) : {}
+      },
+      characters: characters.map(c => ({
+        ...c,
+        skills: c.skills_json ? JSON.parse(c.skills_json) : [],
+        perks: c.perks_json ? JSON.parse(c.perks_json) : []
+      })),
+      events: events.map(e => ({
+        ...e,
+        involved_character_ids: e.involved_character_ids_json ? JSON.parse(e.involved_character_ids_json) : [],
+        outcome: e.outcome_json ? JSON.parse(e.outcome_json) : {}
+      }))
+    });
+  } catch (e) {
+    console.warn("[dnd] current failed", e?.message || e);
+    return res.status(500).send("Failed");
+  }
+});
+
+// Create new session
+app.post("/api/dnd-story/sessions", dndLimiter, requireCoOwner, express.json({ limit: "32kb" }), async (req, res) => {
+  const now = Date.now();
+  const lastStart = dndSessionCooldownByRoom.get(DND_ROOM_DB_ID) || 0;
+  if (now - lastStart < DND_SESSION_COOLDOWN_MS) {
+    return res.status(429).json({ message: "Please wait before starting another session." });
+  }
+  
+  try {
+    const userId = Number(req.session?.user?.id);
+    const title = String(req.body?.title || "DnD Adventure").slice(0, 100);
+    const rngSeed = Math.floor(Math.random() * 1000000);
+    
+    // Check for existing active session
+    const existing = await dndDb.getActiveDndSession(pgPool, DND_ROOM_DB_ID);
+    if (existing) {
+      return res.status(409).json({ message: "A session is already active." });
+    }
+    
+    const session = await dndDb.createDndSession(pgPool, {
+      roomId: DND_ROOM_DB_ID,
+      createdByUserId: userId,
+      title,
+      rngSeed,
+      status: "lobby"
+    });
+    
+    dndSessionCooldownByRoom.set(DND_ROOM_DB_ID, now);
+    
+    io.to(DND_ROOM_ID).emit("dnd:sessionCreated", { session });
+    emitRoomSystem(DND_ROOM_ID, `🎲 New DnD session "${title}" has been created! Join the lobby to participate.`, { kind: "dnd" });
+    
+    return res.json({ ok: true, session });
+  } catch (e) {
+    console.warn("[dnd] create session failed", e?.message || e);
+    return res.status(500).send("Failed");
+  }
+});
+
+// Create or update character
+app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb" }), async (req, res) => {
+  try {
+    const userId = Number(req.session?.user?.id);
+    if (!userId) return res.status(401).send("Unauthorized");
+    
+    const sessionId = Number(req.body?.sessionId);
+    if (!sessionId) return res.status(400).json({ message: "Missing sessionId" });
+    
+    const session = await dndDb.getDndSession(pgPool, sessionId);
+    if (!session) return res.status(404).json({ message: "Session not found" });
+    if (session.status !== "lobby") {
+      return res.status(400).json({ message: "Cannot create/update character after lobby phase" });
+    }
+    
+    // Validate attributes
+    const attributes = req.body?.attributes || {};
+    const attrValidation = dndCharacterSystem.validateAttributes(attributes);
+    if (!attrValidation.valid) {
+      return res.status(400).json({ message: attrValidation.error });
+    }
+    
+    // Validate skills
+    const skills = req.body?.skills || [];
+    const skillValidation = dndCharacterSystem.validateSkills(skills);
+    if (!skillValidation.valid) {
+      return res.status(400).json({ message: skillValidation.error });
+    }
+    
+    // Validate perks
+    const perks = req.body?.perks || [];
+    const perkValidation = dndCharacterSystem.validatePerks(perks);
+    if (!perkValidation.valid) {
+      return res.status(400).json({ message: perkValidation.error });
+    }
+    
+    // Apply skill bonuses
+    const { attributes: finalAttributes, hpBonus } = dndCharacterSystem.applySkillBonuses(attributes, skills);
+    const maxHp = dndCharacterSystem.ATTRIBUTE_CONFIG.maxHP + hpBonus;
+    
+    // Check if character already exists
+    const existing = await dndDb.getDndCharacterByUser(pgPool, userId, sessionId);
+    
+    let character;
+    if (existing) {
+      // Update existing character
+      character = await dndDb.updateDndCharacter(pgPool, existing.id, {
+        attributes: finalAttributes,
+        skills,
+        perks,
+        max_hp: maxHp,
+        hp: maxHp
+      });
+    } else {
+      // Create new character
+      const user = req.session.user;
+      character = await dndDb.createDndCharacter(pgPool, {
+        sessionId,
+        userId,
+        displayName: user.username,
+        avatarUrl: user.avatar_url || null,
+        attributes: finalAttributes,
+        skills,
+        perks,
+        hp: maxHp,
+        maxHp
+      });
+    }
+    
+    io.to(DND_ROOM_ID).emit("dnd:characterUpdated", { character });
+    
+    return res.json({ ok: true, character });
+  } catch (e) {
+    console.warn("[dnd] create/update character failed", e?.message || e);
+    return res.status(500).send("Failed");
+  }
+});
+
+// Start session (transition from lobby to active)
+app.post("/api/dnd-story/sessions/:id/start", dndLimiter, requireCoOwner, express.json({ limit: "8kb" }), async (req, res) => {
+  try {
+    const sessionId = Number(req.params.id);
+    const session = await dndDb.getDndSession(pgPool, sessionId);
+    
+    if (!session) return res.status(404).json({ message: "Session not found" });
+    if (session.status !== "lobby") {
+      return res.status(400).json({ message: "Session already started" });
+    }
+    
+    const characters = await dndDb.getDndCharacters(pgPool, sessionId);
+    if (characters.length < 5) {
+      return res.status(400).json({ message: "Need at least 5 players to start" });
+    }
+    if (characters.length > 30) {
+      return res.status(400).json({ message: "Maximum 30 players allowed" });
+    }
+    
+    // Update session to active
+    const updated = await dndDb.updateDndSession(pgPool, sessionId, {
+      status: "active",
+      round: 1
+    });
+    
+    io.to(DND_ROOM_ID).emit("dnd:sessionStarted", { session: updated });
+    emitRoomSystem(DND_ROOM_ID, `🎲 The adventure begins! ${characters.length} heroes embark on their journey.`, { kind: "dnd" });
+    
+    return res.json({ ok: true, session: updated });
+  } catch (e) {
+    console.warn("[dnd] start session failed", e?.message || e);
+    return res.status(500).send("Failed");
+  }
+});
+
+// Advance session (generate and resolve next event)
+app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, express.json({ limit: "16kb" }), async (req, res) => {
+  const sessionId = Number(req.params.id);
+  const now = Date.now();
+  
+  // Check cooldown
+  const lastAdvance = dndAdvanceCooldownBySession.get(sessionId) || 0;
+  if (now - lastAdvance < DND_ADVANCE_COOLDOWN_MS) {
+    return res.status(429).json({ message: "Please wait before advancing again" });
+  }
+  
+  try {
+    const session = await dndDb.getDndSession(pgPool, sessionId);
+    if (!session) return res.status(404).json({ message: "Session not found" });
+    if (session.status !== "active") {
+      return res.status(400).json({ message: "Session is not active" });
+    }
+    
+    const characters = await dndDb.getDndCharacters(pgPool, sessionId);
+    const aliveChars = characters.filter(c => c.alive);
+    
+    if (aliveChars.length === 0) {
+      // Everyone died - end session
+      await dndDb.updateDndSession(pgPool, sessionId, { status: "completed" });
+      io.to(DND_ROOM_ID).emit("dnd:sessionEnded", { sessionId, reason: "tpk" });
+      emitRoomSystem(DND_ROOM_ID, `💀 Total party kill! The adventure ends in tragedy.`, { kind: "dnd" });
+      return res.json({ ok: true, message: "Session ended - all characters died" });
+    }
+    
+    // Create seeded RNG
+    const rng = createSeededRng(`${session.rng_seed}:${session.round}:${now}`);
+    
+    // Select event template
+    const { key: templateKey, template } = dndEventResolution.selectEventTemplate(
+      dndEventTemplates.EVENT_TEMPLATES,
+      aliveChars.length,
+      session.round,
+      rng
+    );
+    
+    // Select characters for this event
+    const numChars = Math.min(template.minPlayers, aliveChars.length);
+    const selectedChars = [];
+    for (let i = 0; i < numChars; i++) {
+      const idx = Math.floor(rng() * aliveChars.length);
+      selectedChars.push(aliveChars.splice(idx, 1)[0]);
+    }
+    
+    // Perform check for first character
+    const mainChar = selectedChars[0];
+    const checkResult = dndEventResolution.performCheck(
+      mainChar,
+      template.check.attribute,
+      template.check.dc,
+      rng
+    );
+    
+    // Apply outcome
+    const worldState = session.world_state_json ? JSON.parse(session.world_state_json) : {};
+    const outcomeChanges = dndEventResolution.applyEventOutcome(
+      template,
+      checkResult.outcome,
+      selectedChars,
+      worldState
+    );
+    
+    // Update characters in database
+    for (const char of selectedChars) {
+      await dndDb.updateDndCharacter(pgPool, char.id, {
+        hp: char.hp,
+        alive: char.alive
+      });
+    }
+    
+    // Format narrative
+    const narrative = dndEventResolution.formatNarrative(
+      template.text.intro + " " + outcomeChanges.narrative,
+      selectedChars
+    );
+    
+    // Create event record
+    const event = await dndDb.createDndEvent(pgPool, {
+      sessionId,
+      round: session.round,
+      eventType: template.type,
+      text: narrative,
+      involvedCharacterIds: selectedChars.map(c => c.id),
+      outcome: {
+        roll: checkResult.roll,
+        modifier: checkResult.modifier,
+        total: checkResult.total,
+        dc: checkResult.dc,
+        outcome: checkResult.outcome,
+        changes: outcomeChanges
+      }
+    });
+    
+    // Update session
+    const updatedSession = await dndDb.updateDndSession(pgPool, sessionId, {
+      round: session.round + 1,
+      world_state: worldState
+    });
+    
+    dndAdvanceCooldownBySession.set(sessionId, now);
+    
+    // Broadcast event
+    io.to(DND_ROOM_ID).emit("dnd:eventResolved", {
+      session: updatedSession,
+      event,
+      checkResult
+    });
+    
+    emitRoomSystem(DND_ROOM_ID, `🎲 ${narrative}`, { kind: "dnd" });
+    
+    return res.json({ ok: true, event, session: updatedSession });
+  } catch (e) {
+    console.warn("[dnd] advance failed", e?.message || e);
+    return res.status(500).send("Failed");
+  }
+});
+
+// End session
+app.post("/api/dnd-story/sessions/:id/end", dndLimiter, requireCoOwner, express.json({ limit: "8kb" }), async (req, res) => {
+  try {
+    const sessionId = Number(req.params.id);
+    const session = await dndDb.getDndSession(pgPool, sessionId);
+    
+    if (!session) return res.status(404).json({ message: "Session not found" });
+    if (session.status === "completed") {
+      return res.json({ ok: true, message: "Session already ended" });
+    }
+    
+    await dndDb.updateDndSession(pgPool, sessionId, { status: "completed" });
+    
+    io.to(DND_ROOM_ID).emit("dnd:sessionEnded", { sessionId });
+    emitRoomSystem(DND_ROOM_ID, `🎲 The adventure concludes! Thank you for playing.`, { kind: "dnd" });
+    
+    return res.json({ ok: true });
+  } catch (e) {
+    console.warn("[dnd] end session failed", e?.message || e);
+    return res.status(500).send("Failed");
+  }
+});
+
+// Spectator gold influence (buff/sabotage)
+app.post("/api/dnd-story/spectate/influence", requireLogin, express.json({ limit: "8kb" }), async (req, res) => {
+  try {
+    const userId = Number(req.session?.user?.id);
+    if (!userId) return res.status(401).send("Unauthorized");
+    
+    const { sessionId, characterId, influenceType, goldAmount } = req.body;
+    
+    if (!sessionId || !characterId || !influenceType) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+    
+    const amount = Math.floor(Math.max(10, Math.min(100, Number(goldAmount) || 10)));
+    
+    // Spend gold
+    const spendResult = await spendGold(userId, amount, `dnd_influence:${influenceType}`);
+    if (!spendResult.ok) {
+      return res.status(400).json({ message: spendResult.message });
+    }
+    
+    // Apply influence effect (stored for next event resolution)
+    // For now, just broadcast to room
+    io.to(DND_ROOM_ID).emit("dnd:spectatorInfluence", {
+      userId,
+      username: req.session.user.username,
+      characterId,
+      influenceType,
+      amount
+    });
+    
+    const msg = influenceType === "buff" 
+      ? `✨ ${req.session.user.username} blessed a hero with ${amount} gold!`
+      : `💀 ${req.session.user.username} cursed a hero with ${amount} gold!`;
+    
+    emitRoomSystem(DND_ROOM_ID, msg, { kind: "dnd" });
+    
+    return res.json({ ok: true, gold: spendResult.gold });
+  } catch (e) {
+    console.warn("[dnd] spectator influence failed", e?.message || e);
+    return res.status(500).send("Failed");
+  }
 });
 
 // ---- Room structure management (Owner-only)
