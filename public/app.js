@@ -12505,9 +12505,9 @@ function renderEditProfileVibeOptions(){
   const VIBE_TAG_LIMIT = 3;
   if (editProfileVibeLimit) editProfileVibeLimit.textContent = VIBE_TAG_LIMIT;
   
-  if (!window.VIBE_TAGS_LIST || !Array.isArray(window.VIBE_TAGS_LIST)) return;
+  if (!VIBE_TAG_DEFS || !Array.isArray(VIBE_TAG_DEFS)) return;
   
-  window.VIBE_TAGS_LIST.forEach(tag => {
+  VIBE_TAG_DEFS.forEach(tag => {
     const isSelected = editProfileSelectedVibeTags.includes(tag);
     const btn = document.createElement("button");
     btn.type = "button";
