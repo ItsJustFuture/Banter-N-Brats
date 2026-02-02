@@ -10665,6 +10665,11 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
     
     // Apply skill bonuses
     const { attributes: finalAttributes, hpBonus } = dndCharacterSystem.applySkillBonuses(attributes, skills);
+    // Re-validate attributes after applying skill bonuses to ensure they still respect limits
+    const finalAttrValidation = dndCharacterSystem.validateAttributes(finalAttributes);
+    if (!finalAttrValidation.valid) {
+      return res.status(400).json({ message: finalAttrValidation.error });
+    }
     const maxHp = dndCharacterSystem.ATTRIBUTE_CONFIG.maxHP + hpBonus;
     
     // Check if character already exists
