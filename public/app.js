@@ -12955,6 +12955,216 @@ openCouplesCardBtn?.addEventListener("click", () => {
   openCouplesModal();
 });
 
+// Wire up new couples customization buttons
+const couplesPartnerInputCustomize = document.getElementById("couplesPartnerInputCustomize");
+const couplesRequestBtnCustomize = document.getElementById("couplesRequestBtnCustomize");
+const couplesStatusSaveBtnCustomize = document.getElementById("couplesStatusSaveBtnCustomize");
+const couplesMoodSaveBtnCustomize = document.getElementById("couplesMoodSaveBtnCustomize");
+const couplesPingBtnCustomize = document.getElementById("couplesPingBtnCustomize");
+const couplesSettingsSaveBtnCustomize = document.getElementById("couplesSettingsSaveBtnCustomize");
+const couplesNudgeBtnCustomize = document.getElementById("couplesNudgeBtnCustomize");
+const couplesUnlinkBtnCustomize = document.getElementById("couplesUnlinkBtnCustomize");
+const couplesCustomizeMsg = document.getElementById("couplesCustomizeMsg");
+
+// Request couple link
+couplesRequestBtnCustomize?.addEventListener("click", async () => {
+  if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "";
+  const name = String(couplesPartnerInputCustomize?.value || "").trim();
+  if (!name) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "Enter a username.";
+    return;
+  }
+  try {
+    const r = await fetch("/api/couples/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetUsername: name })
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not send request"));
+    couplesState = await r.json();
+    if (couplesPartnerInputCustomize) couplesPartnerInputCustomize.value = "";
+    await refreshCouplesUI();
+    syncCouplesCustomizeUI();
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Link request sent!";
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not send request";
+  }
+});
+
+// Save couple status
+couplesStatusSaveBtnCustomize?.addEventListener("click", async () => {
+  const statusEmojiCustomize = document.getElementById("couplesStatusEmojiCustomize");
+  const statusLabelCustomize = document.getElementById("couplesStatusLabelCustomize");
+  
+  try {
+    const r = await fetch("/api/couples/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        emoji: statusEmojiCustomize?.value || "💜",
+        label: statusLabelCustomize?.value || "Linked"
+      })
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not save status"));
+    couplesState = await r.json();
+    await refreshCouplesUI();
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Status saved!";
+    setTimeout(() => { if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = ""; }, 2000);
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not save status";
+  }
+});
+
+// Save couple mood
+couplesMoodSaveBtnCustomize?.addEventListener("click", async () => {
+  const moodEmojiCustomize = document.getElementById("couplesMoodEmojiCustomize");
+  
+  try {
+    const r = await fetch("/api/couples/mood", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mood: moodEmojiCustomize?.value || ""
+      })
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not save mood"));
+    couplesState = await r.json();
+    await refreshCouplesUI();
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Mood saved!";
+    setTimeout(() => { if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = ""; }, 2000);
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not save mood";
+  }
+});
+
+// Ping partner
+couplesPingBtnCustomize?.addEventListener("click", async () => {
+  try {
+    const r = await fetch("/api/couples/ping", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not ping"));
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Pinged your partner!";
+    setTimeout(() => { if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = ""; }, 2000);
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not ping";
+  }
+});
+
+// Save couple card settings
+couplesSettingsSaveBtnCustomize?.addEventListener("click", async () => {
+  const couplesPrivacySelectCustomize = document.getElementById("couplesPrivacySelectCustomize");
+  const couplesNameInputCustomize = document.getElementById("couplesNameInputCustomize");
+  const couplesBioInputCustomize = document.getElementById("couplesBioInputCustomize");
+  const couplesShowBadgeToggleCustomize = document.getElementById("couplesShowBadgeToggleCustomize");
+  const couplesBonusesToggleCustomize = document.getElementById("couplesBonusesToggleCustomize");
+  
+  try {
+    const r = await fetch("/api/couples/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        privacy: couplesPrivacySelectCustomize?.value || "private",
+        couple_name: couplesNameInputCustomize?.value || "",
+        couple_bio: couplesBioInputCustomize?.value || "",
+        show_badge: !!couplesShowBadgeToggleCustomize?.checked,
+        bonuses_enabled: !!couplesBonusesToggleCustomize?.checked
+      })
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not save settings"));
+    couplesState = await r.json();
+    await refreshCouplesUI();
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Couple card saved!";
+    setTimeout(() => { if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = ""; }, 2000);
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not save settings";
+  }
+});
+
+// Nudge partner
+couplesNudgeBtnCustomize?.addEventListener("click", async () => {
+  try {
+    const r = await fetch("/api/couples/nudge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not nudge"));
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Nudged your partner!";
+    setTimeout(() => { if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = ""; }, 2000);
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not nudge";
+  }
+});
+
+// Unlink partnership
+couplesUnlinkBtnCustomize?.addEventListener("click", async () => {
+  const active = couplesState?.active;
+  if (!active?.linkId) return;
+  if (!confirm(`Unlink from ${active.partner}? This will remove all couples features and shared settings.`)) return;
+  if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "";
+  try {
+    const r = await fetch("/api/couples/unlink", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ linkId: active.linkId })
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not unlink"));
+    couplesState = await r.json();
+    await refreshCouplesUI();
+    syncCouplesCustomizeUI();
+    if (typeof emitLocalMembersRefresh === "function") emitLocalMembersRefresh();
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Partnership unlinked.";
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not unlink";
+  }
+});
+
+// Wire up couples toggles in customization tab
+const couplesEnabledToggleCustomize = document.getElementById("couplesEnabledToggleCustomize");
+const couplesShowProfileToggleCustomize = document.getElementById("couplesShowProfileToggleCustomize");
+const couplesBadgeToggleCustomize = document.getElementById("couplesBadgeToggleCustomize");
+const couplesAuraToggleCustomize = document.getElementById("couplesAuraToggleCustomize");
+const couplesShowMembersToggleCustomize = document.getElementById("couplesShowMembersToggleCustomize");
+const couplesGroupToggleCustomize = document.getElementById("couplesGroupToggleCustomize");
+const couplesAllowPingToggleCustomize = document.getElementById("couplesAllowPingToggleCustomize");
+
+couplesEnabledToggleCustomize?.addEventListener("change", () => {
+  if (typeof setCouplePrefs === "function") {
+    setCouplePrefs({ enabled: !!couplesEnabledToggleCustomize.checked });
+  }
+});
+couplesShowProfileToggleCustomize?.addEventListener("change", () => {
+  if (typeof setCouplePrefs === "function") {
+    setCouplePrefs({ showProfile: !!couplesShowProfileToggleCustomize.checked });
+  }
+});
+couplesBadgeToggleCustomize?.addEventListener("change", () => {
+  if (typeof setCouplePrefs === "function") {
+    setCouplePrefs({ badge: !!couplesBadgeToggleCustomize.checked });
+  }
+});
+couplesAuraToggleCustomize?.addEventListener("change", () => {
+  if (typeof setCouplePrefs === "function") {
+    setCouplePrefs({ aura: !!couplesAuraToggleCustomize.checked });
+  }
+});
+couplesShowMembersToggleCustomize?.addEventListener("change", () => {
+  if (typeof setCouplePrefs === "function") {
+    setCouplePrefs({ showMembers: !!couplesShowMembersToggleCustomize.checked });
+  }
+});
+couplesGroupToggleCustomize?.addEventListener("change", () => {
+  if (typeof setCouplePrefs === "function") {
+    setCouplePrefs({ groupMembers: !!couplesGroupToggleCustomize.checked });
+  }
+});
+couplesAllowPingToggleCustomize?.addEventListener("change", () => {
+  if (typeof setCouplePrefs === "function") {
+    setCouplePrefs({ allowPing: !!couplesAllowPingToggleCustomize.checked });
+  }
+});
+
 couplesModalClose?.addEventListener("click", closeCouplesModal);
 couplesModal?.addEventListener("click", (e) => {
   if (e.target === couplesModal) closeCouplesModal();
