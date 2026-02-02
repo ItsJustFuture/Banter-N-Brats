@@ -12731,14 +12731,23 @@ function syncCoupleStatusInputs() {
   const statusEmojiCustomize = document.getElementById("couplesStatusEmojiCustomize");
   const statusLabelCustomize = document.getElementById("couplesStatusLabelCustomize");
   const moodEmojiCustomize = document.getElementById("couplesMoodEmojiCustomize");
+  const couplesNameCustomize = document.getElementById("couplesNameInputCustomize");
+  const couplesBioCustomize = document.getElementById("couplesBioInputCustomize");
+  const couplesPrivacyCustomize = document.getElementById("couplesPrivacySelectCustomize");
   
   const statusEmoji = document.getElementById("couplesStatusEmoji");
   const statusLabel = document.getElementById("couplesStatusLabel");
   const moodEmoji = document.getElementById("couplesMoodEmoji");
+  const couplesName = document.getElementById("couplesNameInput");
+  const couplesBio = document.getElementById("couplesBioInput");
+  const couplesPrivacy = document.getElementById("couplesPrivacySelect");
   
   if (statusEmojiCustomize && statusEmoji) statusEmojiCustomize.value = statusEmoji.value;
   if (statusLabelCustomize && statusLabel) statusLabelCustomize.value = statusLabel.value;
   if (moodEmojiCustomize && moodEmoji) moodEmojiCustomize.value = moodEmoji.value;
+  if (couplesNameCustomize && couplesName) couplesNameCustomize.value = couplesName.value;
+  if (couplesBioCustomize && couplesBio) couplesBioCustomize.value = couplesBio.value;
+  if (couplesPrivacyCustomize && couplesPrivacy) couplesPrivacyCustomize.value = couplesPrivacy.value;
 }
 
 // Wire up Edit Profile modal
