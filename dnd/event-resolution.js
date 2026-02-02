@@ -115,7 +115,7 @@ function performCheck(character, attribute, dc, rng, context = {}) {
   if (context.statusEffects && Array.isArray(context.statusEffects)) {
     // Look for next_check_bonus status effects
     const bonusEffect = context.statusEffects.find(
-      effect => effect.type === 'check_modifier' && effect.effect === 'next_check_bonus'
+      effect => effect.type === "check_modifier" && effect.effect === "next_check_bonus"
     );
     if (bonusEffect && bonusEffect.value) {
       checkBonus = bonusEffect.value;
@@ -259,7 +259,7 @@ function applyEventOutcome(template, outcome, characters, worldState = {}, rng =
       
       changes.attributeChanges.push({
         characterId: char.id,
-        type: 'swap',
+        type: "swap",
         attributes: [attr1, attr2],
         values: [value2, value1]
       });
@@ -292,7 +292,7 @@ function applyEventOutcome(template, outcome, characters, worldState = {}, rng =
       
       changes.attributeChanges.push({
         characterId: char.id,
-        type: 'scramble',
+        type: "scramble",
         oldValues,
         newValues: CORE_ATTRIBUTES.reduce((acc, attr) => {
           acc[attr] = char[attr];

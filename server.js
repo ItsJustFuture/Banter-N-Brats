@@ -10868,7 +10868,7 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
     const mainChar = selectedChars[0];
     const checkContext = {
       coupleBonus: isCouple && template.coupleBonus,
-      worldState: worldState, // Pass worldState for monster penalty
+      worldState, // Pass worldState for monster penalty
       // Note: Status effects persistence would require additional database schema
       // See DND_GAMEPLAY_FEATURES.md "Future Enhancements" section for details
       statusEffects: [] // Currently not persisted; future enhancement
