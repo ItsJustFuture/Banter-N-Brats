@@ -26,7 +26,14 @@ function test(eventKey, outcome, expectedProperties) {
       display_name: "TestChar",
       hp: 50,
       max_hp: 100,
-      gold: 100
+      gold: 100,
+      might: 4,
+      finesse: 5,
+      wit: 3,
+      instinct: 4,
+      presence: 3,
+      resolve: 5,
+      chaos: 4
     };
     
     const worldState = {};
