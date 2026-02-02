@@ -5032,7 +5032,12 @@ function openDndCharacterCreator() {
   // Add attribute change listeners
   const attrInputs = document.querySelectorAll('[id^="attr_"]');
   attrInputs.forEach(input => {
+    // Guard to avoid attaching duplicate listeners if the creator is reopened
+    if (input._dndWired) {
+      return;
+    }
     input.addEventListener('input', updateDndPointsRemaining);
+    input._dndWired = true;
   });
   
   updateDndPointsRemaining();
