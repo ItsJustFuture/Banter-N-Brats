@@ -12674,7 +12674,6 @@ function updateEditProfilePreview() {
 
 // Sync couples UI data into customization tab
 function syncCouplesCustomizeUI() {
-  const couplesPartnerInputCustomize = document.getElementById("couplesPartnerInputCustomize");
   const couplesActiveSection = document.getElementById("couplesActiveSection");
   const couplesSettingsSection = document.getElementById("couplesSettingsSection");
   const couplesCardSection = document.getElementById("couplesCardSection");
