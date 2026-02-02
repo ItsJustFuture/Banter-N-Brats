@@ -104,7 +104,6 @@ for (const [key, template] of Object.entries(EVENT_TEMPLATES)) {
   
   // Check placeholder consistency
   const intro = template.text.intro || "";
-  const hasChar1 = intro.includes("{CHAR1}") || intro.includes("{CHAR}");
   const hasChar2 = intro.includes("{CHAR2}");
   
   if (template.minPlayers >= 2 && !hasChar2) {
