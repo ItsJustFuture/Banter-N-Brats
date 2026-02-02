@@ -4811,8 +4811,9 @@ function renderDndEvents() {
   const html = events.slice().reverse().map((event, idx) => {
     const outcome = event.outcome_json ? JSON.parse(event.outcome_json) : event.outcome || {};
     const rollInfo = outcome.roll ? `Roll: ${outcome.roll} + ${outcome.modifier} = ${outcome.total} vs DC ${outcome.dc}` : "";
-    const outcomeClass = outcome.outcome === "critical_success" ? "success" :
-                         outcome.outcome === "catastrophic" ? "fail" : "partial";
+    const outcomeClass =
+      outcome.outcome === "critical_success" || outcome.outcome === "success" ? "success" :
+      outcome.outcome === "catastrophic" || outcome.outcome === "failure" ? "fail" : "partial";
     
     return `
       <div class="dndEventCard ${outcomeClass}">
