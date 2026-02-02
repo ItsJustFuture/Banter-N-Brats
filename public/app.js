@@ -12147,7 +12147,7 @@ customizeCards.forEach((card) => {
     }
     // Handle Couples card - opens modal
     if (card.dataset.category === "couples") {
-      setCustomizePage("couples");
+      openCouplesModal();
       return;
     }
     // Handle Profile Appearance card - opens modal with preview
