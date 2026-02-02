@@ -4879,6 +4879,41 @@ const likeCount = document.getElementById("likeCount");
 const profileLikeMsg = document.getElementById("profileLikeMsg");
 const openUsernameCustomizationBtn = document.getElementById("openUsernameCustomizationBtn");
 const openMessageCustomizationBtn = document.getElementById("openMessageCustomizationBtn");
+
+// Edit Profile Modal elements
+const editProfileModal = document.getElementById("editProfileModal");
+const editProfileModalClose = document.getElementById("editProfileModalClose");
+const openEditProfileBtn = document.getElementById("openEditProfileBtn");
+const editProfileSaveBtn = document.getElementById("editProfileSaveBtn");
+const editProfileCancelBtn = document.getElementById("editProfileCancelBtn");
+const editProfileMsg = document.getElementById("editProfileMsg");
+const editProfileAvatar = document.getElementById("editProfileAvatar");
+const editProfileMood = document.getElementById("editProfileMood");
+const editProfileAge = document.getElementById("editProfileAge");
+const editProfileGender = document.getElementById("editProfileGender");
+const editProfileBio = document.getElementById("editProfileBio");
+const editProfileUsername = document.getElementById("editProfileUsername");
+const editProfileChangeUsernameBtn = document.getElementById("editProfileChangeUsernameBtn");
+const editProfileUsernameMsg = document.getElementById("editProfileUsernameMsg");
+const editProfileVibeOptions = document.getElementById("editProfileVibeOptions");
+const editProfileVibeLimit = document.getElementById("editProfileVibeLimit");
+const profilePreviewCard = document.getElementById("profilePreviewCard");
+const profilePreviewHeader = document.getElementById("profilePreviewHeader");
+const profilePreviewAvatar = document.getElementById("profilePreviewAvatar");
+const profilePreviewName = document.getElementById("profilePreviewName");
+const profilePreviewMood = document.getElementById("profilePreviewMood");
+const profilePreviewBio = document.getElementById("profilePreviewBio");
+const profilePreviewVibes = document.getElementById("profilePreviewVibes");
+
+// Couples card button
+const openCouplesCardBtn = document.getElementById("openCouplesCardBtn");
+const coupleGradientField = document.getElementById("coupleGradientField");
+const coupleGradientStartCustomize = document.getElementById("coupleGradientStartCustomize");
+const coupleGradientEndCustomize = document.getElementById("coupleGradientEndCustomize");
+const coupleGradientStartTextCustomize = document.getElementById("coupleGradientStartTextCustomize");
+const coupleGradientEndTextCustomize = document.getElementById("coupleGradientEndTextCustomize");
+const coupleGradientPreviewCustomize = document.getElementById("coupleGradientPreviewCustomize");
+
 const leaderboardXp = document.getElementById("leaderboardXp");
 const leaderboardGold = document.getElementById("leaderboardGold");
 const leaderboardDice = document.getElementById("leaderboardDice");
@@ -12103,6 +12138,20 @@ customizeCards.forEach((card) => {
       openThemesModal();
       return;
     }
+    // Handle Edit Profile card
+    if (card.dataset.category === "edit-profile") {
+      openEditProfileModal();
+      return;
+    }
+    // Handle Couples card
+    if (card.dataset.category === "couples") {
+      openCouplesModal();
+      return;
+    }
+    // Show couple gradient field when viewing profile appearance
+    if (card.dataset.category === "profile") {
+      updateCoupleGradientFieldVisibility();
+    }
     setCustomizePage(card.dataset.category || null);
   });
 });
@@ -12399,17 +12448,274 @@ function closeCouplesModal(){
   }, 140);
 }
 
-couplesBtn?.addEventListener("click", openCouplesModal);
+// ===== EDIT PROFILE MODAL =====
+let editProfileSelectedVibeTags = [];
+
+function openEditProfileModal(){
+  if (!editProfileModal) return;
+  closeSurvivalModal();
+  closeMemberMenu();
+  closeProfileSettingsMenu();
+  closeCouplesModal();
+  
+  // Load current profile data
+  if (editProfileMood) {
+    editProfileMood.value = me?.mood || "";
+  }
+  if (editProfileAge) {
+    editProfileAge.value = me?.age || "";
+  }
+  if (editProfileGender) {
+    editProfileGender.value = me?.gender || "";
+  }
+  if (editProfileBio) {
+    editProfileBio.value = me?.bio || "";
+  }
+  if (editProfileUsername) {
+    editProfileUsername.value = "";
+  }
+  editProfileSelectedVibeTags = [...(me?.vibe_tags || [])];
+  
+  // Render vibe tags
+  renderEditProfileVibeOptions();
+  
+  // Update preview
+  updateProfilePreview();
+  
+  try { editProfileModal.hidden = false; } catch {}
+  editProfileModal.setAttribute("aria-hidden", "false");
+}
+
+function closeEditProfileModal(){
+  if (!editProfileModal) return;
+  editProfileModal.classList.add("modal-closing");
+  editProfileModal.setAttribute("aria-hidden", "true");
+  if (editProfileMsg) {
+    editProfileMsg.textContent = "";
+  }
+  setTimeout(() => {
+    editProfileModal.classList.remove("modal-closing");
+    try { editProfileModal.hidden = true; } catch {}
+  }, 140);
+}
+
+function renderEditProfileVibeOptions(){
+  if (!editProfileVibeOptions) return;
+  editProfileVibeOptions.innerHTML = "";
+  const VIBE_TAG_LIMIT = 3;
+  if (editProfileVibeLimit) editProfileVibeLimit.textContent = VIBE_TAG_LIMIT;
+  
+  if (!VIBE_TAG_DEFS || !Array.isArray(VIBE_TAG_DEFS)) return;
+  
+  VIBE_TAG_DEFS.forEach(tag => {
+    const isSelected = editProfileSelectedVibeTags.includes(tag);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = isSelected ? "pillBtn active" : "pillBtn";
+    btn.textContent = tag;
+    btn.addEventListener("click", () => {
+      if (isSelected) {
+        editProfileSelectedVibeTags = editProfileSelectedVibeTags.filter(t => t !== tag);
+      } else {
+        if (editProfileSelectedVibeTags.length >= VIBE_TAG_LIMIT) return;
+        editProfileSelectedVibeTags = [...editProfileSelectedVibeTags, tag];
+      }
+      renderEditProfileVibeOptions();
+      updateProfilePreview();
+    });
+    editProfileVibeOptions.appendChild(btn);
+  });
+}
+
+function updateProfilePreview(){
+  if (!profilePreviewCard) return;
+  
+  // Update header gradient if me has custom colors
+  const colorA = me?.header_grad_a || me?.headerColorA;
+  const colorB = me?.header_grad_b || me?.headerColorB;
+  if (colorA && colorB && profilePreviewHeader) {
+    const grad = buildProfileHeaderGradient(colorA, colorB);
+    profilePreviewHeader.style.background = grad;
+    const theme = computeProfileTextTheme(colorA, colorB);
+    profilePreviewHeader.style.color = theme.text;
+  }
+  
+  // Update avatar preview
+  if (profilePreviewAvatar && me?.avatar) {
+    profilePreviewAvatar.style.backgroundImage = `url(${me.avatar})`;
+  }
+  
+  // Update name
+  if (profilePreviewName) {
+    profilePreviewName.textContent = me?.username || "Your Name";
+  }
+  
+  // Update mood
+  if (profilePreviewMood) {
+    const mood = editProfileMood?.value || "";
+    profilePreviewMood.textContent = mood;
+    profilePreviewMood.style.display = mood ? "" : "none";
+  }
+  
+  // Update bio preview
+  if (profilePreviewBio) {
+    const bio = editProfileBio?.value || "";
+    if (bio) {
+      profilePreviewBio.innerHTML = renderBBCode(bio);
+      profilePreviewBio.style.display = "";
+    } else {
+      profilePreviewBio.textContent = "No bio set";
+      profilePreviewBio.style.display = "";
+    }
+  }
+  
+  // Update vibes
+  if (profilePreviewVibes) {
+    if (editProfileSelectedVibeTags.length > 0) {
+      profilePreviewVibes.innerHTML = editProfileSelectedVibeTags
+        .map(tag => `<span class="vibeTag">${escapeHtml(tag)}</span>`)
+        .join("");
+      profilePreviewVibes.style.display = "";
+    } else {
+      profilePreviewVibes.style.display = "none";
+    }
+  }
+}
+
+async function saveEditProfile(){
+  if (!editProfileSaveBtn) return;
+  editProfileMsg.textContent = "Saving...";
+  
+  const form = new FormData();
+  form.append("mood", editProfileMood?.value || "");
+  form.append("age", editProfileAge?.value || "");
+  form.append("gender", editProfileGender?.value || "");
+  form.append("bio", editProfileBio?.value || "");
+  form.append("vibeTags", JSON.stringify(editProfileSelectedVibeTags || []));
+  
+  // Handle avatar upload
+  if (editProfileAvatar?.files?.[0]) {
+    form.append("avatar", editProfileAvatar.files[0]);
+  }
+  
+  try {
+    const res = await fetch("/profile", { method: "POST", body: form });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "Save failed.");
+      editProfileMsg.textContent = text || "Save failed.";
+      return;
+    }
+    editProfileMsg.textContent = "Saved! Refreshing...";
+    pushNotification({ type: "system", text: "Profile saved." });
+    
+    // Refresh profile data and close modal
+    await loadMyProfile();
+    await loadProgression();
+    closeEditProfileModal();
+    if (currentProfileIsSelf && modal && !modal.hidden) {
+      openProfile(me);
+    }
+  } catch (err) {
+    editProfileMsg.textContent = "Network error. Please try again.";
+    console.error("Profile save error:", err);
+  }
+}
+
+// Wire up Edit Profile modal
+openEditProfileBtn?.addEventListener("click", () => {
+  openEditProfileModal();
+});
+
+editProfileModalClose?.addEventListener("click", closeEditProfileModal);
+editProfileCancelBtn?.addEventListener("click", closeEditProfileModal);
+editProfileSaveBtn?.addEventListener("click", saveEditProfile);
+
+// Handle username change separately
+editProfileChangeUsernameBtn?.addEventListener("click", async () => {
+  if (!editProfileUsername) return;
+  const newUsername = String(editProfileUsername.value || "").trim();
+  if (!newUsername) {
+    editProfileUsernameMsg.textContent = "Enter a new username.";
+    return;
+  }
+  editProfileUsernameMsg.textContent = "Changing username...";
+  editProfileChangeUsernameBtn.disabled = true;
+  try {
+    const res = await fetch("/api/me/username", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: newUsername }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      editProfileUsernameMsg.textContent = data.message || "Could not change username.";
+      editProfileChangeUsernameBtn.disabled = false;
+      return;
+    }
+    // Use textContent to safely display username (prevents XSS)
+    const usernameText = document.createElement("span");
+    usernameText.textContent = `Username changed to ${data.username}!`;
+    editProfileUsernameMsg.textContent = "";
+    editProfileUsernameMsg.appendChild(usernameText);
+    editProfileUsername.value = "";
+    await loadMyProfile();
+    await loadProgression();
+    // Update preview with new username
+    updateProfilePreview();
+    setTimeout(() => {
+      editProfileUsernameMsg.textContent = "";
+    }, 3000);
+  } catch (err) {
+    console.error("Username change failed", err);
+    editProfileUsernameMsg.textContent = "Could not change username.";
+  } finally {
+    editProfileChangeUsernameBtn.disabled = false;
+  }
+});
+
+editProfileModal?.addEventListener("click", (e) => {
+  if (e.target === editProfileModal) closeEditProfileModal();
+});
+
+// Live preview updates
+editProfileMood?.addEventListener("input", updateProfilePreview);
+editProfileBio?.addEventListener("input", updateProfilePreview);
+
+// Avatar file preview
+editProfileAvatar?.addEventListener("change", (e) => {
+  const file = e.target?.files?.[0];
+  if (file && profilePreviewAvatar) {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      profilePreviewAvatar.style.backgroundImage = `url(${evt.target.result})`;
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+// Wire up Couples card button to open couples modal
+openCouplesCardBtn?.addEventListener("click", () => {
+  openCouplesModal();
+});
+
 couplesModalClose?.addEventListener("click", closeCouplesModal);
 couplesModal?.addEventListener("click", (e) => {
   if (e.target === couplesModal) closeCouplesModal();
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && couplesModal && couplesModal.style.display !== "none") {
-    closeCouplesModal();
-  }
-  if (e.key === "Escape" && roomActionsMenu && !roomActionsMenu.hidden) {
-    closeRoomActionsMenu();
+  if (e.key === "Escape") {
+    if (editProfileModal && !editProfileModal.hidden) {
+      closeEditProfileModal();
+      return;
+    }
+    if (couplesModal && couplesModal.style.display !== "none") {
+      closeCouplesModal();
+      return;
+    }
+    if (roomActionsMenu && !roomActionsMenu.hidden) {
+      closeRoomActionsMenu();
+      return;
+    }
   }
   if (e.key === "Escape" && roomManageModal && roomManageModal.style.display !== "none") {
     closeRoomManageModal();
@@ -17286,10 +17592,7 @@ function applyProfileSectionVisibility(isSelf){
 }
 
 function updateProfileActions({ isSelf = false, canModerate = false } = {}){
-  // Quick "Edit profile" button now lives in the top quick-actions row.
   if (!isSelf) closeProfileSettingsMenu();
-  if (profileEditToggleBtn) profileEditToggleBtn.style.display = isSelf ? "" : "none";
-  if (profileEditToggleRow) profileEditToggleRow.style.display = "none";
   applyCustomizeVisibility();
   if (dmChessQuickBtn) dmChessQuickBtn.style.display = isSelf ? "none" : "";
   if (addFriendBtn) addFriendBtn.style.display = isSelf ? "none" : "";
@@ -17327,9 +17630,6 @@ function updateProfileActions({ isSelf = false, canModerate = false } = {}){
   }
   if (actionsBtn) {
     actionsBtn.style.display = "none";
-  }
-  if (profileEditBtn) {
-    profileEditBtn.style.display = isSelf ? "" : "none";
   }
   if (profileSettingsBtn) {
     profileSettingsBtn.style.display = isSelf ? "" : "none";
@@ -20842,6 +21142,80 @@ if (coupleGradientEnd && coupleGradientEndText) {
     }
     updateGradientPreview();
   });
+}
+
+// Sync gradient color pickers for customization page
+function updateGradientPreviewCustomize() {
+  if (!coupleGradientPreviewCustomize) return;
+  const start = coupleGradientStartTextCustomize?.value || coupleGradientStartCustomize?.value || COUPLE_DEFAULT_GRADIENT_START;
+  const end = coupleGradientEndTextCustomize?.value || coupleGradientEndCustomize?.value || COUPLE_DEFAULT_GRADIENT_END;
+  coupleGradientPreviewCustomize.style.background = `linear-gradient(90deg, ${start}, ${end})`;
+}
+
+if (coupleGradientStartCustomize && coupleGradientStartTextCustomize) {
+  coupleGradientStartCustomize.addEventListener("input", (e) => {
+    coupleGradientStartTextCustomize.value = e.target.value;
+    updateGradientPreviewCustomize();
+    // Also sync to the main couple gradient inputs
+    if (coupleGradientStart) coupleGradientStart.value = e.target.value;
+    if (coupleGradientStartText) coupleGradientStartText.value = e.target.value;
+    updateGradientPreview();
+  });
+  coupleGradientStartTextCustomize.addEventListener("input", (e) => {
+    const val = e.target.value;
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+      coupleGradientStartCustomize.value = val;
+      if (coupleGradientStart) coupleGradientStart.value = val;
+    }
+    if (coupleGradientStartText) coupleGradientStartText.value = val;
+    updateGradientPreviewCustomize();
+    updateGradientPreview();
+  });
+}
+
+if (coupleGradientEndCustomize && coupleGradientEndTextCustomize) {
+  coupleGradientEndCustomize.addEventListener("input", (e) => {
+    coupleGradientEndTextCustomize.value = e.target.value;
+    updateGradientPreviewCustomize();
+    // Also sync to the main couple gradient inputs
+    if (coupleGradientEnd) coupleGradientEnd.value = e.target.value;
+    if (coupleGradientEndText) coupleGradientEndText.value = e.target.value;
+    updateGradientPreview();
+  });
+  coupleGradientEndTextCustomize.addEventListener("input", (e) => {
+    const val = e.target.value;
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+      coupleGradientEndCustomize.value = val;
+      if (coupleGradientEnd) coupleGradientEnd.value = val;
+    }
+    if (coupleGradientEndText) coupleGradientEndText.value = val;
+    updateGradientPreviewCustomize();
+    updateGradientPreview();
+  });
+}
+
+// Show couple gradient field in customization when user has an active couple
+function updateCoupleGradientFieldVisibility() {
+  if (!coupleGradientField) return;
+  const hasCouple = me?.coupleId && me?.couplePartnerId;
+  coupleGradientField.style.display = hasCouple ? "" : "none";
+  
+  // Sync values from main couple inputs if they exist
+  if (hasCouple) {
+    if (coupleGradientStart && coupleGradientStartCustomize) {
+      coupleGradientStartCustomize.value = coupleGradientStart.value;
+    }
+    if (coupleGradientStartText && coupleGradientStartTextCustomize) {
+      coupleGradientStartTextCustomize.value = coupleGradientStartText.value;
+    }
+    if (coupleGradientEnd && coupleGradientEndCustomize) {
+      coupleGradientEndCustomize.value = coupleGradientEnd.value;
+    }
+    if (coupleGradientEndText && coupleGradientEndTextCustomize) {
+      coupleGradientEndTextCustomize.value = coupleGradientEndText.value;
+    }
+    updateGradientPreviewCustomize();
+  }
 }
 
 function emitLocalMembersRefresh(){

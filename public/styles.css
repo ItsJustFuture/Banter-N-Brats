@@ -4576,6 +4576,121 @@ body:not(.polish-pack) .tonePicker{
   padding: 0 12px 12px;
 }
 
+/* Edit Profile Modal */
+#editProfileModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+#editProfileModal:not([hidden]) {
+  opacity: 1;
+}
+#editProfileModal.modal-closing {
+  opacity: 0;
+}
+.profileEditModalCard {
+  background: var(--panel);
+  border-radius: 14px;
+  max-width: 900px;
+  width: 90%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 20px 2px var(--accent, #6c5ce7);
+}
+.editProfileModalBody {
+  overflow-y: auto;
+  padding: 16px;
+}
+.editProfileLayout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 20px;
+}
+.editProfilePreview {
+  position: sticky;
+  top: 0;
+  height: fit-content;
+}
+.profilePreviewCard {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.profilePreviewHeader {
+  padding: 20px;
+  background: linear-gradient(135deg, #ff6a2b, #2b0f08);
+  color: #fdfdfd;
+  text-align: center;
+}
+.profilePreviewAvatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--accent);
+  background-size: cover;
+  background-position: center;
+  margin: 0 auto 12px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+}
+.profilePreviewName {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.profilePreviewMood {
+  font-size: 13px;
+  opacity: 0.9;
+  font-style: italic;
+}
+.profilePreviewBio {
+  padding: 14px;
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  min-height: 60px;
+}
+.profilePreviewVibes {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.vibeTag {
+  background: var(--accent);
+  color: var(--accentText);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.editProfileFields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+@media (max-width: 768px) {
+  .editProfileLayout {
+    grid-template-columns: 1fr;
+  }
+  .editProfilePreview {
+    position: relative;
+  }
+  .profileEditModalCard {
+    width: 95%;
+    max-height: 95vh;
+  }
+}
+
 .profileSections{
   display:flex;
   flex-direction:column;
@@ -8791,6 +8906,14 @@ body.polish-pack.polish-auras .presenceAura.isVip::after{
   border-radius: 10px;
   background: rgba(0,0,0,.25);
   border: 1px solid rgba(255,255,255,.08);
+}
+.customizeCard .profileEditPreview{
+  background: linear-gradient(135deg, rgba(108, 92, 231, 0.3), rgba(108, 92, 231, 0.1));
+  border-color: rgba(108, 92, 231, 0.3);
+}
+.customizeCard .couplesPreview{
+  background: linear-gradient(135deg, rgba(255, 106, 43, 0.3), rgba(200, 50, 200, 0.3));
+  border-color: rgba(255, 106, 43, 0.3);
 }
 .customizeSubpages{
   position: relative;

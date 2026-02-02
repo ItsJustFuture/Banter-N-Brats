@@ -310,7 +310,6 @@
 <div class="row" style="gap:8px; align-items:center;">
 <div class="meStatusText" id="meStatusText">Online</div>
 <button class="iconBtn" id="profileBtn" title="Profile" type="button">👤</button>
-<button class="iconBtn" id="couplesBtn" title="Couples" type="button">💜</button>
 </div>
 </div>
 <select id="statusSelect">
@@ -808,7 +807,6 @@
 </div>
 </div>
 <div class="profileHeaderActions">
-<button aria-label="Edit profile" class="iconBtn smallIcon" data-profile-action="profile:edit" id="profileEditBtn" style="display:none;" title="Edit profile" type="button">✏️</button>
 <button aria-label="Moderation actions" class="iconBtn smallIcon" data-profile-action="profile:moderation-overlay" id="actionsBtn" style="display:none;" title="Moderation actions" type="button">🛡️</button>
 <button aria-label="Close profile" class="iconBtn smallIcon" data-profile-action="profile:close" id="closeModalBtn" type="button">✕</button>
 </div>
@@ -843,7 +841,6 @@
 <button class="btn btnSecondary" data-profile-action="profile:friend" id="addFriendBtn" style="display:none;" type="button">🤝 Add Friend</button>
 <button class="btn btnSecondary" data-profile-action="profile:friend-decline" id="declineFriendBtn" style="display:none;" type="button">✖ Decline</button>
 <button class="btn btnSecondary" data-profile-action="profile:like" id="likeProfileBtn" type="button">❤️ Like</button>
-<button class="btn btnSecondary" data-profile-action="profile:toggle-edit" id="profileEditToggleBtn" style="display:none;" type="button">Edit profile</button>
 </div>
 </div>
 </div>
@@ -1000,6 +997,7 @@
 </label>
 <div class="toggleLabel">Enable shared aura when together</div>
 </div>
+<div class="small muted">Display a special visual effect when you and your partner are online together.</div>
 <div class="toggleRow">
 <label class="switch">
 <input id="couplesShowMembersToggle" type="checkbox"/>
@@ -1007,6 +1005,7 @@
 </label>
 <div class="toggleLabel">Show link in members list</div>
 </div>
+<div class="small muted">Display a connecting line between you and your partner in the members sidebar.</div>
 <div class="toggleRow">
 <label class="switch">
 <input id="couplesGroupToggle" type="checkbox"/>
@@ -1014,6 +1013,7 @@
 </label>
 <div class="toggleLabel">Pull us together in members list</div>
 </div>
+<div class="small muted">Group you and your partner together visually in the members list.</div>
 <div class="toggleRow">
 <label class="switch">
 <input id="couplesAllowPingToggle" type="checkbox"/>
@@ -1021,6 +1021,7 @@
 </label>
 <div class="toggleLabel">Allow partner pings</div>
 </div>
+<div class="small muted">Let your partner send you special notifications even when in DnD mode.</div>
 <div class="panelBox couplesV2Box" id="couplesV2Box" style="margin-top:12px; display:none;">
 <div class="small">Couple card (shared settings)</div>
 <div class="row" style="margin-top:8px; gap:8px; align-items:center;">
@@ -1055,6 +1056,7 @@
 </label>
 <div class="toggleLabel">Show couple badge publicly</div>
 </div>
+<div class="small muted">Display your couple status with a special badge on your profiles.</div>
 <div class="toggleRow">
 <label class="switch">
 <input id="couplesBonusesToggle" type="checkbox"/>
@@ -1062,6 +1064,7 @@
 </label>
 <div class="toggleLabel">Enable couple bonuses (tiny)</div>
 </div>
+<div class="small muted">Receive small XP and gold bonuses when chatting together (experimental).</div>
 <div class="row" style="margin-top:8px; gap:8px; align-items:center;">
 <button class="btn secondary" id="couplesSettingsSaveBtn" type="button">Save couple card</button>
 <button class="btn secondary" id="couplesNudgeBtn" type="button" aria-label="Nudge your partner">Nudge</button>
@@ -1215,6 +1218,18 @@
 <div class="cardPreview themesPreview"></div>
 </button>
 
+<button class="customizeCard" data-category="edit-profile" data-search="profile edit avatar mood age gender bio username vibe tags" id="openEditProfileBtn" type="button">
+<div class="cardTitle">Edit Profile</div>
+<div class="cardHint">Update avatar, mood, bio, and basic info.</div>
+<div class="cardPreview profileEditPreview"></div>
+</button>
+
+<button class="customizeCard" data-category="couples" data-search="couples partner link relationship" id="openCouplesCardBtn" type="button">
+<div class="cardTitle">Couples</div>
+<div class="cardHint">Link with your partner and customize couple settings.</div>
+<div class="cardPreview couplesPreview"></div>
+</button>
+
 <button class="customizeCard" data-category="profile" data-search="profile appearance header gradient avatar aura" type="button">
 <div class="cardTitle">Profile Appearance</div>
 <div class="cardHint">Header gradient and aura options.</div>
@@ -1362,7 +1377,7 @@
 <input aria-label="Header color B" id="headerColorB" type="color"/>
 <input aria-label="Header color B text" id="headerColorBText" placeholder="#2b0f08" type="text"/>
 </div>
-<div class="small">Pick two colors for your profile header gradient.</div>
+<div class="small muted">Customize your profile header gradient. Text color automatically adjusts between light and dark for best readability.</div>
 </div>
 <div class="field" data-customize-item="" data-search="avatar aura">
 <div class="toggleRow">
@@ -1372,7 +1387,7 @@
 </label>
 <div class="toggleLabel">Avatar aura</div>
 </div>
-<div class="small muted">Requires Polish Pack.</div>
+<div class="small muted">Add a glowing aura effect around your avatar. Requires Polish Pack to be enabled.</div>
 </div>
 </div>
 </div>
@@ -1382,7 +1397,23 @@
 <div class="field" data-customize-item="" data-search="accent color">
 <label>Profile accent color</label>
 <input id="chatFxAccent" placeholder="#RRGGBB" type="text"/>
-<div class="small">Leave blank to keep your theme accent.</div>
+<div class="small muted">Override your theme's accent color. Leave blank to use theme default.</div>
+</div>
+<div class="field" data-customize-item="" data-search="couple gradient line visual" id="coupleGradientField" style="display:none;">
+<label>Couple profile link gradient</label>
+<div class="small muted">Customize the gradient line connecting your profile pictures in couple displays.</div>
+<div class="row" style="margin-top:8px; gap:8px; align-items:center;">
+<div class="colorInputRow tight" style="flex:1;">
+<input aria-label="Couple gradient start color" id="coupleGradientStartCustomize" type="color" value="#ff6a2b"/>
+<input aria-label="Couple gradient start color text" id="coupleGradientStartTextCustomize" placeholder="#ff6a2b" type="text" style="flex:1;"/>
+</div>
+<span style="opacity:0.6;">→</span>
+<div class="colorInputRow tight" style="flex:1;">
+<input aria-label="Couple gradient end color" id="coupleGradientEndCustomize" type="color" value="#2b0f08"/>
+<input aria-label="Couple gradient end color text" id="coupleGradientEndTextCustomize" placeholder="#2b0f08" type="text" style="flex:1;"/>
+</div>
+</div>
+<div class="coupleGradientPreview" id="coupleGradientPreviewCustomize" style="height:4px; border-radius:2px; margin-top:8px; background:linear-gradient(90deg, #ff6a2b, #2b0f08);"></div>
 </div>
 </div>
 </details>
@@ -1409,6 +1440,7 @@
 </label>
 <div class="toggleLabel">Animations</div>
 </div>
+<div class="small muted">Enable smooth transitions and animated effects throughout the app.</div>
 </div>
 <div class="field" data-customize-item="" data-search="comfort mode">
 <div class="toggleRow">
@@ -1442,6 +1474,7 @@
 </label>
 <div class="toggleLabel">Enable Polish Pack</div>
 </div>
+<div class="small muted">Unlock additional visual effects like avatar auras and enhanced animations.</div>
 </div>
 </div>
 </details>
@@ -1765,6 +1798,89 @@
 </div>
 </div>
 </div>
+</div>
+<!-- EDIT PROFILE MODAL -->
+<!-- Modal for editing profile information with real-time preview -->
+<div id="editProfileModal" aria-hidden="true" aria-label="Edit Profile" hidden role="dialog">
+  <div class="modalCard profileEditModalCard">
+    <div class="modalTop">
+      <strong>Edit Profile</strong>
+      <button class="iconBtn" id="editProfileModalClose" type="button" title="Close" aria-label="Close edit profile">✕</button>
+    </div>
+    <div class="modalBody editProfileModalBody">
+      <div class="editProfileLayout">
+        <aside class="editProfilePreview">
+          <div class="small" style="margin-bottom:10px;">Live preview of your profile</div>
+          <div class="profilePreviewCard" id="profilePreviewCard">
+            <div class="profilePreviewHeader" id="profilePreviewHeader">
+              <div class="profilePreviewAvatar" id="profilePreviewAvatar"></div>
+              <div class="profilePreviewName" id="profilePreviewName">Your Name</div>
+              <div class="profilePreviewMood" id="profilePreviewMood"></div>
+            </div>
+            <div class="profilePreviewBio" id="profilePreviewBio"></div>
+            <div class="profilePreviewVibes" id="profilePreviewVibes"></div>
+          </div>
+        </aside>
+        <div class="editProfileFields">
+          <div class="field">
+            <label for="editProfileAvatar">Avatar</label>
+            <input id="editProfileAvatar" type="file" accept="image/*"/>
+            <div class="small muted">Upload a new profile picture (max 5MB, JPG/PNG/GIF).</div>
+          </div>
+          <div class="field">
+            <label for="editProfileMood">Mood</label>
+            <input id="editProfileMood" placeholder="e.g. chilling" maxlength="60"/>
+            <div class="small muted">A short status message that appears on your profile.</div>
+          </div>
+          <div class="row" style="gap:10px;">
+            <div class="field" style="flex:1;">
+              <label for="editProfileAge">Age (18+)</label>
+              <input id="editProfileAge" type="number" min="18" max="120" placeholder="18+" aria-label="Age (18 or older)"/>
+            </div>
+            <div class="field" style="flex:1;">
+              <label for="editProfileGender">Gender</label>
+              <select id="editProfileGender">
+                <option value="">Prefer not to say</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Non-binary">Non-binary</option>
+                <option value="Transgender">Transgender</option>
+                <option value="Genderfluid">Genderfluid</option>
+                <option value="Agender">Agender</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="editProfileBio">Bio (BBCode supported)</label>
+            <textarea id="editProfileBio" rows="4" maxlength="2000" placeholder="[b]bold[/b] [i]italics[/i] [url=https://...]link[/url]"></textarea>
+            <div class="small muted">Use BBCode for formatting. Links require full URLs.</div>
+          </div>
+          <div class="field">
+            <label>Vibe tags (pick up to <span id="editProfileVibeLimit">3</span>)</label>
+            <div class="pillRow" id="editProfileVibeOptions"></div>
+            <div class="small muted">Select personality badges to display on your profile.</div>
+          </div>
+          <div class="field">
+            <label for="editProfileUsername">Change Username</label>
+            <div class="row" style="gap:8px; align-items:flex-end;">
+              <div style="flex:1;">
+                <input id="editProfileUsername" placeholder="New username" maxlength="32"/>
+                <div class="small muted">Costs 5,000 gold. This action cannot be undone.</div>
+              </div>
+              <button class="btn secondary" id="editProfileChangeUsernameBtn" type="button">Change</button>
+            </div>
+            <div class="msgline" id="editProfileUsernameMsg"></div>
+          </div>
+          <div class="msgline" id="editProfileMsg"></div>
+          <div class="row" style="gap:8px; margin-top:12px;">
+            <button class="btn btnPrimary" id="editProfileSaveBtn" type="button">Save Changes</button>
+            <button class="btn btnSecondary" id="editProfileCancelBtn" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 <!-- COUPLES POPOUT MODAL -->
 <!-- Hidden by default; JS will toggle display + [hidden] when opened. -->
