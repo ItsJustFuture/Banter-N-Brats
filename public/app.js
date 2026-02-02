@@ -12561,7 +12561,7 @@ function updateProfilePreview(){
   if (profilePreviewVibes) {
     if (editProfileSelectedVibeTags.length > 0) {
       profilePreviewVibes.innerHTML = editProfileSelectedVibeTags
-        .map(tag => `<span class="vibeTag">${tag}</span>`)
+        .map(tag => `<span class="vibeTag">${escapeHtml(tag)}</span>`)
         .join("");
       profilePreviewVibes.style.display = "";
     } else {
