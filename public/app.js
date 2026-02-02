@@ -12408,25 +12408,14 @@ function undockCouplesFromModal(){
 }
 
 function openCouplesModal(){
-  if (!couplesModal) return;
-  closeSurvivalModal();
-  closeMemberMenu();
-  closeProfileSettingsMenu();
-  const ok = dockCouplesIntoModal();
-  if (!ok) {
-    toast?.("Open your profile first to use Couples.");
+  // Now opens the couples customization subpage
+  if (!currentProfileIsSelf) {
+    toast?.("Open your profile to access Couples settings.");
     return;
   }
-  try { couplesModal.hidden = false; } catch {}
-  couplesModal.style.display = "flex";
-  couplesModal.classList.remove("modal-closing");
-  if (PREFERS_REDUCED_MOTION) {
-    couplesModal.classList.add("modal-visible");
-  } else {
-    requestAnimationFrame(() => couplesModal.classList.add("modal-visible"));
-  }
-  // Refresh state so the popout shows the latest immediately
-  try { refreshCouplesUI(); } catch {}
+  setCustomizePage("couples");
+  // Sync couples UI data
+  syncCouplesCustomizeUI();
 }
 
 function closeCouplesModal(){
@@ -12452,38 +12441,15 @@ function closeCouplesModal(){
 let editProfileSelectedVibeTags = [];
 
 function openEditProfileModal(){
-  if (!editProfileModal) return;
-  closeSurvivalModal();
-  closeMemberMenu();
-  closeProfileSettingsMenu();
-  closeCouplesModal();
-  
-  // Load current profile data
-  if (editProfileMood) {
-    editProfileMood.value = me?.mood || "";
+  // Now opens the edit profile customization subpage
+  if (!currentProfileIsSelf) {
+    toast?.("Open your profile to edit.");
+    return;
   }
-  if (editProfileAge) {
-    editProfileAge.value = me?.age || "";
-  }
-  if (editProfileGender) {
-    editProfileGender.value = me?.gender || "";
-  }
-  if (editProfileBio) {
-    editProfileBio.value = me?.bio || "";
-  }
-  if (editProfileUsername) {
-    editProfileUsername.value = "";
-  }
-  editProfileSelectedVibeTags = [...(me?.vibe_tags || [])];
-  
-  // Render vibe tags
-  renderEditProfileVibeOptions();
-  
-  // Update preview
-  updateProfilePreview();
-  
-  try { editProfileModal.hidden = false; } catch {}
-  editProfileModal.setAttribute("aria-hidden", "false");
+  setCustomizePage("edit-profile");
+  // Load current profile data into new form fields
+  loadEditProfileData();
+  updateEditProfilePreview();
 }
 
 function closeEditProfileModal(){
@@ -12621,6 +12587,167 @@ async function saveEditProfile(){
   }
 }
 
+// ===== NEW CUSTOMIZATION TAB FUNCTIONS =====
+
+// Load edit profile data into the new customization tab form
+function loadEditProfileData() {
+  const editProfileMoodCustomize = document.getElementById("editProfileMood");
+  const editProfileAgeCustomize = document.getElementById("editProfileAge");
+  const editProfileGenderCustomize = document.getElementById("editProfileGender");
+  const editProfileBioCustomize = document.getElementById("editProfileBio");
+  const editProfileUsernameCustomize = document.getElementById("editProfileUsername");
+  
+  if (editProfileMoodCustomize) editProfileMoodCustomize.value = me?.mood || "";
+  if (editProfileAgeCustomize) editProfileAgeCustomize.value = me?.age || "";
+  if (editProfileGenderCustomize) editProfileGenderCustomize.value = me?.gender || "";
+  if (editProfileBioCustomize) editProfileBioCustomize.value = me?.bio || "";
+  if (editProfileUsernameCustomize) editProfileUsernameCustomize.value = "";
+  
+  editProfileSelectedVibeTags = [...(me?.vibe_tags || [])];
+  renderEditProfileVibeOptionsCustomize();
+}
+
+// Render vibe tag options in customization tab
+function renderEditProfileVibeOptionsCustomize() {
+  const editVibeTagOptions = document.getElementById("editVibeTagOptions");
+  if (!editVibeTagOptions) return;
+  editVibeTagOptions.innerHTML = "";
+  const VIBE_TAG_LIMIT = 3;
+  const editVibeTagLimit = document.getElementById("editVibeTagLimit");
+  if (editVibeTagLimit) editVibeTagLimit.textContent = VIBE_TAG_LIMIT;
+  
+  if (!VIBE_TAG_DEFS || !Array.isArray(VIBE_TAG_DEFS)) return;
+  
+  VIBE_TAG_DEFS.forEach(tag => {
+    const isSelected = editProfileSelectedVibeTags.includes(tag);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = isSelected ? "pillBtn active" : "pillBtn";
+    btn.textContent = tag;
+    btn.addEventListener("click", () => {
+      if (isSelected) {
+        editProfileSelectedVibeTags = editProfileSelectedVibeTags.filter(t => t !== tag);
+      } else {
+        if (editProfileSelectedVibeTags.length >= VIBE_TAG_LIMIT) {
+          toast?.(`You can only select up to ${VIBE_TAG_LIMIT} vibe tags.`);
+          return;
+        }
+        editProfileSelectedVibeTags.push(tag);
+      }
+      renderEditProfileVibeOptionsCustomize();
+      updateEditProfilePreview();
+    });
+    editVibeTagOptions.appendChild(btn);
+  });
+}
+
+// Update the profile preview in edit profile customization tab
+function updateEditProfilePreview() {
+  const previewName = document.getElementById("previewName");
+  const previewMood = document.getElementById("previewMood");
+  const previewBio = document.getElementById("previewBio");
+  const previewAvatar = document.getElementById("previewAvatar");
+  const previewSheetBg = document.getElementById("previewSheetBg");
+  
+  const editProfileMoodCustomize = document.getElementById("editProfileMood");
+  const editProfileBioCustomize = document.getElementById("editProfileBio");
+  
+  if (previewName) previewName.textContent = me?.username || "Your Name";
+  if (previewMood && editProfileMoodCustomize) {
+    previewMood.textContent = editProfileMoodCustomize.value || "Your mood";
+  }
+  if (previewBio && editProfileBioCustomize) {
+    const bioText = editProfileBioCustomize.value || "Your bio will appear here...";
+    previewBio.textContent = bioText;
+  }
+  if (previewAvatar && me?.avatar) {
+    previewAvatar.style.backgroundImage = `url(${me.avatar})`;
+  }
+  // Apply header gradient if available
+  if (previewSheetBg && me?.header_gradient) {
+    const [colorA, colorB] = me.header_gradient;
+    if (colorA && colorB) {
+      previewSheetBg.style.background = buildProfileHeaderGradient(colorA, colorB);
+    }
+  }
+}
+
+// Sync couples UI data into customization tab
+function syncCouplesCustomizeUI() {
+  const couplesActiveSection = document.getElementById("couplesActiveSection");
+  const couplesSettingsSection = document.getElementById("couplesSettingsSection");
+  const couplesCardSection = document.getElementById("couplesCardSection");
+  const couplesUnlinkSection = document.getElementById("couplesUnlinkSection");
+  
+  // Check if user has a couple link
+  const hasCoupleLink = me?.couple_partner && me.couple_partner !== null;
+  
+  if (hasCoupleLink) {
+    // Show couple management sections
+    if (couplesActiveSection) couplesActiveSection.style.display = "block";
+    if (couplesSettingsSection) couplesSettingsSection.style.display = "block";
+    if (couplesCardSection) couplesCardSection.style.display = "block";
+    if (couplesUnlinkSection) couplesUnlinkSection.style.display = "block";
+    
+    // Load couple settings
+    syncCoupleToggles();
+    syncCoupleStatusInputs();
+  } else {
+    // Show only partner input
+    if (couplesActiveSection) couplesActiveSection.style.display = "none";
+    if (couplesSettingsSection) couplesSettingsSection.style.display = "none";
+    if (couplesCardSection) couplesCardSection.style.display = "none";
+    if (couplesUnlinkSection) couplesUnlinkSection.style.display = "none";
+  }
+}
+
+// Sync couple toggle states
+function syncCoupleToggles() {
+  const toggleIds = [
+    "couplesEnabledToggle",
+    "couplesShowProfileToggle", 
+    "couplesBadgeToggle",
+    "couplesAuraToggle",
+    "couplesShowMembersToggle",
+    "couplesGroupToggle",
+    "couplesAllowPingToggle",
+    "couplesShowBadgeToggle",
+    "couplesBonusesToggle"
+  ];
+  
+  toggleIds.forEach(id => {
+    const toggle = document.getElementById(id + "Customize");
+    const originalToggle = document.getElementById(id);
+    if (toggle && originalToggle) {
+      toggle.checked = originalToggle.checked;
+    }
+  });
+}
+
+// Sync couple status inputs
+function syncCoupleStatusInputs() {
+  const statusEmojiCustomize = document.getElementById("couplesStatusEmojiCustomize");
+  const statusLabelCustomize = document.getElementById("couplesStatusLabelCustomize");
+  const moodEmojiCustomize = document.getElementById("couplesMoodEmojiCustomize");
+  const couplesNameCustomize = document.getElementById("couplesNameInputCustomize");
+  const couplesBioCustomize = document.getElementById("couplesBioInputCustomize");
+  const couplesPrivacyCustomize = document.getElementById("couplesPrivacySelectCustomize");
+  
+  const statusEmoji = document.getElementById("couplesStatusEmoji");
+  const statusLabel = document.getElementById("couplesStatusLabel");
+  const moodEmoji = document.getElementById("couplesMoodEmoji");
+  const couplesName = document.getElementById("couplesNameInput");
+  const couplesBio = document.getElementById("couplesBioInput");
+  const couplesPrivacy = document.getElementById("couplesPrivacySelect");
+  
+  if (statusEmojiCustomize && statusEmoji) statusEmojiCustomize.value = statusEmoji.value;
+  if (statusLabelCustomize && statusLabel) statusLabelCustomize.value = statusLabel.value;
+  if (moodEmojiCustomize && moodEmoji) moodEmojiCustomize.value = moodEmoji.value;
+  if (couplesNameCustomize && couplesName) couplesNameCustomize.value = couplesName.value;
+  if (couplesBioCustomize && couplesBio) couplesBioCustomize.value = couplesBio.value;
+  if (couplesPrivacyCustomize && couplesPrivacy) couplesPrivacyCustomize.value = couplesPrivacy.value;
+}
+
 // Wire up Edit Profile modal
 openEditProfileBtn?.addEventListener("click", () => {
   openEditProfileModal();
@@ -12693,9 +12820,346 @@ editProfileAvatar?.addEventListener("change", (e) => {
   }
 });
 
+// ===== NEW CUSTOMIZATION TAB WIRE-UPS =====
+
+// Wire up new edit profile buttons in customization tab
+const saveEditProfileBtn = document.getElementById("saveEditProfileBtn");
+const cancelEditProfileBtn = document.getElementById("cancelEditProfileBtn");
+const confirmUsernameChangeBtn = document.getElementById("confirmUsernameChangeBtn");
+const removeAvatarBtn = document.getElementById("removeAvatarBtn");
+const editBioHelperToggle = document.getElementById("editBioHelperToggle");
+const editBioHelper = document.getElementById("editBioHelper");
+
+saveEditProfileBtn?.addEventListener("click", async () => {
+  const editProfileMoodCustomize = document.getElementById("editProfileMood");
+  const editProfileAgeCustomize = document.getElementById("editProfileAge");
+  const editProfileGenderCustomize = document.getElementById("editProfileGender");
+  const editProfileBioCustomize = document.getElementById("editProfileBio");
+  const editProfileAvatarCustomize = document.getElementById("editProfileAvatar");
+  const editProfileMsg = document.getElementById("editProfileMsg");
+  
+  if (!editProfileMsg) return;
+  editProfileMsg.textContent = "Saving...";
+  
+  try {
+    const formData = new FormData();
+    if (editProfileMoodCustomize) formData.append("mood", editProfileMoodCustomize.value);
+    if (editProfileAgeCustomize) formData.append("age", editProfileAgeCustomize.value);
+    if (editProfileGenderCustomize) formData.append("gender", editProfileGenderCustomize.value);
+    if (editProfileBioCustomize) formData.append("bio", editProfileBioCustomize.value);
+    formData.append("vibe_tags", JSON.stringify(editProfileSelectedVibeTags));
+    
+    const avatarFile = editProfileAvatarCustomize?.files?.[0];
+    if (avatarFile) {
+      formData.append("avatar", avatarFile);
+    }
+    
+    const res = await fetch("/api/me", {
+      method: "POST",
+      body: formData,
+    });
+    
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      editProfileMsg.textContent = data.message || "Could not save profile.";
+      return;
+    }
+    
+    editProfileMsg.textContent = "✓ Profile saved!";
+    await loadMyProfile();
+    updateEditProfilePreview();
+    
+    setTimeout(() => {
+      editProfileMsg.textContent = "";
+    }, 3000);
+  } catch (err) {
+    editProfileMsg.textContent = "Network error. Please try again.";
+    console.error("Profile save error:", err);
+  }
+});
+
+cancelEditProfileBtn?.addEventListener("click", () => {
+  setCustomizePage(null);
+});
+
+confirmUsernameChangeBtn?.addEventListener("click", async () => {
+  const editProfileUsernameCustomize = document.getElementById("editProfileUsername");
+  const editProfileMsg = document.getElementById("editProfileMsg");
+  
+  if (!editProfileUsernameCustomize || !editProfileMsg) return;
+  
+  const newUsername = String(editProfileUsernameCustomize.value || "").trim();
+  if (!newUsername) {
+    editProfileMsg.textContent = "Enter a new username.";
+    return;
+  }
+  
+  editProfileMsg.textContent = "Changing username...";
+  confirmUsernameChangeBtn.disabled = true;
+  
+  try {
+    const res = await fetch("/api/me/username", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: newUsername }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      editProfileMsg.textContent = data.message || "Could not change username.";
+      confirmUsernameChangeBtn.disabled = false;
+      return;
+    }
+    
+    const usernameText = document.createElement("span");
+    usernameText.textContent = `Username changed to ${data.username}!`;
+    editProfileMsg.textContent = "";
+    editProfileMsg.appendChild(usernameText);
+    editProfileUsernameCustomize.value = "";
+    await loadMyProfile();
+    await loadProgression();
+    updateEditProfilePreview();
+    
+    setTimeout(() => {
+      editProfileMsg.textContent = "";
+    }, 3000);
+  } catch (err) {
+    console.error("Username change failed", err);
+    editProfileMsg.textContent = "Could not change username.";
+  } finally {
+    confirmUsernameChangeBtn.disabled = false;
+  }
+});
+
+// Bio helper toggle
+editBioHelperToggle?.addEventListener("click", () => {
+  if (editBioHelper) {
+    editBioHelper.hidden = !editBioHelper.hidden;
+  }
+});
+
+// Live preview for new edit profile fields
+const editProfileMoodCustomize = document.getElementById("editProfileMood");
+const editProfileBioCustomize = document.getElementById("editProfileBio");
+editProfileMoodCustomize?.addEventListener("input", updateEditProfilePreview);
+editProfileBioCustomize?.addEventListener("input", updateEditProfilePreview);
+
+// Avatar file preview for new edit profile
+const editProfileAvatarCustomize = document.getElementById("editProfileAvatar");
+editProfileAvatarCustomize?.addEventListener("change", (e) => {
+  const file = e.target?.files?.[0];
+  const previewAvatar = document.getElementById("previewAvatar");
+  if (file && previewAvatar) {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      previewAvatar.style.backgroundImage = `url(${evt.target.result})`;
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
 // Wire up Couples card button to open couples modal
 openCouplesCardBtn?.addEventListener("click", () => {
   openCouplesModal();
+});
+
+// Wire up new couples customization buttons
+const couplesPartnerInputCustomize = document.getElementById("couplesPartnerInputCustomize");
+const couplesRequestBtnCustomize = document.getElementById("couplesRequestBtnCustomize");
+const couplesStatusSaveBtnCustomize = document.getElementById("couplesStatusSaveBtnCustomize");
+const couplesMoodSaveBtnCustomize = document.getElementById("couplesMoodSaveBtnCustomize");
+const couplesPingBtnCustomize = document.getElementById("couplesPingBtnCustomize");
+const couplesSettingsSaveBtnCustomize = document.getElementById("couplesSettingsSaveBtnCustomize");
+const couplesNudgeBtnCustomize = document.getElementById("couplesNudgeBtnCustomize");
+const couplesUnlinkBtnCustomize = document.getElementById("couplesUnlinkBtnCustomize");
+const couplesCustomizeMsg = document.getElementById("couplesCustomizeMsg");
+
+// Request couple link
+couplesRequestBtnCustomize?.addEventListener("click", async () => {
+  if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "";
+  const name = String(couplesPartnerInputCustomize?.value || "").trim();
+  if (!name) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "Enter a username.";
+    return;
+  }
+  try {
+    const r = await fetch("/api/couples/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetUsername: name })
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not send request"));
+    couplesState = await r.json();
+    if (couplesPartnerInputCustomize) couplesPartnerInputCustomize.value = "";
+    await refreshCouplesUI();
+    syncCouplesCustomizeUI();
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Link request sent!";
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not send request";
+  }
+});
+
+// Save couple status
+couplesStatusSaveBtnCustomize?.addEventListener("click", async () => {
+  const statusEmojiCustomize = document.getElementById("couplesStatusEmojiCustomize");
+  const statusLabelCustomize = document.getElementById("couplesStatusLabelCustomize");
+  
+  try {
+    const r = await fetch("/api/couples/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        emoji: statusEmojiCustomize?.value || "💜",
+        label: statusLabelCustomize?.value || "Linked"
+      })
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not save status"));
+    couplesState = await r.json();
+    await refreshCouplesUI();
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Status saved!";
+    setTimeout(() => { if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = ""; }, 2000);
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not save status";
+  }
+});
+
+// Save couple mood
+couplesMoodSaveBtnCustomize?.addEventListener("click", async () => {
+  const moodEmojiCustomize = document.getElementById("couplesMoodEmojiCustomize");
+  
+  try {
+    const r = await fetch("/api/couples/mood", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mood: moodEmojiCustomize?.value || ""
+      })
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not save mood"));
+    couplesState = await r.json();
+    await refreshCouplesUI();
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Mood saved!";
+    setTimeout(() => { if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = ""; }, 2000);
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not save mood";
+  }
+});
+
+// Ping partner
+couplesPingBtnCustomize?.addEventListener("click", async () => {
+  try {
+    const r = await fetch("/api/couples/ping", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not ping"));
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Pinged your partner!";
+    setTimeout(() => { if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = ""; }, 2000);
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not ping";
+  }
+});
+
+// Save couple card settings
+couplesSettingsSaveBtnCustomize?.addEventListener("click", async () => {
+  const couplesPrivacySelectCustomize = document.getElementById("couplesPrivacySelectCustomize");
+  const couplesNameInputCustomize = document.getElementById("couplesNameInputCustomize");
+  const couplesBioInputCustomize = document.getElementById("couplesBioInputCustomize");
+  const couplesShowBadgeToggleCustomize = document.getElementById("couplesShowBadgeToggleCustomize");
+  const couplesBonusesToggleCustomize = document.getElementById("couplesBonusesToggleCustomize");
+  
+  try {
+    const r = await fetch("/api/couples/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        privacy: couplesPrivacySelectCustomize?.value || "private",
+        couple_name: couplesNameInputCustomize?.value || "",
+        couple_bio: couplesBioInputCustomize?.value || "",
+        show_badge: !!couplesShowBadgeToggleCustomize?.checked,
+        bonuses_enabled: !!couplesBonusesToggleCustomize?.checked
+      })
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not save settings"));
+    couplesState = await r.json();
+    await refreshCouplesUI();
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Couple card saved!";
+    setTimeout(() => { if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = ""; }, 2000);
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not save settings";
+  }
+});
+
+// Nudge partner
+couplesNudgeBtnCustomize?.addEventListener("click", async () => {
+  try {
+    const r = await fetch("/api/couples/nudge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not nudge"));
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Nudged your partner!";
+    setTimeout(() => { if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = ""; }, 2000);
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not nudge";
+  }
+});
+
+// Unlink partnership
+couplesUnlinkBtnCustomize?.addEventListener("click", async () => {
+  const active = couplesState?.active;
+  if (!active?.linkId) return;
+  if (!confirm(`Unlink from ${active.partner}? This will remove all couples features and shared settings.`)) return;
+  if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "";
+  try {
+    const r = await fetch("/api/couples/unlink", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ linkId: active.linkId })
+    });
+    if (!r.ok) throw new Error(await r.text().catch(() => "Could not unlink"));
+    couplesState = await r.json();
+    await refreshCouplesUI();
+    syncCouplesCustomizeUI();
+    emitLocalMembersRefresh();
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = "✓ Partnership unlinked.";
+  } catch (e) {
+    if (couplesCustomizeMsg) couplesCustomizeMsg.textContent = e?.message || "Could not unlink";
+  }
+});
+
+// Wire up couples toggles in customization tab
+const couplesEnabledToggleCustomize = document.getElementById("couplesEnabledToggleCustomize");
+const couplesShowProfileToggleCustomize = document.getElementById("couplesShowProfileToggleCustomize");
+const couplesBadgeToggleCustomize = document.getElementById("couplesBadgeToggleCustomize");
+const couplesAuraToggleCustomize = document.getElementById("couplesAuraToggleCustomize");
+const couplesShowMembersToggleCustomize = document.getElementById("couplesShowMembersToggleCustomize");
+const couplesGroupToggleCustomize = document.getElementById("couplesGroupToggleCustomize");
+const couplesAllowPingToggleCustomize = document.getElementById("couplesAllowPingToggleCustomize");
+
+couplesEnabledToggleCustomize?.addEventListener("change", () => {
+  setCouplePrefs({ enabled: !!couplesEnabledToggleCustomize.checked });
+});
+couplesShowProfileToggleCustomize?.addEventListener("change", () => {
+  setCouplePrefs({ showProfile: !!couplesShowProfileToggleCustomize.checked });
+});
+couplesBadgeToggleCustomize?.addEventListener("change", () => {
+  setCouplePrefs({ badge: !!couplesBadgeToggleCustomize.checked });
+});
+couplesAuraToggleCustomize?.addEventListener("change", () => {
+  setCouplePrefs({ aura: !!couplesAuraToggleCustomize.checked });
+});
+couplesShowMembersToggleCustomize?.addEventListener("change", () => {
+  setCouplePrefs({ showMembers: !!couplesShowMembersToggleCustomize.checked });
+});
+couplesGroupToggleCustomize?.addEventListener("change", () => {
+  if (typeof setCouplePrefs === "function") {
+    setCouplePrefs({ groupMembers: !!couplesGroupToggleCustomize.checked });
+  }
+});
+couplesAllowPingToggleCustomize?.addEventListener("change", () => {
+  if (typeof setCouplePrefs === "function") {
+    setCouplePrefs({ allowPing: !!couplesAllowPingToggleCustomize.checked });
+  }
 });
 
 couplesModalClose?.addEventListener("click", closeCouplesModal);

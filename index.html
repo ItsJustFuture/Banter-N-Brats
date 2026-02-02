@@ -302,7 +302,7 @@
 <div class="row" style="gap:8px; align-items:center;">
 <div class="meStatusText" id="meStatusText">Online</div>
 <button class="iconBtn" id="profileBtn" title="Profile" type="button">👤</button>
-<button class="iconBtn" id="couplesBtn" title="Couples" type="button">💜</button>
+<!-- Couples button removed - now in customization tab -->
 </div>
 </div>
 <select id="statusSelect">
@@ -786,7 +786,7 @@
 </div>
 </div>
 <div class="profileHeaderActions">
-<button aria-label="Edit profile" class="iconBtn smallIcon" data-profile-action="profile:edit" id="profileEditBtn" style="display:none;" title="Edit profile" type="button">✏️</button>
+<!-- Edit profile button removed - now in customization tab -->
 <button aria-label="Moderation actions" class="iconBtn smallIcon" data-profile-action="profile:moderation-overlay" id="actionsBtn" style="display:none;" title="Moderation actions" type="button">🛡️</button>
 <button aria-label="Close profile" class="iconBtn smallIcon" data-profile-action="profile:close" id="closeModalBtn" type="button">✕</button>
 </div>
@@ -1175,6 +1175,18 @@
 <div class="cardPreview themesPreview"></div>
 </button>
 
+<button class="customizeCard" data-category="edit-profile" data-search="profile edit avatar mood age gender bio username vibe tags" id="openEditProfileCardBtn" type="button">
+<div class="cardTitle">✏️ Edit Profile</div>
+<div class="cardHint">Update your avatar, bio, age, gender, and vibe tags.</div>
+<div class="cardPreview profileEditPreview"></div>
+</button>
+
+<button class="customizeCard" data-category="couples" data-search="couples partner link relationship status mood" id="openCouplesCardBtn" type="button">
+<div class="cardTitle">💜 Couples</div>
+<div class="cardHint">Link with a partner and customize couples features.</div>
+<div class="cardPreview couplesPreview"></div>
+</button>
+
 <button class="customizeCard" data-category="profile" data-search="profile appearance header gradient avatar aura" type="button">
 <div class="cardTitle">Profile Appearance</div>
 <div class="cardHint">Header gradient and aura options.</div>
@@ -1327,7 +1339,7 @@
 <input aria-label="Header color B" id="headerColorB" type="color"/>
 <input aria-label="Header color B text" id="headerColorBText" placeholder="#2b0f08" type="text"/>
 </div>
-<div class="small">Pick two colors for your profile header gradient.</div>
+<div class="small muted">Pick two colors for your profile header gradient. Text contrast adjusts automatically.</div>
 </div>
 <div class="field" data-customize-item="" data-search="avatar aura">
 <div class="toggleRow">
@@ -1335,9 +1347,12 @@
 <input id="chatFxPolishAuras" type="checkbox"/>
 <span class="slider"></span>
 </label>
-<div class="toggleLabel">Avatar aura</div>
+<div class="toggleLabel">
+<strong>Avatar aura</strong>
+<div class="small muted">Adds a glowing effect around your avatar. Requires Polish Pack.</div>
 </div>
-<div class="small muted">Requires Polish Pack.</div>
+</div>
+</div>
 </div>
 </div>
 </div>
@@ -1372,7 +1387,10 @@
 <input id="chatFxPolishAnimations" type="checkbox"/>
 <span class="slider"></span>
 </label>
-<div class="toggleLabel">Animations</div>
+<div class="toggleLabel">
+<strong>Animations</strong>
+<div class="small muted">Enable smooth transitions and animated elements.</div>
+</div>
 </div>
 </div>
 <div class="field" data-customize-item="" data-search="comfort mode">
@@ -1381,9 +1399,11 @@
 <input id="prefComfortMode" type="checkbox"/>
 <span class="slider"></span>
 </label>
-<div class="toggleLabel">Comfort mode</div>
-</div>
+<div class="toggleLabel">
+<strong>Comfort mode</strong>
 <div class="small muted" id="prefComfortHelp">Softens glows, confetti, and motion-heavy animations.</div>
+</div>
+</div>
 </div>
 <div class="field" data-customize-item="" data-search="preset">
 <label>Effect preset</label>
@@ -1405,7 +1425,10 @@
 <input id="chatFxPolishPack" type="checkbox"/>
 <span class="slider"></span>
 </label>
-<div class="toggleLabel">Enable Polish Pack</div>
+<div class="toggleLabel">
+<strong>Enable Polish Pack</strong>
+<div class="small muted">Unlock premium visual effects like avatar auras and enhanced animations.</div>
+</div>
 </div>
 </div>
 </div>
@@ -1427,6 +1450,7 @@
 <div class="panelBox" id="layoutBasic">
 <div class="field" data-customize-item="" data-search="ui scale">
 <label>UI scale</label>
+<div class="small muted">Adjust the overall size of the interface (80%-105%).</div>
 <div class="uiScaleRow">
 <input aria-label="UI size" id="uiScaleRange" max="1.05" min="0.80" step="0.05" type="range" value="1"/>
 <div class="small muted" id="uiScaleValue">100%</div>
@@ -1446,9 +1470,11 @@
 <input id="reduceMotionToggle" type="checkbox"/>
 <span class="slider"></span>
 </label>
-<div class="toggleLabel">Reduced motion override</div>
+<div class="toggleLabel">
+<strong>Reduced motion override</strong>
+<div class="small muted">Mirrors your comfort mode preference for accessibility.</div>
 </div>
-<div class="small muted">Mirrors your comfort mode preference.</div>
+</div>
 </div>
 </div>
 </details>
@@ -1474,7 +1500,10 @@
 <input id="prefSoundEnabled" type="checkbox"/>
 <span class="slider"></span>
 </label>
-<div class="toggleLabel">Enable sound cues</div>
+<div class="toggleLabel">
+<strong>Enable sound cues</strong>
+<div class="small muted">Master toggle for all sound notifications.</div>
+</div>
 </div>
 </div>
 <div class="field" data-customize-item="" data-search="room messages sound">
@@ -1483,7 +1512,10 @@
 <input id="prefSoundRoom" type="checkbox"/>
 <span class="slider"></span>
 </label>
-<div class="toggleLabel">Room messages</div>
+<div class="toggleLabel">
+<strong>Room messages</strong>
+<div class="small muted">Play sound when messages appear in rooms.</div>
+</div>
 </div>
 </div>
 <div class="field" data-customize-item="" data-search="direct messages sound">
@@ -1492,7 +1524,10 @@
 <input id="prefSoundDm" type="checkbox"/>
 <span class="slider"></span>
 </label>
-<div class="toggleLabel">Direct messages</div>
+<div class="toggleLabel">
+<strong>Direct messages</strong>
+<div class="small muted">Play sound for incoming DMs.</div>
+</div>
 </div>
 </div>
 <div class="field" data-customize-item="" data-search="mentions sound">
@@ -1501,7 +1536,10 @@
 <input id="prefSoundMention" type="checkbox"/>
 <span class="slider"></span>
 </label>
-<div class="toggleLabel">Mentions (@you)</div>
+<div class="toggleLabel">
+<strong>Mentions (@you)</strong>
+<div class="small muted">Play sound when someone mentions your username.</div>
+</div>
 </div>
 </div>
 <div class="field" data-customize-item="" data-search="message sent sound">
@@ -1510,7 +1548,10 @@
 <input id="prefSoundSent" type="checkbox"/>
 <span class="slider"></span>
 </label>
-<div class="toggleLabel">Message sent</div>
+<div class="toggleLabel">
+<strong>Message sent</strong>
+<div class="small muted">Play sound when you send a message.</div>
+</div>
 </div>
 </div>
 <div class="field" data-customize-item="" data-search="message received sound">
@@ -1519,7 +1560,10 @@
 <input id="prefSoundReceive" type="checkbox"/>
 <span class="slider"></span>
 </label>
-<div class="toggleLabel">Message received</div>
+<div class="toggleLabel">
+<strong>Message received</strong>
+<div class="small muted">Play sound when you receive a message.</div>
+</div>
 </div>
 </div>
 <div class="field" data-customize-item="" data-search="reaction sound">
@@ -1528,7 +1572,10 @@
 <input id="prefSoundReaction" type="checkbox"/>
 <span class="slider"></span>
 </label>
-<div class="toggleLabel">Reaction added</div>
+<div class="toggleLabel">
+<strong>Reaction added</strong>
+<div class="small muted">Play sound when someone reacts to your messages.</div>
+</div>
 </div>
 </div>
 <div class="small" id="prefSoundStatus" style="margin-top:8px;"></div>
@@ -1574,6 +1621,313 @@
 <button class="btn secondary" id="resetAdvancedBtn" type="button">Reset this section</button>
 </div>
 </div>
+
+<!-- Edit Profile Modal Subpage -->
+<div class="customizeSubpage neonModal" data-category="edit-profile" id="customizeEditProfilePage" style="display:none;">
+<div class="customizeHeader">
+<button aria-label="Back" class="iconBtn customizeBackBtn" data-back="edit-profile" type="button">←</button>
+<div>
+<div class="title">✏️ Edit Profile</div>
+<div class="small muted">Update your profile information with live preview.</div>
+</div>
+</div>
+<div class="editProfileLayout">
+<aside class="editProfilePreview">
+<div class="previewShell">
+<div class="small" style="margin-bottom:10px;">Live preview of your profile</div>
+<div class="profilePreviewCard" id="profilePreviewCard">
+<div class="profileSheetBg" id="previewSheetBg"></div>
+<div class="profileSheetContent compact">
+<div class="profileAvatarWrap">
+<div class="profileSheetAvatar" id="previewAvatar"></div>
+</div>
+<div class="profileSheetMeta">
+<div class="profileSheetNameRow">
+<span class="profileSheetName" id="previewName">Your Name</span>
+</div>
+<div class="profileSheetMood"><span id="previewMood">Your mood</span></div>
+</div>
+</div>
+<div class="profileBioPreview" id="previewBio">Your bio will appear here...</div>
+</div>
+<div class="previewActions">
+<button class="btn btnPrimary" id="saveEditProfileBtn" type="button">💾 Save Changes</button>
+<button class="btn btnSecondary" id="cancelEditProfileBtn" type="button">Cancel</button>
+</div>
+</div>
+</aside>
+<div class="editProfileControls">
+<div class="customizeSection">
+<div class="sectionTitle">Basic Information</div>
+<div class="panelBox">
+<div class="field">
+<label for="editProfileAvatar">Avatar</label>
+<input accept="image/*" id="editProfileAvatar" type="file"/>
+<div class="small muted">Max 5MB. PNG/JPG/WEBP/GIF supported.</div>
+<button class="btn btnSecondary" id="removeAvatarBtn" style="margin-top:6px; display:none;" type="button">Remove Avatar</button>
+</div>
+<div class="field">
+<label for="editProfileMood">Mood</label>
+<input id="editProfileMood" placeholder="e.g. chilling, gaming, coding..." type="text"/>
+<div class="small muted">Short status visible on your profile.</div>
+</div>
+<div class="field">
+<label for="editProfileUsername">Change Username</label>
+<input id="editProfileUsername" placeholder="New username" type="text"/>
+<div class="small muted">⚠️ Costs 5,000 gold to change.</div>
+<button class="btn btnSecondary" id="confirmUsernameChangeBtn" type="button">Confirm Change</button>
+</div>
+</div>
+</div>
+<div class="customizeSection">
+<div class="sectionTitle">Demographics</div>
+<div class="panelBox">
+<div class="row" style="gap:12px;">
+<div class="field" style="flex:1;">
+<label for="editProfileAge">Age (18+)</label>
+<input id="editProfileAge" max="120" min="18" placeholder="18+" type="number"/>
+<div class="small muted">Must be 18 or older.</div>
+</div>
+<div class="field" style="flex:1;">
+<label for="editProfileGender">Gender</label>
+<select id="editProfileGender">
+<option value="">Prefer not to say</option>
+<option value="Male">Male</option>
+<option value="Female">Female</option>
+<option value="Non-binary">Non-binary</option>
+<option value="Transgender">Transgender</option>
+<option value="Genderfluid">Genderfluid</option>
+<option value="Agender">Agender</option>
+<option value="Other">Other</option>
+</select>
+<div class="small muted">Optional demographic info.</div>
+</div>
+</div>
+</div>
+</div>
+<div class="customizeSection">
+<div class="sectionTitle">Vibe Tags</div>
+<div class="panelBox">
+<div class="field">
+<label>Select up to <span id="editVibeTagLimit">3</span> vibe tags</label>
+<div class="pillRow" id="editVibeTagOptions"></div>
+<div class="small muted">Show your personality with badges on your profile.</div>
+</div>
+</div>
+</div>
+<div class="customizeSection">
+<div class="sectionTitle">Bio</div>
+<div class="panelBox">
+<div class="field">
+<div class="fieldLabelRow">
+<label for="editProfileBio">About You (BBCode supported)</label>
+<button class="pillBtn small" id="editBioHelperToggle" type="button">BBCode help</button>
+</div>
+<textarea id="editProfileBio" placeholder="Tell others about yourself... [b]bold[/b] [i]italics[/i] [url=https://...]link[/url]" rows="6"></textarea>
+<div class="bioHelper" hidden="" id="editBioHelper">
+<div class="bioHelperRow" id="editBioHelperButtons">
+<button class="pillBtn tiny" data-bio-tag="b" type="button">[b]Bold[/b]</button>
+<button class="pillBtn tiny" data-bio-tag="i" type="button">[i]Italic[/i]</button>
+<button class="pillBtn tiny" data-bio-tag="u" type="button">[u]Underline[/u]</button>
+<button class="pillBtn tiny" data-bio-tag="s" type="button">[s]Strike[/s]</button>
+<button class="pillBtn tiny" data-bio-tag="quote" type="button">[quote]Quote[/quote]</button>
+<button class="pillBtn tiny" data-bio-tag="code" type="button">[code]Code[/code]</button>
+<button class="pillBtn tiny" data-bio-tag="url" type="button">[url]Link[/url]</button>
+<button class="pillBtn tiny" data-bio-tag="color" type="button">[color]Color[/color]</button>
+</div>
+<div class="small muted">Use BBCode tags for formatting. Links require full URLs.</div>
+</div>
+</div>
+</div>
+</div>
+<div class="msgline" id="editProfileMsg"></div>
+</div>
+</div>
+</div>
+
+<!-- Couples Modal Subpage -->
+<div class="customizeSubpage neonModal" data-category="couples" id="customizeCouplesPage" style="display:none;">
+<div class="customizeHeader">
+<button aria-label="Back" class="iconBtn customizeBackBtn" data-back="couples" type="button">←</button>
+<div>
+<div class="title">💜 Couples Features</div>
+<div class="small muted">Link with a partner and customize your couple settings.</div>
+</div>
+</div>
+<div class="couplesLayout">
+<div class="customizeSection">
+<div class="sectionTitle">Partner Linking</div>
+<div class="panelBox">
+<div class="small muted">All couples features are opt-in and can be disabled anytime.</div>
+<div class="row" style="margin-top:12px; gap:8px; align-items:center;">
+<input id="couplesPartnerInputCustomize" placeholder="Partner username" style="flex:1;" type="text"/>
+<button class="btn btnPrimary" id="couplesRequestBtnCustomize" type="button">Send Link Request</button>
+</div>
+<div class="panelBox" id="couplesPendingBoxCustomize" style="margin-top:10px; display:none;">
+<div class="small" style="margin-bottom:6px;">Pending Requests</div>
+<div id="couplesPendingListCustomize"></div>
+</div>
+</div>
+</div>
+<div class="customizeSection" id="couplesActiveSection" style="display:none;">
+<div class="sectionTitle">Couple Status</div>
+<div class="panelBox">
+<div class="row" style="gap:8px; align-items:center; margin-bottom:10px;">
+<select aria-label="Couple status emoji" id="couplesStatusEmojiCustomize" style="width:72px;">
+<option value="💜">💜</option>
+<option value="💕">💕</option>
+<option value="✨">✨</option>
+<option value="🫶">🫶</option>
+<option value="🌙">🌙</option>
+<option value="🔥">🔥</option>
+<option value="🧸">🧸</option>
+</select>
+<input id="couplesStatusLabelCustomize" maxlength="24" placeholder="Status label (e.g. Linked)" style="flex:1;" type="text"/>
+<button class="btn btnSecondary" id="couplesStatusSaveBtnCustomize" type="button">Save</button>
+</div>
+<div class="row" style="gap:8px; align-items:center;">
+<select aria-label="Couple mood emoji" id="couplesMoodEmojiCustomize" style="width:72px;">
+<option value="">—</option>
+<option value="🌙">🌙</option>
+<option value="💫">💫</option>
+<option value="🧸">🧸</option>
+<option value="☕">☕</option>
+<option value="🔥">🔥</option>
+<option value="🥺">🥺</option>
+<option value="🫶">🫶</option>
+<option value="💜">💜</option>
+</select>
+<div class="small" style="flex:1;">Shared mood (optional)</div>
+<button class="btn btnSecondary" id="couplesMoodSaveBtnCustomize" type="button">Save</button>
+<button class="btn btnSecondary" id="couplesPingBtnCustomize" type="button">Ping</button>
+</div>
+<div class="small muted" style="margin-top:8px;">Shown as the couples badge and in your profile when both partners allow it.</div>
+</div>
+</div>
+<div class="customizeSection" id="couplesSettingsSection" style="display:none;">
+<div class="sectionTitle">Display Settings</div>
+<div class="panelBox">
+<div class="toggleRow">
+<label class="switch">
+<input id="couplesEnabledToggleCustomize" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">
+<strong>Enable couples features</strong>
+<div class="small muted">Master toggle for all couples functionality.</div>
+</div>
+</div>
+<div class="toggleRow">
+<label class="switch">
+<input id="couplesShowProfileToggleCustomize" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">
+<strong>Show link on profile</strong>
+<div class="small muted">Display your partner on your profile page.</div>
+</div>
+</div>
+<div class="toggleRow">
+<label class="switch">
+<input id="couplesBadgeToggleCustomize" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">
+<strong>Show badge (💜) in members list</strong>
+<div class="small muted">Display a couples badge next to your name.</div>
+</div>
+</div>
+<div class="toggleRow">
+<label class="switch">
+<input id="couplesAuraToggleCustomize" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">
+<strong>Enable shared aura when together</strong>
+<div class="small muted">Special avatar effect when both online in same room.</div>
+</div>
+</div>
+<div class="toggleRow">
+<label class="switch">
+<input id="couplesShowMembersToggleCustomize" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">
+<strong>Show link in members list</strong>
+<div class="small muted">Display connection indicator in room member list.</div>
+</div>
+</div>
+<div class="toggleRow">
+<label class="switch">
+<input id="couplesGroupToggleCustomize" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">
+<strong>Group together in members list</strong>
+<div class="small muted">Position you and your partner adjacent in lists.</div>
+</div>
+</div>
+<div class="toggleRow">
+<label class="switch">
+<input id="couplesAllowPingToggleCustomize" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">
+<strong>Allow partner pings</strong>
+<div class="small muted">Let your partner send you notification pings.</div>
+</div>
+</div>
+</div>
+</div>
+<div class="customizeSection" id="couplesCardSection" style="display:none;">
+<div class="sectionTitle">Couple Card (Shared Settings)</div>
+<div class="panelBox">
+<div class="row" style="gap:8px; align-items:center; margin-bottom:10px;">
+<select aria-label="Couple privacy" id="couplesPrivacySelectCustomize">
+<option value="private">Private</option>
+<option value="friends">Friends</option>
+<option value="public">Public</option>
+</select>
+<input id="couplesNameInputCustomize" maxlength="48" placeholder="Couple name (optional)" style="flex:1;" type="text"/>
+</div>
+<textarea id="couplesBioInputCustomize" maxlength="220" placeholder="Couple bio (optional)" rows="3" style="width:100%; margin-bottom:10px;"></textarea>
+<div class="toggleRow">
+<label class="switch">
+<input id="couplesShowBadgeToggleCustomize" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">
+<strong>Show couple badge publicly</strong>
+<div class="small muted">Display your couple badge to all users.</div>
+</div>
+</div>
+<div class="toggleRow">
+<label class="switch">
+<input id="couplesBonusesToggleCustomize" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">
+<strong>Enable couple bonuses</strong>
+<div class="small muted">Tiny XP/gold bonuses when online together.</div>
+</div>
+</div>
+<div class="row" style="gap:8px; margin-top:10px;">
+<button class="btn btnPrimary" id="couplesSettingsSaveBtnCustomize" type="button">Save Couple Card</button>
+<button class="btn btnSecondary" id="couplesNudgeBtnCustomize" type="button">Nudge Partner</button>
+</div>
+<div class="small" id="couplesV2StatusCustomize" style="margin-top:6px;"></div>
+</div>
+</div>
+<div class="customizeSection" id="couplesUnlinkSection" style="display:none;">
+<div class="panelBox" style="background:var(--danger-bg, rgba(255,0,0,0.1)); border-color:var(--danger, #dc3545);">
+<div class="small" style="margin-bottom:8px;">⚠️ Unlinking will remove all couples features and shared settings.</div>
+<button class="btn btnDanger" id="couplesUnlinkBtnCustomize" type="button">Unlink Partnership</button>
+</div>
+</div>
+<div class="msgline" id="couplesCustomizeMsg"></div>
+</div>
+</div>
+
 </div>
 </div>
 </div>
