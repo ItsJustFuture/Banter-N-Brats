@@ -274,6 +274,8 @@ function areCouple(char1, char2, couplePairs = []) {
   
   const userId1 = char1.user_id;
   const userId2 = char2.user_id;
+
+  if (!userId1 || !userId2) return false;
   
   return couplePairs.some(pair => 
     (pair.user1_id === userId1 && pair.user2_id === userId2) ||
