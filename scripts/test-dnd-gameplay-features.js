@@ -70,9 +70,23 @@ const rng = () => 0.5;
 const result1 = dndEventResolution.applyEventOutcome(mockTemplate1, "catastrophic", mockChars1, worldState1, rng);
 
 assertDefined(worldState1.activeMonster, "Monster summoned to worldState");
-assertEqual(worldState1.activeMonster?.name, "Summoned Horror", "Monster has correct name");
-assertEqual(worldState1.activeMonster?.checkPenalty, -2, "Monster has check penalty");
+assertEqual(worldState1.activeMonster?.name, "Summoned Horror", "Monster has default name");
+assertEqual(worldState1.activeMonster?.checkPenalty, -2, "Monster has default check penalty");
 assertTrue(result1.worldStateChanges?.monsterSummoned, "Monster summoning recorded in changes");
+
+// Test custom monster name and penalty
+const mockTemplate1b = {
+  outcomes: {
+    catastrophic: { dmg: 30, summonMonster: true, monsterName: "Ancient Dragon", monsterPenalty: -3 }
+  },
+  text: {
+    catastrophic: "A dragon appears!"
+  }
+};
+const worldState1b = {};
+const result1b = dndEventResolution.applyEventOutcome(mockTemplate1b, "catastrophic", mockChars1, worldState1b, rng);
+assertEqual(worldState1b.activeMonster?.name, "Ancient Dragon", "Monster has custom name");
+assertEqual(worldState1b.activeMonster?.checkPenalty, -3, "Monster has custom check penalty");
 
 // Test monster effect on checks
 console.log("\n✅ Test 2: Monster Check Penalty Application");
