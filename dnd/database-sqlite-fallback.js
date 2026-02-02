@@ -7,7 +7,6 @@
 
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
-const fs = require("fs");
 
 const DB_FILE = process.env.SQLITE_PATH || process.env.DB_FILE || path.join(__dirname, "..", "data", "dev.sqlite");
 const db = new sqlite3.Database(DB_FILE);
