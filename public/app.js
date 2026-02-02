@@ -12459,11 +12459,21 @@ function openEditProfileModal(){
   closeCouplesModal();
   
   // Load current profile data
-  editProfileMood.value = me?.mood || "";
-  editProfileAge.value = me?.age || "";
-  editProfileGender.value = me?.gender || "";
-  editProfileBio.value = me?.bio || "";
-  editProfileUsername.value = "";
+  if (editProfileMood) {
+    editProfileMood.value = me?.mood || "";
+  }
+  if (editProfileAge) {
+    editProfileAge.value = me?.age || "";
+  }
+  if (editProfileGender) {
+    editProfileGender.value = me?.gender || "";
+  }
+  if (editProfileBio) {
+    editProfileBio.value = me?.bio || "";
+  }
+  if (editProfileUsername) {
+    editProfileUsername.value = "";
+  }
   editProfileSelectedVibeTags = [...(me?.vibe_tags || [])];
   
   // Render vibe tags
