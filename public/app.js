@@ -12462,7 +12462,7 @@ function openEditProfileModal(){
   editProfileGender.value = me?.gender || "";
   editProfileBio.value = me?.bio || "";
   editProfileUsername.value = "";
-  editProfileSelectedVibeTags = [...(me?.vibeTags || [])];
+  editProfileSelectedVibeTags = [...(me?.vibe_tags || [])];
   
   // Render vibe tags
   renderEditProfileVibeOptions();
@@ -12517,10 +12517,12 @@ function updateProfilePreview(){
   if (!profilePreviewCard) return;
   
   // Update header gradient if me has custom colors
-  if (me?.headerColorA && me?.headerColorB && profilePreviewHeader) {
-    const grad = buildProfileHeaderGradient(me.headerColorA, me.headerColorB);
+  const colorA = me?.header_grad_a || me?.headerColorA;
+  const colorB = me?.header_grad_b || me?.headerColorB;
+  if (colorA && colorB && profilePreviewHeader) {
+    const grad = buildProfileHeaderGradient(colorA, colorB);
     profilePreviewHeader.style.background = grad;
-    const theme = computeProfileTextTheme(me.headerColorA, me.headerColorB);
+    const theme = computeProfileTextTheme(colorA, colorB);
     profilePreviewHeader.style.color = theme.text;
   }
   
@@ -12545,7 +12547,7 @@ function updateProfilePreview(){
   if (profilePreviewBio) {
     const bio = editProfileBio?.value || "";
     if (bio) {
-      profilePreviewBio.innerHTML = parseBBCode(bio);
+      profilePreviewBio.innerHTML = renderBBCode(bio);
       profilePreviewBio.style.display = "";
     } else {
       profilePreviewBio.textContent = "No bio set";
@@ -12629,6 +12631,18 @@ editProfileModal?.addEventListener("click", (e) => {
 editProfileMood?.addEventListener("input", updateProfilePreview);
 editProfileBio?.addEventListener("input", updateProfilePreview);
 
+// Avatar file preview
+editProfileAvatar?.addEventListener("change", (e) => {
+  const file = e.target?.files?.[0];
+  if (file && profilePreviewAvatar) {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      profilePreviewAvatar.style.backgroundImage = `url(${evt.target.result})`;
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
 // Wire up Couples card button to open couples modal
 openCouplesCardBtn?.addEventListener("click", () => {
   openCouplesModal();
@@ -12642,6 +12656,9 @@ couplesModal?.addEventListener("click", (e) => {
   if (e.target === couplesModal) closeCouplesModal();
 });
 document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && editProfileModal && !editProfileModal.hidden) {
+    closeEditProfileModal();
+  }
   if (e.key === "Escape" && couplesModal && couplesModal.style.display !== "none") {
     closeCouplesModal();
   }
