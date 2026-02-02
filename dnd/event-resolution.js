@@ -22,6 +22,7 @@ const CORE_ATTRIBUTES = [
 
 // Constants
 const COUPLE_BONUS = 2; // Small bonus for couples participating together
+const MAX_ATTRIBUTE_VALUE = 7; // Maximum value for any core attribute (from ATTRIBUTE_CONFIG)
 
 /**
  * Roll a D20 with modifiers
@@ -224,7 +225,7 @@ function applyEventOutcome(template, outcome, characters, worldState = {}, rng =
       // Select a random attribute
       const randomAttr = CORE_ATTRIBUTES[Math.floor(rng() * CORE_ATTRIBUTES.length)];
       const oldValue = char[randomAttr] || 3;
-      const newValue = Math.min(7, oldValue + boost); // Cap at max 7
+      const newValue = Math.min(MAX_ATTRIBUTE_VALUE, oldValue + boost); // Cap at max
       char[randomAttr] = newValue;
       
       changes.attributeChanges.push({
