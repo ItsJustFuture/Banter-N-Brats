@@ -47,6 +47,7 @@ const CORE_ROOMS = [
   { name: "nsfw", sortOrder: 2 },
   { name: "diceroom", sortOrder: 3 },
   { name: "survivalsimulator", sortOrder: 4 },
+  { name: "dndstoryroom", sortOrder: 5 },
 ];
 const CORE_ROOM_NAMES = new Set(CORE_ROOMS.map((room) => room.name));
 const SURVIVAL_SEASON_COOLDOWN_MS = 2 * 60 * 1000;

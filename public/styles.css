@@ -12565,3 +12565,270 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   border-radius: 6px;
   height: 60px;
 }
+
+/* ============================================
+   DND STORY ROOM STYLES
+   ============================================ */
+
+.dndOpenBtn {
+  margin-left: 8px;
+}
+
+.dndModalShell {
+  max-width: 900px;
+  width: 95%;
+  max-height: 90vh;
+}
+
+.dndModalTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color, #444);
+}
+
+.dndModalHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dndModalMeta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.9em;
+  color: var(--text-muted, #aaa);
+}
+
+.dndModalTabs {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color, #444);
+}
+
+.dndModalBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.dndModalSection {
+  display: none;
+}
+
+.dndModalSection.active {
+  display: block;
+}
+
+/* Character Cards */
+.dndCharactersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.dndCharCard {
+  background: var(--card-bg, #2a2a2a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+  padding: 12px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.dndCharCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.dndCharCard.dead {
+  opacity: 0.6;
+  filter: grayscale(0.5);
+}
+
+.dndCharHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 1.1em;
+}
+
+.dndCharAttributes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 0.9em;
+}
+
+.dndCharAttributes span {
+  background: var(--tag-bg, #333);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.dndCharSkills {
+  margin-top: 8px;
+  font-style: italic;
+}
+
+/* Events List */
+.dndEventsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dndEventCard {
+  background: var(--card-bg, #2a2a2a);
+  border: 1px solid var(--border-color, #444);
+  border-left: 4px solid var(--accent-color, #8b5cf6);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.dndEventCard.success {
+  border-left-color: #10b981;
+}
+
+.dndEventCard.fail {
+  border-left-color: #ef4444;
+}
+
+.dndEventCard.partial {
+  border-left-color: #f59e0b;
+}
+
+.dndEventHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.85em;
+  color: var(--text-muted, #aaa);
+}
+
+.dndEventText {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+.dndEventRoll {
+  font-family: monospace;
+  font-size: 0.9em;
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: var(--code-bg, #1a1a1a);
+  border-radius: 4px;
+}
+
+/* Controls Panel */
+.dndPanelControls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dndPanelGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dndCharacterPanel {
+  margin-top: 20px;
+  padding: 16px;
+  background: var(--card-bg, #2a2a2a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+}
+
+.dndPanelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.dndCharacterForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dndAttributesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.dndAttributesGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9em;
+}
+
+.dndAttributesGrid input {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 4px;
+  background: var(--input-bg, #1a1a1a);
+  color: var(--text-color, #fff);
+}
+
+.dndSkillsSection,
+.dndPerksSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dndSkillsList,
+.dndPerksList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dndSkillsList label,
+.dndPerksList label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--tag-bg, #333);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dndSkillsList label:hover,
+.dndPerksList label:hover {
+  background: var(--tag-hover-bg, #444);
+}
+
+.dndSkillsList input,
+.dndPerksList input {
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .dndModalShell {
+    max-width: 100%;
+    width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+  
+  .dndCharactersGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .dndAttributesGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
