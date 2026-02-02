@@ -4879,6 +4879,39 @@ const likeCount = document.getElementById("likeCount");
 const profileLikeMsg = document.getElementById("profileLikeMsg");
 const openUsernameCustomizationBtn = document.getElementById("openUsernameCustomizationBtn");
 const openMessageCustomizationBtn = document.getElementById("openMessageCustomizationBtn");
+
+// Edit Profile Modal elements
+const editProfileModal = document.getElementById("editProfileModal");
+const editProfileModalClose = document.getElementById("editProfileModalClose");
+const openEditProfileBtn = document.getElementById("openEditProfileBtn");
+const editProfileSaveBtn = document.getElementById("editProfileSaveBtn");
+const editProfileCancelBtn = document.getElementById("editProfileCancelBtn");
+const editProfileMsg = document.getElementById("editProfileMsg");
+const editProfileAvatar = document.getElementById("editProfileAvatar");
+const editProfileMood = document.getElementById("editProfileMood");
+const editProfileAge = document.getElementById("editProfileAge");
+const editProfileGender = document.getElementById("editProfileGender");
+const editProfileBio = document.getElementById("editProfileBio");
+const editProfileUsername = document.getElementById("editProfileUsername");
+const editProfileVibeOptions = document.getElementById("editProfileVibeOptions");
+const editProfileVibeLimit = document.getElementById("editProfileVibeLimit");
+const profilePreviewCard = document.getElementById("profilePreviewCard");
+const profilePreviewHeader = document.getElementById("profilePreviewHeader");
+const profilePreviewAvatar = document.getElementById("profilePreviewAvatar");
+const profilePreviewName = document.getElementById("profilePreviewName");
+const profilePreviewMood = document.getElementById("profilePreviewMood");
+const profilePreviewBio = document.getElementById("profilePreviewBio");
+const profilePreviewVibes = document.getElementById("profilePreviewVibes");
+
+// Couples card button
+const openCouplesCardBtn = document.getElementById("openCouplesCardBtn");
+const coupleGradientField = document.getElementById("coupleGradientField");
+const coupleGradientStartCustomize = document.getElementById("coupleGradientStartCustomize");
+const coupleGradientEndCustomize = document.getElementById("coupleGradientEndCustomize");
+const coupleGradientStartTextCustomize = document.getElementById("coupleGradientStartTextCustomize");
+const coupleGradientEndTextCustomize = document.getElementById("coupleGradientEndTextCustomize");
+const coupleGradientPreviewCustomize = document.getElementById("coupleGradientPreviewCustomize");
+
 const leaderboardXp = document.getElementById("leaderboardXp");
 const leaderboardGold = document.getElementById("leaderboardGold");
 const leaderboardDice = document.getElementById("leaderboardDice");
@@ -12103,6 +12136,20 @@ customizeCards.forEach((card) => {
       openThemesModal();
       return;
     }
+    // Handle Edit Profile card
+    if (card.dataset.category === "edit-profile") {
+      openEditProfileModal();
+      return;
+    }
+    // Handle Couples card
+    if (card.dataset.category === "couples") {
+      openCouplesModal();
+      return;
+    }
+    // Show couple gradient field when viewing profile appearance
+    if (card.dataset.category === "profile") {
+      updateCoupleGradientFieldVisibility();
+    }
     setCustomizePage(card.dataset.category || null);
   });
 });
@@ -12399,7 +12446,197 @@ function closeCouplesModal(){
   }, 140);
 }
 
-couplesBtn?.addEventListener("click", openCouplesModal);
+// ===== EDIT PROFILE MODAL =====
+let editProfileSelectedVibeTags = [];
+
+function openEditProfileModal(){
+  if (!editProfileModal) return;
+  closeSurvivalModal();
+  closeMemberMenu();
+  closeProfileSettingsMenu();
+  closeCouplesModal();
+  
+  // Load current profile data
+  editProfileMood.value = me?.mood || "";
+  editProfileAge.value = me?.age || "";
+  editProfileGender.value = me?.gender || "";
+  editProfileBio.value = me?.bio || "";
+  editProfileUsername.value = "";
+  editProfileSelectedVibeTags = [...(me?.vibeTags || [])];
+  
+  // Render vibe tags
+  renderEditProfileVibeOptions();
+  
+  // Update preview
+  updateProfilePreview();
+  
+  try { editProfileModal.hidden = false; } catch {}
+  editProfileModal.setAttribute("aria-hidden", "false");
+}
+
+function closeEditProfileModal(){
+  if (!editProfileModal) return;
+  editProfileModal.classList.add("modal-closing");
+  editProfileModal.setAttribute("aria-hidden", "true");
+  editProfileMsg.textContent = "";
+  setTimeout(() => {
+    editProfileModal.classList.remove("modal-closing");
+    try { editProfileModal.hidden = true; } catch {}
+  }, 140);
+}
+
+function renderEditProfileVibeOptions(){
+  if (!editProfileVibeOptions) return;
+  editProfileVibeOptions.innerHTML = "";
+  const VIBE_TAG_LIMIT = 3;
+  if (editProfileVibeLimit) editProfileVibeLimit.textContent = VIBE_TAG_LIMIT;
+  
+  if (!window.VIBE_TAGS_LIST || !Array.isArray(window.VIBE_TAGS_LIST)) return;
+  
+  window.VIBE_TAGS_LIST.forEach(tag => {
+    const isSelected = editProfileSelectedVibeTags.includes(tag);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = isSelected ? "pillBtn active" : "pillBtn";
+    btn.textContent = tag;
+    btn.addEventListener("click", () => {
+      if (isSelected) {
+        editProfileSelectedVibeTags = editProfileSelectedVibeTags.filter(t => t !== tag);
+      } else {
+        if (editProfileSelectedVibeTags.length >= VIBE_TAG_LIMIT) return;
+        editProfileSelectedVibeTags = [...editProfileSelectedVibeTags, tag];
+      }
+      renderEditProfileVibeOptions();
+      updateProfilePreview();
+    });
+    editProfileVibeOptions.appendChild(btn);
+  });
+}
+
+function updateProfilePreview(){
+  if (!profilePreviewCard) return;
+  
+  // Update header gradient if me has custom colors
+  if (me?.headerColorA && me?.headerColorB && profilePreviewHeader) {
+    const grad = buildProfileHeaderGradient(me.headerColorA, me.headerColorB);
+    profilePreviewHeader.style.background = grad;
+    const theme = computeProfileTextTheme(me.headerColorA, me.headerColorB);
+    profilePreviewHeader.style.color = theme.text;
+  }
+  
+  // Update avatar preview
+  if (profilePreviewAvatar && me?.avatar) {
+    profilePreviewAvatar.style.backgroundImage = `url(${me.avatar})`;
+  }
+  
+  // Update name
+  if (profilePreviewName) {
+    profilePreviewName.textContent = me?.username || "Your Name";
+  }
+  
+  // Update mood
+  if (profilePreviewMood) {
+    const mood = editProfileMood?.value || "";
+    profilePreviewMood.textContent = mood;
+    profilePreviewMood.style.display = mood ? "" : "none";
+  }
+  
+  // Update bio preview
+  if (profilePreviewBio) {
+    const bio = editProfileBio?.value || "";
+    if (bio) {
+      profilePreviewBio.innerHTML = parseBBCode(bio);
+      profilePreviewBio.style.display = "";
+    } else {
+      profilePreviewBio.textContent = "No bio set";
+      profilePreviewBio.style.display = "";
+    }
+  }
+  
+  // Update vibes
+  if (profilePreviewVibes) {
+    if (editProfileSelectedVibeTags.length > 0) {
+      profilePreviewVibes.innerHTML = editProfileSelectedVibeTags
+        .map(tag => `<span class="vibeTag">${tag}</span>`)
+        .join("");
+      profilePreviewVibes.style.display = "";
+    } else {
+      profilePreviewVibes.style.display = "none";
+    }
+  }
+}
+
+async function saveEditProfile(){
+  if (!editProfileSaveBtn) return;
+  editProfileMsg.textContent = "Saving...";
+  
+  const form = new FormData();
+  form.append("mood", editProfileMood?.value || "");
+  form.append("age", editProfileAge?.value || "");
+  form.append("gender", editProfileGender?.value || "");
+  form.append("bio", editProfileBio?.value || "");
+  form.append("vibeTags", JSON.stringify(editProfileSelectedVibeTags || []));
+  
+  // Handle avatar upload
+  if (editProfileAvatar?.files?.[0]) {
+    form.append("avatar", editProfileAvatar.files[0]);
+  }
+  
+  // Handle username change (if provided)
+  const newUsername = editProfileUsername?.value?.trim();
+  if (newUsername && newUsername !== me?.username) {
+    // This will be handled by the separate username change endpoint
+    // For now, we'll just save the profile and handle username separately
+  }
+  
+  try {
+    const res = await fetch("/profile", { method: "POST", body: form });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "Save failed.");
+      editProfileMsg.textContent = text || "Save failed.";
+      return;
+    }
+    editProfileMsg.textContent = "Saved! Refreshing...";
+    pushNotification({ type: "system", text: "Profile saved." });
+    
+    // Refresh profile data
+    setTimeout(() => {
+      closeEditProfileModal();
+      if (currentProfileIsSelf) {
+        openProfile(me);
+      }
+    }, 500);
+  } catch (err) {
+    editProfileMsg.textContent = "Network error. Please try again.";
+    console.error("Profile save error:", err);
+  }
+}
+
+// Wire up Edit Profile modal
+openEditProfileBtn?.addEventListener("click", () => {
+  openEditProfileModal();
+});
+
+editProfileModalClose?.addEventListener("click", closeEditProfileModal);
+editProfileCancelBtn?.addEventListener("click", closeEditProfileModal);
+editProfileSaveBtn?.addEventListener("click", saveEditProfile);
+
+editProfileModal?.addEventListener("click", (e) => {
+  if (e.target === editProfileModal) closeEditProfileModal();
+});
+
+// Live preview updates
+editProfileMood?.addEventListener("input", updateProfilePreview);
+editProfileBio?.addEventListener("input", updateProfilePreview);
+
+// Wire up Couples card button to open couples modal
+openCouplesCardBtn?.addEventListener("click", () => {
+  openCouplesModal();
+});
+
+// Remove old couples button listener (it no longer exists in HTML)
+// couplesBtn?.addEventListener("click", openCouplesModal); // This line is now removed below
+
 couplesModalClose?.addEventListener("click", closeCouplesModal);
 couplesModal?.addEventListener("click", (e) => {
   if (e.target === couplesModal) closeCouplesModal();
@@ -17286,10 +17523,11 @@ function applyProfileSectionVisibility(isSelf){
 }
 
 function updateProfileActions({ isSelf = false, canModerate = false } = {}){
-  // Quick "Edit profile" button now lives in the top quick-actions row.
+  // Edit profile button is now in customization tab, not in actions
   if (!isSelf) closeProfileSettingsMenu();
-  if (profileEditToggleBtn) profileEditToggleBtn.style.display = isSelf ? "" : "none";
-  if (profileEditToggleRow) profileEditToggleRow.style.display = "none";
+  // Remove old button references - they no longer exist
+  // if (profileEditToggleBtn) profileEditToggleBtn.style.display = isSelf ? "" : "none";
+  // if (profileEditToggleRow) profileEditToggleRow.style.display = "none";
   applyCustomizeVisibility();
   if (dmChessQuickBtn) dmChessQuickBtn.style.display = isSelf ? "none" : "";
   if (addFriendBtn) addFriendBtn.style.display = isSelf ? "none" : "";
@@ -17328,9 +17566,10 @@ function updateProfileActions({ isSelf = false, canModerate = false } = {}){
   if (actionsBtn) {
     actionsBtn.style.display = "none";
   }
-  if (profileEditBtn) {
-    profileEditBtn.style.display = isSelf ? "" : "none";
-  }
+  // Remove old profileEditBtn reference - button no longer exists
+  // if (profileEditBtn) {
+  //   profileEditBtn.style.display = isSelf ? "" : "none";
+  // }
   if (profileSettingsBtn) {
     profileSettingsBtn.style.display = isSelf ? "" : "none";
   }
@@ -20842,6 +21081,80 @@ if (coupleGradientEnd && coupleGradientEndText) {
     }
     updateGradientPreview();
   });
+}
+
+// Sync gradient color pickers for customization page
+function updateGradientPreviewCustomize() {
+  if (!coupleGradientPreviewCustomize) return;
+  const start = coupleGradientStartTextCustomize?.value || coupleGradientStartCustomize?.value || COUPLE_DEFAULT_GRADIENT_START;
+  const end = coupleGradientEndTextCustomize?.value || coupleGradientEndCustomize?.value || COUPLE_DEFAULT_GRADIENT_END;
+  coupleGradientPreviewCustomize.style.background = `linear-gradient(90deg, ${start}, ${end})`;
+}
+
+if (coupleGradientStartCustomize && coupleGradientStartTextCustomize) {
+  coupleGradientStartCustomize.addEventListener("input", (e) => {
+    coupleGradientStartTextCustomize.value = e.target.value;
+    updateGradientPreviewCustomize();
+    // Also sync to the main couple gradient inputs
+    if (coupleGradientStart) coupleGradientStart.value = e.target.value;
+    if (coupleGradientStartText) coupleGradientStartText.value = e.target.value;
+    updateGradientPreview();
+  });
+  coupleGradientStartTextCustomize.addEventListener("input", (e) => {
+    const val = e.target.value;
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+      coupleGradientStartCustomize.value = val;
+      if (coupleGradientStart) coupleGradientStart.value = val;
+    }
+    if (coupleGradientStartText) coupleGradientStartText.value = val;
+    updateGradientPreviewCustomize();
+    updateGradientPreview();
+  });
+}
+
+if (coupleGradientEndCustomize && coupleGradientEndTextCustomize) {
+  coupleGradientEndCustomize.addEventListener("input", (e) => {
+    coupleGradientEndTextCustomize.value = e.target.value;
+    updateGradientPreviewCustomize();
+    // Also sync to the main couple gradient inputs
+    if (coupleGradientEnd) coupleGradientEnd.value = e.target.value;
+    if (coupleGradientEndText) coupleGradientEndText.value = e.target.value;
+    updateGradientPreview();
+  });
+  coupleGradientEndTextCustomize.addEventListener("input", (e) => {
+    const val = e.target.value;
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+      coupleGradientEndCustomize.value = val;
+      if (coupleGradientEnd) coupleGradientEnd.value = val;
+    }
+    if (coupleGradientEndText) coupleGradientEndText.value = val;
+    updateGradientPreviewCustomize();
+    updateGradientPreview();
+  });
+}
+
+// Show couple gradient field in customization when user has an active couple
+function updateCoupleGradientFieldVisibility() {
+  if (!coupleGradientField) return;
+  const hasCouple = me?.coupleId && me?.couplePartnerId;
+  coupleGradientField.style.display = hasCouple ? "" : "none";
+  
+  // Sync values from main couple inputs if they exist
+  if (hasCouple) {
+    if (coupleGradientStart && coupleGradientStartCustomize) {
+      coupleGradientStartCustomize.value = coupleGradientStart.value;
+    }
+    if (coupleGradientStartText && coupleGradientStartTextCustomize) {
+      coupleGradientStartTextCustomize.value = coupleGradientStartText.value;
+    }
+    if (coupleGradientEnd && coupleGradientEndCustomize) {
+      coupleGradientEndCustomize.value = coupleGradientEnd.value;
+    }
+    if (coupleGradientEndText && coupleGradientEndTextCustomize) {
+      coupleGradientEndTextCustomize.value = coupleGradientEndText.value;
+    }
+    updateGradientPreviewCustomize();
+  }
 }
 
 function emitLocalMembersRefresh(){
