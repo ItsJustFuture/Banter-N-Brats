@@ -12138,33 +12138,32 @@ customizeCards.forEach((card) => {
       openThemesModal();
       return;
     }
-    // Handle Edit Profile card - load data and show preview
+    // Handle Edit Profile card - opens modal and loads current data
     if (card.dataset.category === "edit-profile") {
       setCustomizePage("edit-profile");
       loadEditProfileData();
       updateEditProfilePreview();
       return;
     }
-    // Handle Couples card
+    // Handle Couples card - opens modal
     if (card.dataset.category === "couples") {
       setCustomizePage("couples");
-      // Load couples data if needed
       return;
     }
-    // Show couple gradient field when viewing profile appearance
+    // Handle Profile Appearance card - opens modal with preview
     if (card.dataset.category === "profile") {
       updateCoupleGradientFieldVisibility();
       setCustomizePage("profile");
       updateProfileAppearancePreview();
       return;
     }
-    // Handle Effects card
+    // Handle Effects card - opens modal with preview
     if (card.dataset.category === "effects") {
       setCustomizePage("effects");
       updateEffectsPreview();
       return;
     }
-    // Handle Layout card
+    // Handle Layout card - opens modal with preview
     if (card.dataset.category === "layout") {
       setCustomizePage("layout");
       updateLayoutPreview();
@@ -12978,11 +12977,9 @@ cancelProfileAppearanceBtn?.addEventListener("click", () => {
   setCustomizePage(null);
 });
 
-saveProfileAppearanceBtn?.addEventListener("click", async () => {
-  // Profile appearance settings are already saved real-time via existing handlers
-  // Just close the modal
+saveProfileAppearanceBtn?.addEventListener("click", () => {
+  // Settings are saved in real-time, just close the modal
   setCustomizePage(null);
-  toast?.("Profile appearance saved!");
 });
 
 // Wire up Effects modal buttons
@@ -12990,11 +12987,9 @@ cancelEffectsBtn?.addEventListener("click", () => {
   setCustomizePage(null);
 });
 
-saveEffectsBtn?.addEventListener("click", async () => {
-  // Effects settings are already saved real-time via existing handlers
-  // Just close the modal
+saveEffectsBtn?.addEventListener("click", () => {
+  // Settings are saved in real-time, just close the modal
   setCustomizePage(null);
-  toast?.("Effects settings saved!");
 });
 
 // Wire up Layout modal buttons
@@ -13002,11 +12997,9 @@ cancelLayoutBtn?.addEventListener("click", () => {
   setCustomizePage(null);
 });
 
-saveLayoutBtn?.addEventListener("click", async () => {
-  // Layout settings are already saved real-time via existing handlers
-  // Just close the modal
+saveLayoutBtn?.addEventListener("click", () => {
+  // Settings are saved in real-time, just close the modal
   setCustomizePage(null);
-  toast?.("Layout settings saved!");
 });
 
 confirmUsernameChangeBtn?.addEventListener("click", async () => {
