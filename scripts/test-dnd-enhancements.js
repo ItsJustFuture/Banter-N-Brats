@@ -5,7 +5,7 @@
 // ===================================
 // Validates new event templates and couple system integration
 
-const { EVENT_TEMPLATES, EVENT_TYPES } = require("../dnd/event-templates");
+const { EVENT_TEMPLATES } = require("../dnd/event-templates");
 const { areCouple, selectEventTemplate } = require("../dnd/event-resolution");
 
 console.log("🎲 DnD Enhancements Validation");
