@@ -4724,7 +4724,6 @@ function getDndAliveCount() {
 
 function renderDndPanel() {
   const session = dndState.session;
-  const characters = dndState.characters || [];
   const events = dndState.events || [];
   
   // Update header
