@@ -3825,6 +3825,7 @@ const survivalLogLoadBtn = document.getElementById("survivalLogLoadBtn");
 
 // DnD Story Room elements
 const dndOpenBtn = document.getElementById("dndOpenBtn");
+const dndComposerBtn = document.getElementById("dndComposerBtn");
 const dndModal = document.getElementById("dndModal");
 const dndModalClose = document.getElementById("dndModalClose");
 const dndSessionTitle = document.getElementById("dndSessionTitle");
@@ -3945,6 +3946,7 @@ try {
   if (survivalOpenBtn) survivalOpenBtn.hidden = !nowSurvivalRoom;
   const nowDndRoom = isDndRoom(currentRoom);
   if (dndOpenBtn) dndOpenBtn.hidden = !nowDndRoom;
+  if (dndComposerBtn) dndComposerBtn.hidden = !nowDndRoom;
   if (nowDndRoom && !dndState.session) {
     loadDndCurrent().catch(console.error);
   }
@@ -14084,6 +14086,7 @@ survivalLobbyBtn?.addEventListener("click", async () => {
 
 // DnD Story Room event listeners
 dndOpenBtn?.addEventListener("click", openDndModal);
+dndComposerBtn?.addEventListener("click", openDndModal);
 dndModalClose?.addEventListener("click", closeDndModal);
 dndModal?.addEventListener("click", (e) => {
   if (e.target === dndModal) closeDndModal();
