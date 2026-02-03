@@ -10537,6 +10537,8 @@ app.post("/api/dnd-story/lobby/join", requireLogin, async (req, res) => {
     const set = getDndLobbySet(DND_ROOM_DB_ID);
     set.add(uid);
     io.to(DND_ROOM_ID).emit("dnd:lobby", { user_ids: Array.from(set.values()) });
+    const user = req.session.user;
+    emitRoomSystem(DND_ROOM_ID, `🎲 ${user.username} joined the DnD lobby!`, { kind: "dnd" });
     return res.json({ ok: true, user_ids: Array.from(set.values()) });
   } catch (e) {
     return res.status(500).send("Failed");
@@ -10551,6 +10553,8 @@ app.post("/api/dnd-story/lobby/leave", requireLogin, async (req, res) => {
     const set = getDndLobbySet(DND_ROOM_DB_ID);
     set.delete(uid);
     io.to(DND_ROOM_ID).emit("dnd:lobby", { user_ids: Array.from(set.values()) });
+    const user = req.session.user;
+    emitRoomSystem(DND_ROOM_ID, `🎲 ${user.username} left the DnD lobby.`, { kind: "dnd" });
     return res.json({ ok: true, user_ids: Array.from(set.values()) });
   } catch (e) {
     return res.status(500).send("Failed");
@@ -10702,6 +10706,11 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
     }
     
     io.to(DND_ROOM_ID).emit("dnd:characterUpdated", { character });
+    
+    // Send system message for character creation/update
+    const action = existing ? "updated" : "created";
+    const user = req.session.user;
+    emitRoomSystem(DND_ROOM_ID, `🎲 ${user.username} ${action} their character!`, { kind: "dnd" });
     
     return res.json({ ok: true, character });
   } catch (e) {

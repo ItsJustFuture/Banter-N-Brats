@@ -3825,6 +3825,7 @@ const survivalLogLoadBtn = document.getElementById("survivalLogLoadBtn");
 
 // DnD Story Room elements
 const dndOpenBtn = document.getElementById("dndOpenBtn");
+const dndComposerBtn = document.getElementById("dndComposerBtn");
 const dndModal = document.getElementById("dndModal");
 const dndModalClose = document.getElementById("dndModalClose");
 const dndSessionTitle = document.getElementById("dndSessionTitle");
@@ -3833,6 +3834,9 @@ const dndRound = document.getElementById("dndRound");
 const dndAliveCount = document.getElementById("dndAliveCount");
 const dndCharactersBtn = document.getElementById("dndCharactersBtn");
 const dndEventsBtn = document.getElementById("dndEventsBtn");
+const dndWorldStateBtn = document.getElementById("dndWorldStateBtn");
+const dndLobbyBtn = document.getElementById("dndLobbyBtn");
+const dndSpectateBtn = document.getElementById("dndSpectateBtn");
 const dndControlsBtn = document.getElementById("dndControlsBtn");
 const dndCharactersGrid = document.getElementById("dndCharactersGrid");
 const dndEventsList = document.getElementById("dndEventsList");
@@ -3840,9 +3844,11 @@ const dndNewSessionBtn = document.getElementById("dndNewSessionBtn");
 const dndStartSessionBtn = document.getElementById("dndStartSessionBtn");
 const dndAdvanceBtn = document.getElementById("dndAdvanceBtn");
 const dndEndBtn = document.getElementById("dndEndBtn");
-const dndLobbyBtn = document.getElementById("dndLobbyBtn");
+const dndLobbyToggleBtn = document.getElementById("dndLobbyToggleBtn");
 const dndCreateCharBtn = document.getElementById("dndCreateCharBtn");
 const dndLobbyCount = document.getElementById("dndLobbyCount");
+const dndLobbyCountDisplay = document.getElementById("dndLobbyCountDisplay");
+const dndLobbyUsersList = document.getElementById("dndLobbyUsersList");
 const dndCharacterPanel = document.getElementById("dndCharacterPanel");
 const dndCharacterClose = document.getElementById("dndCharacterClose");
 const dndPointsRemaining = document.getElementById("dndPointsRemaining");
@@ -3850,6 +3856,21 @@ const dndSkillsList = document.getElementById("dndSkillsList");
 const dndPerksList = document.getElementById("dndPerksList");
 const dndSaveCharBtn = document.getElementById("dndSaveCharBtn");
 const dndCharMsg = document.getElementById("dndCharMsg");
+const dndActiveMonster = document.getElementById("dndActiveMonster");
+const dndMorale = document.getElementById("dndMorale");
+const dndReputation = document.getElementById("dndReputation");
+const dndRoundsSurvived = document.getElementById("dndRoundsSurvived");
+const dndAllies = document.getElementById("dndAllies");
+const dndStatusEffects = document.getElementById("dndStatusEffects");
+const dndInfluenceHeal = document.getElementById("dndInfluenceHeal");
+const dndInfluenceBonus = document.getElementById("dndInfluenceBonus");
+const dndInfluenceLuck = document.getElementById("dndInfluenceLuck");
+const dndInfluenceMsg = document.getElementById("dndInfluenceMsg");
+const dndInfoTitle = document.getElementById("dndInfoTitle");
+const dndInfoStatus = document.getElementById("dndInfoStatus");
+const dndInfoRound = document.getElementById("dndInfoRound");
+const dndInfoAlive = document.getElementById("dndInfoAlive");
+const dndInfoCreated = document.getElementById("dndInfoCreated");
 
 let mediaMenuOpen = false;
 let voiceRec = { recorder: null, stream: null, chunks: [], startedAt: 0 };
@@ -3924,6 +3945,7 @@ try {
   if (survivalOpenBtn) survivalOpenBtn.hidden = !nowSurvivalRoom;
   const nowDndRoom = isDndRoom(currentRoom);
   if (dndOpenBtn) dndOpenBtn.hidden = !nowDndRoom;
+  if (dndComposerBtn) dndComposerBtn.hidden = !nowDndRoom;
   if (nowDndRoom && !dndState.session) {
     loadDndCurrent().catch(console.error);
   }
@@ -4674,11 +4696,15 @@ async function loadOlderSurvivalLog() {
 // ============================================
 
 function setDndModalTab(tab){
-  const next = (tab === "characters" || tab === "events" || tab === "controls") ? tab : "characters";
+  const validTabs = ["characters", "events", "worldstate", "lobby", "spectate", "controls"];
+  const next = validTabs.includes(tab) ? tab : "characters";
   dndModalTab = next;
   dndState.view = next;
   if (dndCharactersBtn) dndCharactersBtn.classList.toggle("active", next === "characters");
   if (dndEventsBtn) dndEventsBtn.classList.toggle("active", next === "events");
+  if (dndWorldStateBtn) dndWorldStateBtn.classList.toggle("active", next === "worldstate");
+  if (dndLobbyBtn) dndLobbyBtn.classList.toggle("active", next === "lobby");
+  if (dndSpectateBtn) dndSpectateBtn.classList.toggle("active", next === "spectate");
   if (dndControlsBtn) dndControlsBtn.classList.toggle("active", next === "controls");
   document.querySelectorAll("[data-dnd-view]").forEach((section) => {
     section.classList.toggle("active", section.dataset.dndView === next);
@@ -4740,16 +4766,18 @@ function renderDndPanel() {
     dndAliveCount.textContent = `Alive: ${alive}`;
   }
   
-  // Render characters tab
+  // Render all tabs
   renderDndCharacters();
-  
-  // Render events tab
   renderDndEvents();
+  renderDndWorldState();
+  renderDndLobby();
+  renderDndSpectate();
+  renderDndControls();
   
   // Update controls
   updateDndControls();
   
-  // Update lobby count
+  // Update lobby count (legacy element)
   if (dndLobbyCount) {
     const count = (dndState.lobbyUserIds || []).length;
     dndLobbyCount.textContent = count > 0 ? `${count} in lobby` : "";
@@ -4761,20 +4789,46 @@ function renderDndCharacters() {
   const characters = dndState.characters || [];
   
   if (characters.length === 0) {
-    dndCharactersGrid.innerHTML = '<div class="small muted">No characters yet</div>';
+    dndCharactersGrid.innerHTML = '<div class="small muted">No characters yet. Create one in the lobby!</div>';
     return;
   }
   
   const html = characters.map(char => {
-    const skills = Array.isArray(char.skills) ? char.skills : (char.skills_json ? JSON.parse(char.skills_json) : []);
+    let skills = [];
+    if (Array.isArray(char.skills)) {
+      skills = char.skills;
+    } else if (char.skills_json) {
+      try {
+        skills = JSON.parse(char.skills_json) || [];
+      } catch (e) {
+        console.error("Failed to parse skills_json for character", char, e);
+        skills = [];
+      }
+    }
+
+    let perks = [];
+    if (Array.isArray(char.perks)) {
+      perks = char.perks;
+    } else if (char.perks_json) {
+      try {
+        perks = JSON.parse(char.perks_json) || [];
+      } catch (e) {
+        console.error("Failed to parse perks_json for character", char, e);
+        perks = [];
+      }
+    }
     const statusClass = char.alive ? "alive" : "dead";
     const statusIcon = char.alive ? "💚" : "💀";
+    
+    // Format HP bar percentage
+    const hpPercent = char.max_hp > 0 ? (char.hp / char.max_hp) * 100 : 0;
+    const hpClass = hpPercent > 60 ? "high" : hpPercent > 30 ? "medium" : "low";
     
     return `
       <div class="dndCharCard ${statusClass}">
         <div class="dndCharHeader">
           <strong>${escapeHtml(char.display_name)}</strong>
-          <span>${statusIcon} ${char.hp}/${char.max_hp} HP</span>
+          <span class="dndCharHp ${hpClass}">${statusIcon} ${char.hp}/${char.max_hp} HP</span>
         </div>
         <div class="dndCharAttributes">
           <span title="Might">💪 ${char.might}</span>
@@ -4786,8 +4840,9 @@ function renderDndCharacters() {
           <span title="Chaos">🎲 ${char.chaos}</span>
         </div>
         <div class="dndCharSkills small muted">
-          ${skills.length > 0 ? skills.slice(0, 3).join(", ") : "No skills"}
+          ${skills.length > 0 ? "📚 " + skills.slice(0, 3).map(escapeHtml).join(", ") + (skills.length > 3 ? "..." : "") : "No skills"}
         </div>
+        ${perks.length > 0 ? `<div class="dndCharPerks small muted">⭐ ${perks.slice(0, 2).map(escapeHtml).join(", ")}${perks.length > 2 ? "..." : ""}</div>` : ""}
       </div>
     `;
   }).join("");
@@ -4826,6 +4881,153 @@ function renderDndEvents() {
   dndEventsList.innerHTML = html;
 }
 
+function renderDndWorldState() {
+  const session = dndState.session;
+  
+  // Render active monster
+  if (dndActiveMonster) {
+    try {
+      const worldState = session?.world_state_json ? JSON.parse(session.world_state_json) : null;
+      const monster = worldState?.activeMonster;
+      if (monster) {
+        const timeAgo = Math.floor((Date.now() - (monster.summoned_at || Date.now())) / 60000);
+        dndActiveMonster.innerHTML = `
+          <div class="dndMonsterCard">
+            <div><strong>${escapeHtml(monster.name || "Unknown Monster")}</strong></div>
+            <div class="small">HP: ${monster.hp || 100}</div>
+            <div class="small">Check Penalty: ${monster.checkPenalty || -2}</div>
+            <div class="small muted">Summoned ${timeAgo > 0 ? timeAgo + " min" : "just now"} ago</div>
+          </div>
+        `;
+      } else {
+        dndActiveMonster.innerHTML = '<div class="small muted">No active monster</div>';
+      }
+    } catch (e) {
+      dndActiveMonster.innerHTML = '<div class="small muted">Error loading monster data</div>';
+    }
+  }
+  
+  // Render stats
+  if (dndMorale && dndReputation && dndRoundsSurvived) {
+    try {
+      const worldState = session?.world_state_json ? JSON.parse(session.world_state_json) : null;
+      dndMorale.textContent = worldState?.morale !== undefined ? worldState.morale : "—";
+      dndReputation.textContent = worldState?.reputation !== undefined ? worldState.reputation : "—";
+      dndRoundsSurvived.textContent = session?.round || "—";
+    } catch (e) {
+      dndMorale.textContent = "—";
+      dndReputation.textContent = "—";
+      dndRoundsSurvived.textContent = "—";
+    }
+  }
+  
+  // Render allies
+  if (dndAllies) {
+    try {
+      const worldState = session?.world_state_json ? JSON.parse(session.world_state_json) : null;
+      const allies = worldState?.allies || [];
+      if (allies.length > 0) {
+        dndAllies.innerHTML = allies.map(ally => `
+          <div class="dndAllyCard small">
+            <strong>${escapeHtml(ally.name || "Unnamed Ally")}</strong>
+          </div>
+        `).join("");
+      } else {
+        dndAllies.innerHTML = '<div class="small muted">No allies recruited</div>';
+      }
+    } catch (e) {
+      dndAllies.innerHTML = '<div class="small muted">Error loading allies</div>';
+    }
+  }
+  
+  // Render status effects
+  if (dndStatusEffects) {
+    // Status effects would typically be on characters or in world state
+    // For now, show a placeholder
+    dndStatusEffects.innerHTML = '<div class="small muted">No active status effects</div>';
+  }
+}
+
+function renderDndLobby() {
+  if (dndLobbyCountDisplay) {
+    const count = (dndState.lobbyUserIds || []).length;
+    dndLobbyCountDisplay.textContent = count > 0 ? `${count} user${count === 1 ? "" : "s"} in lobby` : "No users in lobby";
+  }
+
+  // Resolve a lobby user's display name without exposing raw IDs.
+  const getLobbyDisplayName = (userId) => {
+    if (!dndState) return "User";
+
+    const usernameFromState =
+      (dndState.usernamesById && dndState.usernamesById[userId]) ||
+      (dndState.usersById && dndState.usersById[userId] && dndState.usersById[userId].username) ||
+      (dndState.userProfiles && dndState.userProfiles[userId] && dndState.userProfiles[userId].username);
+
+    if (typeof usernameFromState === "string" && usernameFromState.trim() !== "") {
+      return usernameFromState;
+    }
+
+    return "User";
+  };
+  
+  if (dndLobbyUsersList) {
+    const userIds = dndState.lobbyUserIds || [];
+    if (userIds.length === 0) {
+      dndLobbyUsersList.innerHTML = '<div class="small muted">No users in lobby yet</div>';
+    } else {
+      // Prefer usernames from state; fall back to a generic label instead of exposing raw IDs.
+      dndLobbyUsersList.innerHTML = userIds.map(userId => {
+        const displayName = getLobbyDisplayName(userId);
+        return `
+        <div class="dndLobbyUser">
+          <span>${displayName}</span>
+        </div>
+      `;
+      }).join("");
+    }
+  }
+  
+  // Update lobby toggle button
+  if (dndLobbyToggleBtn) {
+    const session = dndState.session;
+    const isLobby = session && session.status === "lobby";
+    const inLobby = (dndState.lobbyUserIds || []).includes(me?.id);
+    dndLobbyToggleBtn.textContent = inLobby ? "Leave Lobby" : "Join Lobby";
+    dndLobbyToggleBtn.disabled = !isLobby;
+  }
+}
+
+function renderDndSpectate() {
+  // Enable/disable spectator influence buttons
+  const session = dndState.session;
+  const isActive = session && session.status === "active";
+  
+  if (dndInfluenceHeal) dndInfluenceHeal.disabled = !isActive;
+  if (dndInfluenceBonus) dndInfluenceBonus.disabled = !isActive;
+  if (dndInfluenceLuck) dndInfluenceLuck.disabled = !isActive;
+}
+
+function renderDndControls() {
+  const session = dndState.session;
+  
+  // Update session info panel
+  if (dndInfoTitle) dndInfoTitle.textContent = session?.title || "—";
+  if (dndInfoStatus) dndInfoStatus.textContent = session?.status || "—";
+  if (dndInfoRound) dndInfoRound.textContent = session?.round || "—";
+  if (dndInfoAlive) {
+    const alive = getDndAliveCount();
+    dndInfoAlive.textContent = alive;
+  }
+  if (dndInfoCreated) {
+    if (session?.created_at) {
+      const date = new Date(session.created_at);
+      dndInfoCreated.textContent = date.toLocaleString();
+    } else {
+      dndInfoCreated.textContent = "—";
+    }
+  }
+}
+
 function updateDndControls() {
   const session = dndState.session;
   const isActive = session && session.status === "active";
@@ -4839,11 +5041,11 @@ function updateDndControls() {
   if (dndEndBtn) dndEndBtn.disabled = !hasSession || session.status === "completed" || !isCoOwner;
   if (dndCreateCharBtn) dndCreateCharBtn.disabled = !isLobby;
   
-  // Update lobby button text
-  if (dndLobbyBtn) {
+  // Update lobby toggle button (in Lobby tab)
+  if (dndLobbyToggleBtn) {
     const inLobby = (dndState.lobbyUserIds || []).includes(me?.id);
-    dndLobbyBtn.textContent = inLobby ? "Leave Lobby" : "Join Lobby";
-    dndLobbyBtn.disabled = !isLobby;
+    dndLobbyToggleBtn.textContent = inLobby ? "Leave Lobby" : "Join Lobby";
+    dndLobbyToggleBtn.disabled = !isLobby;
   }
 }
 
@@ -4969,6 +5171,66 @@ async function dndEndSession() {
     await loadDndCurrent();
   } catch (e) {
     console.warn("[dnd] End session failed:", e);
+  }
+}
+
+async function dndSpectatorInfluence(influenceType) {
+  if (!dndState.session) return;
+  
+  const costs = {
+    heal: 50,
+    bonus: 30,
+    luck: 40
+  };
+  
+  const cost = costs[influenceType];
+  if (typeof cost !== "number") {
+    console.warn("[dnd] Invalid spectator influence type:", influenceType);
+    if (typeof dndInfluenceMsg !== "undefined" && dndInfluenceMsg) {
+      dndInfluenceMsg.textContent = "Invalid influence type selected.";
+      setTimeout(() => {
+        if (dndInfluenceMsg) dndInfluenceMsg.textContent = "";
+      }, 3000);
+    }
+    return;
+  }
+  if (!confirm(`Spend ${cost} gold to provide ${influenceType} influence?`)) return;
+  
+  try {
+    const res = await fetch("/api/dnd-story/spectate/influence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        session_id: dndState.session.id,
+        influence_type: influenceType,
+        amount: cost
+      })
+    });
+    
+    if (!res.ok) {
+      const text = await res.text();
+      if (dndInfluenceMsg) dndInfluenceMsg.textContent = `Failed: ${text}`;
+      setTimeout(() => {
+        if (dndInfluenceMsg) dndInfluenceMsg.textContent = "";
+      }, 3000);
+      return;
+    }
+    
+    if (dndInfluenceMsg) {
+      dndInfluenceMsg.textContent = `✅ Successfully spent ${cost} gold on ${influenceType}!`;
+      setTimeout(() => {
+        if (dndInfluenceMsg) dndInfluenceMsg.textContent = "";
+      }, 3000);
+    }
+  } catch (e) {
+    console.warn("[dnd] Spectator influence failed:", e);
+    if (dndInfluenceMsg) {
+      dndInfluenceMsg.textContent = "Failed to apply influence";
+      setTimeout(() => {
+        if (dndInfluenceMsg) dndInfluenceMsg.textContent = "";
+      }, 3000);
+    }
   }
 }
 
@@ -13818,6 +14080,14 @@ document.addEventListener("keydown", (e) => {
       closeCouplesModal();
       return;
     }
+    if (dndModal && dndModalOpen) {
+      closeDndModal();
+      return;
+    }
+    if (survivalModal && survivalModalOpen) {
+      closeSurvivalModal();
+      return;
+    }
     if (roomActionsMenu && !roomActionsMenu.hidden) {
       closeRoomActionsMenu();
       return;
@@ -13894,6 +14164,7 @@ survivalLobbyBtn?.addEventListener("click", async () => {
 
 // DnD Story Room event listeners
 dndOpenBtn?.addEventListener("click", openDndModal);
+dndComposerBtn?.addEventListener("click", openDndModal);
 dndModalClose?.addEventListener("click", closeDndModal);
 dndModal?.addEventListener("click", (e) => {
   if (e.target === dndModal) closeDndModal();
@@ -13910,14 +14181,29 @@ dndControlsBtn?.addEventListener("click", () => {
   setDndModalTab("controls");
   updateDndControls();
 });
+dndWorldStateBtn?.addEventListener("click", () => {
+  setDndModalTab("worldstate");
+  renderDndWorldState();
+});
+dndLobbyBtn?.addEventListener("click", () => {
+  setDndModalTab("lobby");
+  renderDndLobby();
+});
+dndSpectateBtn?.addEventListener("click", () => {
+  setDndModalTab("spectate");
+  renderDndSpectate();
+});
 dndNewSessionBtn?.addEventListener("click", dndCreateSession);
 dndStartSessionBtn?.addEventListener("click", dndStartSession);
 dndAdvanceBtn?.addEventListener("click", dndAdvance);
 dndEndBtn?.addEventListener("click", dndEndSession);
-dndLobbyBtn?.addEventListener("click", dndJoinLobby);
+dndLobbyToggleBtn?.addEventListener("click", dndJoinLobby);
 dndCreateCharBtn?.addEventListener("click", openDndCharacterCreator);
 dndCharacterClose?.addEventListener("click", closeDndCharacterPanel);
 dndSaveCharBtn?.addEventListener("click", saveDndCharacter);
+dndInfluenceHeal?.addEventListener("click", () => dndSpectatorInfluence("heal"));
+dndInfluenceBonus?.addEventListener("click", () => dndSpectatorInfluence("bonus"));
+dndInfluenceLuck?.addEventListener("click", () => dndSpectatorInfluence("luck"));
 
 survivalAutoRunBtn?.addEventListener("click", () => {
   if (!survivalAutoRunning) startSurvivalAutoRun();

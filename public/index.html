@@ -525,33 +525,125 @@
 <div class="dndModalTabs">
 <button class="pillBtn active" id="dndCharactersBtn" type="button">Characters</button>
 <button class="pillBtn" id="dndEventsBtn" type="button">Events</button>
+<button class="pillBtn" id="dndWorldStateBtn" type="button">World State</button>
+<button class="pillBtn" id="dndLobbyBtn" type="button">Lobby</button>
+<button class="pillBtn" id="dndSpectateBtn" type="button">Spectate</button>
 <button class="pillBtn" id="dndControlsBtn" type="button">Controls</button>
 </div>
 <div class="modalBody dndModalBody">
 <!-- Characters Tab -->
 <section class="dndModalSection" data-dnd-view="characters">
+<div class="dndCharactersHeader">
+<h3>Party Members</h3>
+<button class="btn secondary small" id="dndCreateCharBtn" type="button">Create/Edit Character</button>
+</div>
 <div class="dndCharactersGrid" id="dndCharactersGrid"></div>
 </section>
 <!-- Events Tab -->
 <section class="dndModalSection" data-dnd-view="events" hidden>
+<h3>Event History</h3>
 <div class="dndEventsList" id="dndEventsList"></div>
+</section>
+<!-- World State Tab -->
+<section class="dndModalSection" data-dnd-view="worldstate" hidden>
+<h3>World State</h3>
+<div class="dndWorldState" id="dndWorldState">
+<div class="dndWorldPanel">
+<h4>🐉 Active Monster</h4>
+<div id="dndActiveMonster" class="dndWorldInfo">No active monster</div>
+</div>
+<div class="dndWorldPanel">
+<h4>📊 Statistics</h4>
+<div id="dndWorldStats" class="dndWorldInfo">
+<div class="dndStatItem"><span>Morale:</span> <span id="dndMorale">—</span></div>
+<div class="dndStatItem"><span>Reputation:</span> <span id="dndReputation">—</span></div>
+<div class="dndStatItem"><span>Rounds Survived:</span> <span id="dndRoundsSurvived">—</span></div>
+</div>
+</div>
+<div class="dndWorldPanel">
+<h4>🤝 Allies</h4>
+<div id="dndAllies" class="dndWorldInfo">No allies recruited</div>
+</div>
+<div class="dndWorldPanel">
+<h4>📜 Status Effects</h4>
+<div id="dndStatusEffects" class="dndWorldInfo">No active status effects</div>
+</div>
+</div>
+</section>
+<!-- Lobby Tab -->
+<section class="dndModalSection" data-dnd-view="lobby" hidden>
+<h3>Lobby</h3>
+<div class="dndLobbyPanel">
+<div class="dndLobbyHeader">
+<button class="btn" id="dndLobbyToggleBtn" type="button">Join Lobby</button>
+<div class="small muted" id="dndLobbyCountDisplay"></div>
+</div>
+<div class="dndLobbyUsersList" id="dndLobbyUsersList">
+<div class="small muted">No users in lobby yet</div>
+</div>
+</div>
+</section>
+<!-- Spectate Tab -->
+<section class="dndModalSection" data-dnd-view="spectate" hidden>
+<h3>Spectator Influence</h3>
+<div class="dndSpectatePanel">
+<p class="small muted">Spend gold to influence the game:</p>
+<div class="dndInfluenceOptions" id="dndInfluenceOptions">
+<div class="dndInfluenceOption">
+<button class="btn secondary small" id="dndInfluenceHeal" type="button">💚 Heal Party (50g)</button>
+<p class="small muted">Restore 20 HP to all characters</p>
+</div>
+<div class="dndInfluenceOption">
+<button class="btn secondary small" id="dndInfluenceBonus" type="button">⭐ Grant Bonus (30g)</button>
+<p class="small muted">+3 bonus to next check</p>
+</div>
+<div class="dndInfluenceOption">
+<button class="btn secondary small" id="dndInfluenceLuck" type="button">🍀 Lucky Event (40g)</button>
+<p class="small muted">Increase chance of positive outcome</p>
+</div>
+</div>
+<div class="small muted" id="dndInfluenceMsg"></div>
+</div>
 </section>
 <!-- Controls Tab -->
 <section class="dndModalSection" data-dnd-view="controls" hidden>
+<h3>Session Controls</h3>
 <div class="dndPanelControls">
 <div class="dndPanelGroup">
-<button class="btn secondary small" id="dndNewSessionBtn" type="button">New Session</button>
-<button class="btn secondary small" id="dndStartSessionBtn" type="button">Start Session</button>
-<button class="btn secondary small" id="dndAdvanceBtn" type="button">Advance Event</button>
-<button class="btn secondary small" id="dndEndBtn" type="button">End Session</button>
+<h4>Session Management</h4>
+<button class="btn secondary" id="dndNewSessionBtn" type="button">🎲 New Session</button>
+<button class="btn secondary" id="dndStartSessionBtn" type="button">▶️ Start Session</button>
+<button class="btn secondary" id="dndAdvanceBtn" type="button">⏭️ Advance Event</button>
+<button class="btn secondary" id="dndEndBtn" type="button">⏹️ End Session</button>
 </div>
 <div class="dndPanelGroup">
-<button class="btn secondary small" id="dndLobbyBtn" type="button">Join Lobby</button>
-<button class="btn secondary small" id="dndCreateCharBtn" type="button">Create Character</button>
+<h4>Session Information</h4>
+<div class="dndSessionInfo" id="dndSessionInfo">
+<div class="dndInfoItem"><span>Title:</span> <span id="dndInfoTitle">—</span></div>
+<div class="dndInfoItem"><span>Status:</span> <span id="dndInfoStatus">—</span></div>
+<div class="dndInfoItem"><span>Round:</span> <span id="dndInfoRound">—</span></div>
+<div class="dndInfoItem"><span>Alive:</span> <span id="dndInfoAlive">—</span></div>
+<div class="dndInfoItem"><span>Created:</span> <span id="dndInfoCreated">—</span></div>
 </div>
-<div class="small muted" id="dndLobbyCount"></div>
 </div>
-<!-- Character Creation Panel -->
+<div class="dndPanelGroup">
+<h4>Help & Information</h4>
+<div class="dndHelpText small muted">
+<p><strong>How to Play:</strong></p>
+<ul>
+<li>Join the lobby when a session is in "lobby" status</li>
+<li>Create your character with attributes (28 points total), skills (3-6), and perks (max 3)</li>
+<li>Co-owners can start the session when ready</li>
+<li>Events are resolved with D20 rolls + attribute modifiers</li>
+<li>Survive as many rounds as possible!</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+<!-- Character Creation Panel (Overlay) -->
 <div class="dndCharacterPanel" hidden id="dndCharacterPanel">
 <div class="dndPanelHeader">
 <div class="dndPanelTitle">
@@ -561,13 +653,13 @@
 </div>
 <div class="dndCharacterForm">
 <div class="dndAttributesGrid" id="dndAttributesGrid">
-<label>Might <input type="number" id="attr_might" min="1" max="7" value="3"/></label>
-<label>Finesse <input type="number" id="attr_finesse" min="1" max="7" value="3"/></label>
-<label>Wit <input type="number" id="attr_wit" min="1" max="7" value="3"/></label>
-<label>Instinct <input type="number" id="attr_instinct" min="1" max="7" value="3"/></label>
-<label>Presence <input type="number" id="attr_presence" min="1" max="7" value="3"/></label>
-<label>Resolve <input type="number" id="attr_resolve" min="1" max="7" value="3"/></label>
-<label>Chaos <input type="number" id="attr_chaos" min="1" max="7" value="3"/></label>
+<label>💪 Might <input type="number" id="attr_might" min="1" max="7" value="3"/></label>
+<label>🎯 Finesse <input type="number" id="attr_finesse" min="1" max="7" value="3"/></label>
+<label>🧠 Wit <input type="number" id="attr_wit" min="1" max="7" value="3"/></label>
+<label>👁️ Instinct <input type="number" id="attr_instinct" min="1" max="7" value="3"/></label>
+<label>✨ Presence <input type="number" id="attr_presence" min="1" max="7" value="3"/></label>
+<label>🛡️ Resolve <input type="number" id="attr_resolve" min="1" max="7" value="3"/></label>
+<label>🎲 Chaos <input type="number" id="attr_chaos" min="1" max="7" value="3"/></label>
 </div>
 <div class="small muted" id="dndPointsRemaining">Points: 28 / 28</div>
 <div class="dndSkillsSection">
@@ -582,9 +674,6 @@
 <button class="btn" id="dndSaveCharBtn" type="button">Save Character</button>
 </div>
 <div class="small muted" id="dndCharMsg"></div>
-</div>
-</div>
-</section>
 </div>
 </div>
 </div>
@@ -629,6 +718,7 @@
 
   <!-- unified media button + pop-up menu -->
   <button class="iconBtn" id="mediaBtn" title="Media" type="button">＋</button>
+  <button aria-label="Open DnD Controls" class="iconBtn dndComposerBtn" hidden id="dndComposerBtn" title="DnD Story Room Controls" type="button">📖</button>
   <div class="diceVariantWrap" id="diceVariantWrap">
     <button aria-expanded="false" aria-haspopup="menu" class="iconBtn diceVariantToggle" id="diceVariantToggle" title="Dice variants" type="button">
       <span class="diceVariantLabel" id="diceVariantLabel">d6</span>
