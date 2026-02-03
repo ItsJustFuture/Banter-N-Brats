@@ -4954,18 +4954,37 @@ function renderDndLobby() {
     const count = (dndState.lobbyUserIds || []).length;
     dndLobbyCountDisplay.textContent = count > 0 ? `${count} user${count === 1 ? "" : "s"} in lobby` : "No users in lobby";
   }
+
+  // Resolve a lobby user's display name without exposing raw IDs.
+  const getLobbyDisplayName = (userId) => {
+    if (!dndState) return "User";
+
+    const usernameFromState =
+      (dndState.usernamesById && dndState.usernamesById[userId]) ||
+      (dndState.usersById && dndState.usersById[userId] && dndState.usersById[userId].username) ||
+      (dndState.userProfiles && dndState.userProfiles[userId] && dndState.userProfiles[userId].username);
+
+    if (typeof usernameFromState === "string" && usernameFromState.trim() !== "") {
+      return usernameFromState;
+    }
+
+    return "User";
+  };
   
   if (dndLobbyUsersList) {
     const userIds = dndState.lobbyUserIds || [];
     if (userIds.length === 0) {
       dndLobbyUsersList.innerHTML = '<div class="small muted">No users in lobby yet</div>';
     } else {
-      // Show user IDs (in a real implementation, we'd fetch user names)
-      dndLobbyUsersList.innerHTML = userIds.map(userId => `
+      // Prefer usernames from state; fall back to a generic label instead of exposing raw IDs.
+      dndLobbyUsersList.innerHTML = userIds.map(userId => {
+        const displayName = getLobbyDisplayName(userId);
+        return `
         <div class="dndLobbyUser">
-          <span>User ${userId}</span>
+          <span>${displayName}</span>
         </div>
-      `).join("");
+      `;
+      }).join("");
     }
   }
   
