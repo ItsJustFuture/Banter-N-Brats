@@ -14294,7 +14294,7 @@ function setActiveRoom(room){
     loadSurvivalCurrent();
   }
   if (nowDndRoom) {
-    loadDndCurrent().catch(console.error);
+    loadDndCurrent();
   }
   document.querySelectorAll(".chan").forEach(el=>{
     el.classList.toggle("active", el.dataset.room === room);
