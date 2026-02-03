@@ -12674,6 +12674,23 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   font-style: italic;
 }
 
+.dndCharPerks {
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.dndCharHp.low {
+  color: var(--danger-color, #d00);
+}
+
+.dndCharHp.medium {
+  color: var(--warning-color, #fa0);
+}
+
+.dndCharHp.high {
+  color: var(--success-color, #0a0);
+}
+
 /* Events List */
 .dndEventsList {
   display: flex;

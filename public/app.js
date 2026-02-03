@@ -4790,20 +4790,25 @@ function renderDndCharacters() {
   const characters = dndState.characters || [];
   
   if (characters.length === 0) {
-    dndCharactersGrid.innerHTML = '<div class="small muted">No characters yet</div>';
+    dndCharactersGrid.innerHTML = '<div class="small muted">No characters yet. Create one in the lobby!</div>';
     return;
   }
   
   const html = characters.map(char => {
     const skills = Array.isArray(char.skills) ? char.skills : (char.skills_json ? JSON.parse(char.skills_json) : []);
+    const perks = Array.isArray(char.perks) ? char.perks : (char.perks_json ? JSON.parse(char.perks_json) : []);
     const statusClass = char.alive ? "alive" : "dead";
     const statusIcon = char.alive ? "💚" : "💀";
+    
+    // Format HP bar percentage
+    const hpPercent = char.max_hp > 0 ? (char.hp / char.max_hp) * 100 : 0;
+    const hpClass = hpPercent > 60 ? "high" : hpPercent > 30 ? "medium" : "low";
     
     return `
       <div class="dndCharCard ${statusClass}">
         <div class="dndCharHeader">
           <strong>${escapeHtml(char.display_name)}</strong>
-          <span>${statusIcon} ${char.hp}/${char.max_hp} HP</span>
+          <span class="dndCharHp ${hpClass}">${statusIcon} ${char.hp}/${char.max_hp} HP</span>
         </div>
         <div class="dndCharAttributes">
           <span title="Might">💪 ${char.might}</span>
@@ -4815,8 +4820,9 @@ function renderDndCharacters() {
           <span title="Chaos">🎲 ${char.chaos}</span>
         </div>
         <div class="dndCharSkills small muted">
-          ${skills.length > 0 ? skills.slice(0, 3).join(", ") : "No skills"}
+          ${skills.length > 0 ? "📚 " + skills.slice(0, 3).join(", ") + (skills.length > 3 ? "..." : "") : "No skills"}
         </div>
+        ${perks.length > 0 ? `<div class="dndCharPerks small muted">⭐ ${perks.slice(0, 2).join(", ")}${perks.length > 2 ? "..." : ""}</div>` : ""}
       </div>
     `;
   }).join("");
@@ -4860,42 +4866,57 @@ function renderDndWorldState() {
   
   // Render active monster
   if (dndActiveMonster) {
-    const worldState = session?.world_state_json ? JSON.parse(session.world_state_json) : null;
-    const monster = worldState?.activeMonster;
-    if (monster) {
-      dndActiveMonster.innerHTML = `
-        <div class="dndMonsterCard">
-          <div><strong>${escapeHtml(monster.name || "Unknown Monster")}</strong></div>
-          <div class="small">HP: ${monster.hp || 100}</div>
-          <div class="small">Check Penalty: ${monster.checkPenalty || -2}</div>
-          <div class="small muted">Summoned Round ${Math.floor((Date.now() - (monster.summoned_at || 0)) / 60000)} min ago</div>
-        </div>
-      `;
-    } else {
-      dndActiveMonster.innerHTML = '<div class="small muted">No active monster</div>';
+    try {
+      const worldState = session?.world_state_json ? JSON.parse(session.world_state_json) : null;
+      const monster = worldState?.activeMonster;
+      if (monster) {
+        const timeAgo = Math.floor((Date.now() - (monster.summoned_at || Date.now())) / 60000);
+        dndActiveMonster.innerHTML = `
+          <div class="dndMonsterCard">
+            <div><strong>${escapeHtml(monster.name || "Unknown Monster")}</strong></div>
+            <div class="small">HP: ${monster.hp || 100}</div>
+            <div class="small">Check Penalty: ${monster.checkPenalty || -2}</div>
+            <div class="small muted">Summoned ${timeAgo > 0 ? timeAgo + " min" : "just now"} ago</div>
+          </div>
+        `;
+      } else {
+        dndActiveMonster.innerHTML = '<div class="small muted">No active monster</div>';
+      }
+    } catch (e) {
+      dndActiveMonster.innerHTML = '<div class="small muted">Error loading monster data</div>';
     }
   }
   
   // Render stats
   if (dndMorale && dndReputation && dndRoundsSurvived) {
-    const worldState = session?.world_state_json ? JSON.parse(session.world_state_json) : null;
-    dndMorale.textContent = worldState?.morale !== undefined ? worldState.morale : "—";
-    dndReputation.textContent = worldState?.reputation !== undefined ? worldState.reputation : "—";
-    dndRoundsSurvived.textContent = session?.round || "—";
+    try {
+      const worldState = session?.world_state_json ? JSON.parse(session.world_state_json) : null;
+      dndMorale.textContent = worldState?.morale !== undefined ? worldState.morale : "—";
+      dndReputation.textContent = worldState?.reputation !== undefined ? worldState.reputation : "—";
+      dndRoundsSurvived.textContent = session?.round || "—";
+    } catch (e) {
+      dndMorale.textContent = "—";
+      dndReputation.textContent = "—";
+      dndRoundsSurvived.textContent = "—";
+    }
   }
   
   // Render allies
   if (dndAllies) {
-    const worldState = session?.world_state_json ? JSON.parse(session.world_state_json) : null;
-    const allies = worldState?.allies || [];
-    if (allies.length > 0) {
-      dndAllies.innerHTML = allies.map(ally => `
-        <div class="dndAllyCard small">
-          <strong>${escapeHtml(ally.name || "Unnamed Ally")}</strong>
-        </div>
-      `).join("");
-    } else {
-      dndAllies.innerHTML = '<div class="small muted">No allies recruited</div>';
+    try {
+      const worldState = session?.world_state_json ? JSON.parse(session.world_state_json) : null;
+      const allies = worldState?.allies || [];
+      if (allies.length > 0) {
+        dndAllies.innerHTML = allies.map(ally => `
+          <div class="dndAllyCard small">
+            <strong>${escapeHtml(ally.name || "Unnamed Ally")}</strong>
+          </div>
+        `).join("");
+      } else {
+        dndAllies.innerHTML = '<div class="small muted">No allies recruited</div>';
+      }
+    } catch (e) {
+      dndAllies.innerHTML = '<div class="small muted">Error loading allies</div>';
     }
   }
   
@@ -14008,6 +14029,14 @@ document.addEventListener("keydown", (e) => {
     }
     if (couplesModal && couplesModal.style.display !== "none") {
       closeCouplesModal();
+      return;
+    }
+    if (dndModal && dndModalOpen) {
+      closeDndModal();
+      return;
+    }
+    if (survivalModal && survivalModalOpen) {
+      closeSurvivalModal();
       return;
     }
     if (roomActionsMenu && !roomActionsMenu.hidden) {
