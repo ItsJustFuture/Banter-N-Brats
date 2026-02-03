@@ -4695,6 +4695,8 @@ async function loadOlderSurvivalLog() {
 // DND STORY ROOM MODAL FUNCTIONS
 // ============================================
 
+const DND_MODAL_ANIM_MS = 180;
+
 function setDndModalTab(tab){
   const validTabs = ["characters", "events", "worldstate", "lobby", "spectate", "controls"];
   const next = validTabs.includes(tab) ? tab : "characters";
@@ -4756,7 +4758,7 @@ function closeDndModal(){
     dndModal.classList.remove("modal-closing");
     dndModal.hidden = true;
     lockBodyScroll(false);
-  }, 180);
+  }, DND_MODAL_ANIM_MS);
 }
 
 function closeDndCharacterPanel(){
