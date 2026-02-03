@@ -12815,6 +12815,156 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   cursor: pointer;
 }
 
+/* World State Panel */
+.dndWorldState {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dndWorldPanel {
+  padding: 16px;
+  background: var(--card-bg, #2a2a2a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+}
+
+.dndWorldPanel h4 {
+  margin: 0 0 12px 0;
+  font-size: 1.1em;
+}
+
+.dndWorldInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dndMonsterCard {
+  padding: 12px;
+  background: var(--danger-bg, #3a1a1a);
+  border: 1px solid var(--danger-color, #d00);
+  border-radius: 6px;
+}
+
+.dndStatItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  background: var(--hover-bg, #333);
+  border-radius: 4px;
+}
+
+.dndAllyCard {
+  padding: 8px 12px;
+  background: var(--success-bg, #1a3a1a);
+  border: 1px solid var(--success-color, #0a0);
+  border-radius: 4px;
+}
+
+/* Lobby Panel */
+.dndLobbyPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dndLobbyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: var(--card-bg, #2a2a2a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+}
+
+.dndLobbyUsersList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dndLobbyUser {
+  padding: 12px;
+  background: var(--card-bg, #2a2a2a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 6px;
+}
+
+/* Spectate Panel */
+.dndSpectatePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dndInfluenceOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dndInfluenceOption {
+  padding: 16px;
+  background: var(--card-bg, #2a2a2a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+}
+
+.dndInfluenceOption button {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+/* Session Info Panel */
+.dndSessionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dndInfoItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  background: var(--hover-bg, #333);
+  border-radius: 4px;
+}
+
+.dndInfoItem span:first-child {
+  font-weight: 500;
+}
+
+/* Character Header in Characters Tab */
+.dndCharactersHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.dndCharactersHeader h3 {
+  margin: 0;
+}
+
+/* Help Text */
+.dndHelpText {
+  padding: 12px;
+  background: var(--info-bg, #1a2a3a);
+  border: 1px solid var(--info-color, #4a9eff);
+  border-radius: 6px;
+}
+
+.dndHelpText ul {
+  margin: 8px 0 0 20px;
+  padding: 0;
+}
+
+.dndHelpText li {
+  margin: 4px 0;
+}
+
 @media (max-width: 768px) {
   .dndModalShell {
     max-width: 100%;
@@ -12830,6 +12980,16 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   
   .dndAttributesGrid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .dndCharactersHeader {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .dndCharactersHeader button {
+    width: 100%;
   }
 }
 
