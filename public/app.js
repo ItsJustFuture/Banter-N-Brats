@@ -5165,7 +5165,17 @@ async function dndSpectatorInfluence(influenceType) {
     luck: 40
   };
   
-  const cost = costs[influenceType] || 0;
+  const cost = costs[influenceType];
+  if (typeof cost !== "number") {
+    console.warn("[dnd] Invalid spectator influence type:", influenceType);
+    if (typeof dndInfluenceMsg !== "undefined" && dndInfluenceMsg) {
+      dndInfluenceMsg.textContent = "Invalid influence type selected.";
+      setTimeout(() => {
+        if (dndInfluenceMsg) dndInfluenceMsg.textContent = "";
+      }, 3000);
+    }
+    return;
+  }
   if (!confirm(`Spend ${cost} gold to provide ${influenceType} influence?`)) return;
   
   try {
