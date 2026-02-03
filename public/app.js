@@ -3866,7 +3866,6 @@ const dndInfluenceHeal = document.getElementById("dndInfluenceHeal");
 const dndInfluenceBonus = document.getElementById("dndInfluenceBonus");
 const dndInfluenceLuck = document.getElementById("dndInfluenceLuck");
 const dndInfluenceMsg = document.getElementById("dndInfluenceMsg");
-const dndSessionInfo = document.getElementById("dndSessionInfo");
 const dndInfoTitle = document.getElementById("dndInfoTitle");
 const dndInfoStatus = document.getElementById("dndInfoStatus");
 const dndInfoRound = document.getElementById("dndInfoRound");
