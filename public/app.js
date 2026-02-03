@@ -4841,9 +4841,9 @@ function renderDndCharacters() {
           <span title="Chaos">🎲 ${char.chaos}</span>
         </div>
         <div class="dndCharSkills small muted">
-          ${skills.length > 0 ? "📚 " + skills.slice(0, 3).join(", ") + (skills.length > 3 ? "..." : "") : "No skills"}
+          ${skills.length > 0 ? "📚 " + skills.slice(0, 3).map(escapeHtml).join(", ") + (skills.length > 3 ? "..." : "") : "No skills"}
         </div>
-        ${perks.length > 0 ? `<div class="dndCharPerks small muted">⭐ ${perks.slice(0, 2).join(", ")}${perks.length > 2 ? "..." : ""}</div>` : ""}
+        ${perks.length > 0 ? `<div class="dndCharPerks small muted">⭐ ${perks.slice(0, 2).map(escapeHtml).join(", ")}${perks.length > 2 ? "..." : ""}</div>` : ""}
       </div>
     `;
   }).join("");
