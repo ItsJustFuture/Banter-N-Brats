@@ -14230,6 +14230,7 @@ function setActiveRoom(room){
   closeProfileSettingsMenu();
   const nowDiceRoom = isDiceRoom(room);
   const nowSurvivalRoom = isSurvivalRoom(room);
+  const nowDndRoom = isDndRoom(room);
   document.body.classList.toggle("dice-room", nowDiceRoom);
   document.body.classList.toggle("survival-room", nowSurvivalRoom);
   nowRoom.textContent = displayRoomName(room);
@@ -14241,9 +14242,14 @@ function setActiveRoom(room){
   if (diceVariantWrap) diceVariantWrap.style.display = nowDiceRoom ? "" : "none";
   if (luckMeter) luckMeter.style.display = nowDiceRoom ? "" : "none";
   if (survivalOpenBtn) survivalOpenBtn.hidden = !nowSurvivalRoom;
+  if (dndOpenBtn) dndOpenBtn.hidden = !nowDndRoom;
+  if (dndComposerBtn) dndComposerBtn.hidden = !nowDndRoom;
   if (!nowSurvivalRoom) {
     closeSurvivalModal();
     closeSurvivalNewSeasonModal();
+  }
+  if (!nowDndRoom) {
+    closeDndModal();
   }
   // If a modal is open that is built around room/profile context, close it when switching rooms.
   try {
@@ -14286,6 +14292,9 @@ function setActiveRoom(room){
   }
   if (nowSurvivalRoom) {
     loadSurvivalCurrent();
+  }
+  if (nowDndRoom) {
+    loadDndCurrent();
   }
   document.querySelectorAll(".chan").forEach(el=>{
     el.classList.toggle("active", el.dataset.room === room);
