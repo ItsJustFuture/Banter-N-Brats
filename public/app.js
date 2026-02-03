@@ -4795,8 +4795,29 @@ function renderDndCharacters() {
   }
   
   const html = characters.map(char => {
-    const skills = Array.isArray(char.skills) ? char.skills : (char.skills_json ? JSON.parse(char.skills_json) : []);
-    const perks = Array.isArray(char.perks) ? char.perks : (char.perks_json ? JSON.parse(char.perks_json) : []);
+    let skills = [];
+    if (Array.isArray(char.skills)) {
+      skills = char.skills;
+    } else if (char.skills_json) {
+      try {
+        skills = JSON.parse(char.skills_json) || [];
+      } catch (e) {
+        console.error("Failed to parse skills_json for character", char, e);
+        skills = [];
+      }
+    }
+
+    let perks = [];
+    if (Array.isArray(char.perks)) {
+      perks = char.perks;
+    } else if (char.perks_json) {
+      try {
+        perks = JSON.parse(char.perks_json) || [];
+      } catch (e) {
+        console.error("Failed to parse perks_json for character", char, e);
+        perks = [];
+      }
+    }
     const statusClass = char.alive ? "alive" : "dead";
     const statusIcon = char.alive ? "💚" : "💀";
     
