@@ -198,6 +198,30 @@ The modal automatically updates via WebSocket events:
 - `dnd:lobby` - Lobby members changed
 - `dnd:spectatorInfluence` - Spectator action taken
 
+### Button Visibility Logic
+
+The 📖 DnD buttons (`#dndOpenBtn` in the top bar and `#dndComposerBtn` in the composer) are dynamically shown/hidden based on the current room context:
+
+**Implementation Details**:
+- The `setActiveRoom(room)` function is called whenever a user switches rooms
+- Inside `setActiveRoom`, the `isDndRoom(room)` function checks if the current room is `"dndstoryroom"`
+- The button's `hidden` attribute is set to `!nowDndRoom` (shown when in DnD room, hidden otherwise)
+- This ensures buttons are only visible in the appropriate context
+
+**Code Flow**:
+1. User joins a room → `joinRoom(roomName)` is called
+2. `joinRoom` calls `setActiveRoom(roomName)`
+3. `setActiveRoom` evaluates `nowDndRoom = isDndRoom(roomName)`
+4. Button visibility is updated: `dndOpenBtn.hidden = !nowDndRoom`
+5. The button becomes visible when `roomName === "dndstoryroom"`, hidden otherwise
+
+**Defensive Programming**:
+- Element existence is checked before setting properties (`if (dndOpenBtn) ...`)
+- Room names are normalized to lowercase for consistent comparison
+- The `hidden` attribute is toggled on every room change, ensuring correct state
+
+This ensures that DnD-specific UI elements never "leak" into other rooms and that users always see contextually appropriate interface elements.
+
 ## Technical Details
 
 ### Character Creation Validation

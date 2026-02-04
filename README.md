@@ -45,3 +45,18 @@ When Redis is unavailable, the server automatically falls back to the in-memory 
 npm run dev:seed
 npm run test:smoke
 ```
+
+## Verification Scripts
+
+The project includes verification scripts to validate implementation correctness:
+
+```bash
+# Verify DnD button visibility logic
+node scripts/verify-dnd-button-visibility.js
+
+# Run all tests
+npm run test:dnd
+npm run test:survival
+npm run test:smoke
+```
+
