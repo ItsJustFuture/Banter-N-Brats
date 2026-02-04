@@ -47,7 +47,7 @@ The button is located in the topbar, within the `topActions` section:
 
 ## 2. CSS Styling
 
-### Location: `public/styles.css` lines 12574-12590
+### Location: `public/styles.css` lines 12574-12592
 
 ```css
 .dndOpenBtn,
@@ -67,12 +67,13 @@ The button is located in the topbar, within the `topActions` section:
 .dndNewOpenLabel {
   font-weight: 800;
   letter-spacing: 0.02em;
+  font-size: 12px;
 }
 ```
 
 **Key Points:**
 - Flexbox layout with proper spacing
-- Text styling for the label
+- Text styling for the label (font-weight, letter-spacing, font-size)
 - Deprecated old button is completely hidden
 
 ---

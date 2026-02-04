@@ -28,7 +28,8 @@ const checks = [];
 
 // Check 1: Button exists in topbar section of HTML
 console.log('✓ Check 1: Button in topbar HTML structure');
-const topbarMatch = indexHtmlContent.match(/<div class="topbar">[\s\S]*?<\/div>\s*<!--.*Quick avatar/);
+// Match the topbar div and all its contents until the closing comment
+let topbarMatch = indexHtmlContent.match(/<div class="topbar">[\s\S]*?<\/div>\s*<!--\s*Quick avatar/);
 if (!topbarMatch) {
   console.log('  ❌ Could not find topbar section');
   checks.push(false);
@@ -80,15 +81,18 @@ if (!disableDndUIMatch) {
 
 // Check 5: setActiveRoom calls enableDndUI when in DnD room
 console.log('\n✓ Check 5: setActiveRoom() controls button visibility');
-const setActiveRoomMatch = appJsContent.match(/function\s+setActiveRoom\s*\([^)]*\)\s*\{[\s\S]*?(?=\nfunction|\n\/\*|\Z)/);
+const setActiveRoomMatch = appJsContent.match(/function\s+setActiveRoom\s*\([^)]*\)\s*\{[\s\S]*?(?=\nfunction|\n\/\*|$)/);
 if (!setActiveRoomMatch) {
   console.log('  ❌ Could not find setActiveRoom function');
   checks.push(false);
 } else {
   const functionBody = setActiveRoomMatch[0];
   const checksRoom = /const\s+nowDndRoom\s*=\s*isDndRoom\s*\(\s*room\s*\)/.test(functionBody);
-  const callsEnable = /if\s*\(\s*nowDndRoom\s*\)[\s\S]*?enableDndUI\s*\(/.test(functionBody);
-  const callsDisable = /else[\s\S]*?disableDndUI\s*\(/.test(functionBody);
+  // More specific pattern: look for the if block followed by enableDndUI within reasonable distance
+  const ifBlockPattern = /if\s*\(\s*nowDndRoom\s*\)\s*\{[\s\S]{0,200}enableDndUI\s*\(\s*\)/;
+  const elseBlockPattern = /\}\s*else\s*\{[\s\S]{0,200}disableDndUI\s*\(\s*\)/;
+  const callsEnable = ifBlockPattern.test(functionBody);
+  const callsDisable = elseBlockPattern.test(functionBody);
   console.log(`  ${checksRoom ? '✅' : '❌'} Checks if room is DnD room: ${checksRoom}`);
   console.log(`  ${callsEnable ? '✅' : '❌'} Calls enableDndUI() when in DnD room: ${callsEnable}`);
   console.log(`  ${callsDisable ? '✅' : '❌'} Calls disableDndUI() when not in DnD room: ${callsDisable}`);
@@ -97,19 +101,30 @@ if (!setActiveRoomMatch) {
 
 // Check 6: Button click opens modal
 console.log('\n✓ Check 6: Button click opens DnD modal');
-if (!enableDndUIMatch) {
+// Find enableDndUI function independently for this check
+const enableDndUICheck6 = appJsContent.match(/function\s+enableDndUI\s*\(\s*\)\s*\{[\s\S]*?\n\}/);
+// Verify openDndModal function exists
+const hasOpenDndModalFunction = /function\s+openDndModal\s*\(/.test(appJsContent);
+if (!enableDndUICheck6) {
   console.log('  ❌ Could not find enableDndUI function');
   checks.push(false);
 } else {
-  const functionBody = enableDndUIMatch[0];
+  const functionBody = enableDndUICheck6[0];
   const hasClickListener = /dndNewOpenBtn\?\.addEventListener\s*\(\s*["']click["'][\s\S]*?openDndModal/.test(functionBody);
   console.log(`  ${hasClickListener ? '✅' : '❌'} Click listener attached: ${hasClickListener}`);
-  checks.push(hasClickListener);
+  console.log(`  ${hasOpenDndModalFunction ? '✅' : '❌'} openDndModal function exists: ${hasOpenDndModalFunction}`);
+  checks.push(hasClickListener && hasOpenDndModalFunction);
 }
 
 // Check 7: Button visibility on socket connect
 console.log('\n✓ Check 7: Button shown on socket connect if in DnD room');
-const socketConnectMatch = appJsContent.match(/socket\.on\s*\(\s*["']connect["']\s*,[\s\S]{1,3000}/);
+// Use a more flexible pattern that captures the handler content
+const socketConnectPattern = /socket\.on\s*\(\s*["']connect["']\s*,\s*\(\s*\)\s*=>\s*\{[\s\S]{500,2000}?\}\s*\);/;
+let socketConnectMatch = appJsContent.match(socketConnectPattern);
+if (!socketConnectMatch) {
+  // Try without the arrow function pattern
+  socketConnectMatch = appJsContent.match(/socket\.on\s*\(\s*["']connect["']\s*,[\s\S]{500,2000}?socket\.on\s*\(/);
+}
 if (!socketConnectMatch) {
   console.log('  ❌ Could not find socket connect handler');
   checks.push(false);
@@ -127,10 +142,27 @@ if (!socketConnectMatch) {
 // Check 8: CSS styling exists
 console.log('\n✓ Check 8: CSS styling for button');
 const hasButtonCSS = /\.dndNewOpenBtn\s*\{/.test(stylesContent);
-const hasDisplayStyle = /\.dndNewOpenBtn[\s\S]*?display\s*:/.test(stylesContent);
+const buttonCSSBlock = stylesContent.match(/\.dndNewOpenBtn\s*\{[\s\S]*?\}/);
+const hasDisplayStyle = buttonCSSBlock ? /display\s*:\s*inline-flex/.test(buttonCSSBlock[0]) : false;
+const hasMarginLeft = buttonCSSBlock ? /margin-left\s*:\s*8px/.test(buttonCSSBlock[0]) : false;
+const hasGap = buttonCSSBlock ? /gap\s*:\s*6px/.test(buttonCSSBlock[0]) : false;
+const hasAlignItems = buttonCSSBlock ? /align-items\s*:\s*center/.test(buttonCSSBlock[0]) : false;
+
+const labelCSSBlock = stylesContent.match(/\.dndNewOpenLabel\s*\{[\s\S]*?\}/);
+const hasFontWeight = labelCSSBlock ? /font-weight\s*:\s*800/.test(labelCSSBlock[0]) : false;
+const hasLetterSpacing = labelCSSBlock ? /letter-spacing\s*:\s*0\.02em/.test(labelCSSBlock[0]) : false;
+const hasFontSize = labelCSSBlock ? /font-size\s*:\s*12px/.test(labelCSSBlock[0]) : false;
+
 console.log(`  ${hasButtonCSS ? '✅' : '❌'} CSS rule exists: ${hasButtonCSS}`);
-console.log(`  ${hasDisplayStyle ? '✅' : '❌'} Has display property: ${hasDisplayStyle}`);
-checks.push(hasButtonCSS);
+console.log(`  ${hasDisplayStyle ? '✅' : '❌'} Has display: inline-flex: ${hasDisplayStyle}`);
+console.log(`  ${hasMarginLeft ? '✅' : '❌'} Has margin-left: 8px: ${hasMarginLeft}`);
+console.log(`  ${hasGap ? '✅' : '❌'} Has gap: 6px: ${hasGap}`);
+console.log(`  ${hasAlignItems ? '✅' : '❌'} Has align-items: center: ${hasAlignItems}`);
+console.log(`  ${hasFontWeight ? '✅' : '❌'} Label has font-weight: 800: ${hasFontWeight}`);
+console.log(`  ${hasLetterSpacing ? '✅' : '❌'} Label has letter-spacing: ${hasLetterSpacing}`);
+console.log(`  ${hasFontSize ? '✅' : '❌'} Label has font-size: 12px: ${hasFontSize}`);
+
+checks.push(hasButtonCSS && hasDisplayStyle && hasMarginLeft && hasGap && hasAlignItems && hasFontWeight && hasLetterSpacing && hasFontSize);
 
 // Summary
 const passedChecks = checks.filter(Boolean).length;
