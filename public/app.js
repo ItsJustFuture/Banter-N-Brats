@@ -924,6 +924,20 @@ const DICE_ROOM_ID = "diceroom";
 const SURVIVAL_ROOM_ID = "survivalsimulator";
 const DND_ROOM_ID = "dndstoryroom";
 const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator", "dndstoryroom"]);
+let lastDndRoomCheckKey = null;
+function normalizeDndRoomKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+function logDndRoomCheck(payload) {
+  const key = JSON.stringify(payload);
+  if (key === lastDndRoomCheckKey) return;
+  lastDndRoomCheckKey = key;
+  console.log("[dnd] isDndRoom check", payload);
+}
 function isDiceRoom(activeRoom){
   const roomName = typeof activeRoom === "string"
     ? activeRoom
@@ -937,10 +951,25 @@ function isSurvivalRoom(activeRoom){
   return String(roomName || "").toLowerCase() === SURVIVAL_ROOM_ID;
 }
 function isDndRoom(activeRoom){
-  const roomName = typeof activeRoom === "string"
-    ? activeRoom
-    : (activeRoom?.name ?? activeRoom?.id ?? "");
-  return String(roomName || "").toLowerCase() === DND_ROOM_ID;
+  const isString = typeof activeRoom === "string";
+  const roomId = isString ? "" : (activeRoom?.id ?? "");
+  const roomName = isString ? "" : (activeRoom?.name ?? "");
+  const rawRoom = isString ? activeRoom : "";
+  const normalizedId = normalizeDndRoomKey(roomId);
+  const normalizedName = normalizeDndRoomKey(roomName);
+  const normalizedRaw = normalizeDndRoomKey(rawRoom);
+  const matchesId = String(roomId || "").toLowerCase() === DND_ROOM_ID || normalizedId === DND_ROOM_ID;
+  const matchesName = normalizedName === DND_ROOM_ID;
+  const matchesRaw = normalizedRaw === DND_ROOM_ID;
+  const result = matchesId || matchesName || matchesRaw;
+  logDndRoomCheck({
+    roomId: roomId || null,
+    roomName: roomName || null,
+    raw: rawRoom || null,
+    normalized: { id: normalizedId, name: normalizedName, raw: normalizedRaw },
+    result
+  });
+  return result;
 }
 function displayRoomName(room){
   if (isDiceRoom(room)) return "Dice Room";
@@ -2685,6 +2714,65 @@ let dndState = {
 };
 let dndModalOpen = false;
 let dndModalTab = "characters";
+let dndUiListenersWired = false;
+function enableDndUI() {
+  if (dndNewOpenBtn) dndNewOpenBtn.hidden = false;
+  if (dndOpenBtn) dndOpenBtn.hidden = true;
+  if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) dndComposerBtn.hidden = false;
+  if (!dndUiListenersWired) {
+    dndUiListenersWired = true;
+    dndOpenBtn?.addEventListener("click", openDndModal); // Deprecated button
+    dndNewOpenBtn?.addEventListener("click", openDndModal); // New button
+    dndComposerBtn?.addEventListener("click", openDndModal);
+    dndModalClose?.addEventListener("click", closeDndModal);
+    dndModal?.addEventListener("click", (e) => {
+      if (e.target === dndModal) closeDndModal();
+    });
+    dndCharactersBtn?.addEventListener("click", () => {
+      setDndModalTab("characters");
+      renderDndCharacters();
+    });
+    dndEventsBtn?.addEventListener("click", () => {
+      setDndModalTab("events");
+      renderDndEvents();
+    });
+    dndControlsBtn?.addEventListener("click", () => {
+      setDndModalTab("controls");
+      updateDndControls();
+    });
+    dndWorldStateBtn?.addEventListener("click", () => {
+      setDndModalTab("worldstate");
+      renderDndWorldState();
+    });
+    dndLobbyBtn?.addEventListener("click", () => {
+      setDndModalTab("lobby");
+      renderDndLobby();
+    });
+    dndSpectateBtn?.addEventListener("click", () => {
+      setDndModalTab("spectate");
+      renderDndSpectate();
+    });
+    dndNewSessionBtn?.addEventListener("click", dndCreateSession);
+    dndStartSessionBtn?.addEventListener("click", dndStartSession);
+    dndAdvanceBtn?.addEventListener("click", dndAdvance);
+    dndEndBtn?.addEventListener("click", dndEndSession);
+    dndLobbyToggleBtn?.addEventListener("click", dndJoinLobby);
+    dndCreateCharBtn?.addEventListener("click", openDndCharacterCreator);
+    dndCharacterClose?.addEventListener("click", closeDndCharacterPanel);
+    dndSaveCharBtn?.addEventListener("click", saveDndCharacter);
+    dndInfluenceHeal?.addEventListener("click", () => dndSpectatorInfluence("heal"));
+    dndInfluenceBonus?.addEventListener("click", () => dndSpectatorInfluence("bonus"));
+    dndInfluenceLuck?.addEventListener("click", () => dndSpectatorInfluence("luck"));
+  }
+  console.log("[dnd] UI enabled");
+}
+function disableDndUI() {
+  if (dndNewOpenBtn) dndNewOpenBtn.hidden = true;
+  if (dndOpenBtn) dndOpenBtn.hidden = true;
+  if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) dndComposerBtn.hidden = true;
+  if (dndModalOpen) closeDndModal();
+  console.log("[dnd] UI disabled");
+}
 
 const luckState = {
   luck: 0,
@@ -4773,7 +4861,7 @@ function renderDndPanel() {
     const alive = getDndAliveCount();
     dndAliveCount.textContent = `Alive: ${alive}`;
   }
-  
+
   // Render all tabs
   renderDndCharacters();
   renderDndEvents();
@@ -4785,11 +4873,11 @@ function renderDndPanel() {
   // Update controls
   updateDndControls();
   
-  // Update button visibility
-  if (dndOpenBtn) dndOpenBtn.hidden = !isDndRoom(currentRoom); // Deprecated button
-  if (dndNewOpenBtn) dndNewOpenBtn.hidden = !isDndRoom(currentRoom); // New button
-  if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) {
-    dndComposerBtn.hidden = !isDndRoom(currentRoom);
+  const inDndRoom = isDndRoom(currentRoom);
+  if (inDndRoom) {
+    enableDndUI();
+  } else {
+    disableDndUI();
   }
   
   // Update lobby count (legacy element)
@@ -14177,49 +14265,7 @@ survivalLobbyBtn?.addEventListener("click", async () => {
   renderSurvivalArena();
 });
 
-// DnD Story Room event listeners
-dndOpenBtn?.addEventListener("click", openDndModal); // Deprecated button
-dndNewOpenBtn?.addEventListener("click", openDndModal); // New button
-dndComposerBtn?.addEventListener("click", openDndModal);
-dndModalClose?.addEventListener("click", closeDndModal);
-dndModal?.addEventListener("click", (e) => {
-  if (e.target === dndModal) closeDndModal();
-});
-dndCharactersBtn?.addEventListener("click", () => {
-  setDndModalTab("characters");
-  renderDndCharacters();
-});
-dndEventsBtn?.addEventListener("click", () => {
-  setDndModalTab("events");
-  renderDndEvents();
-});
-dndControlsBtn?.addEventListener("click", () => {
-  setDndModalTab("controls");
-  updateDndControls();
-});
-dndWorldStateBtn?.addEventListener("click", () => {
-  setDndModalTab("worldstate");
-  renderDndWorldState();
-});
-dndLobbyBtn?.addEventListener("click", () => {
-  setDndModalTab("lobby");
-  renderDndLobby();
-});
-dndSpectateBtn?.addEventListener("click", () => {
-  setDndModalTab("spectate");
-  renderDndSpectate();
-});
-dndNewSessionBtn?.addEventListener("click", dndCreateSession);
-dndStartSessionBtn?.addEventListener("click", dndStartSession);
-dndAdvanceBtn?.addEventListener("click", dndAdvance);
-dndEndBtn?.addEventListener("click", dndEndSession);
-dndLobbyToggleBtn?.addEventListener("click", dndJoinLobby);
-dndCreateCharBtn?.addEventListener("click", openDndCharacterCreator);
-dndCharacterClose?.addEventListener("click", closeDndCharacterPanel);
-dndSaveCharBtn?.addEventListener("click", saveDndCharacter);
-dndInfluenceHeal?.addEventListener("click", () => dndSpectatorInfluence("heal"));
-dndInfluenceBonus?.addEventListener("click", () => dndSpectatorInfluence("bonus"));
-dndInfluenceLuck?.addEventListener("click", () => dndSpectatorInfluence("luck"));
+// DnD Story Room event listeners are wired in enableDndUI()
 
 survivalAutoRunBtn?.addEventListener("click", () => {
   if (!survivalAutoRunning) startSurvivalAutoRun();
@@ -14258,9 +14304,11 @@ function setActiveRoom(room){
   if (diceVariantWrap) diceVariantWrap.style.display = nowDiceRoom ? "" : "none";
   if (luckMeter) luckMeter.style.display = nowDiceRoom ? "" : "none";
   if (survivalOpenBtn) survivalOpenBtn.hidden = !nowSurvivalRoom;
-  if (dndOpenBtn) dndOpenBtn.hidden = !nowDndRoom; // Deprecated button
-  if (dndNewOpenBtn) dndNewOpenBtn.hidden = !nowDndRoom; // New button
-  if (dndComposerBtn) dndComposerBtn.hidden = !nowDndRoom;
+  if (nowDndRoom) {
+    enableDndUI();
+  } else {
+    disableDndUI();
+  }
   if (!nowSurvivalRoom) {
     closeSurvivalModal();
     closeSurvivalNewSeasonModal();
@@ -14446,6 +14494,11 @@ function setRoomStructure(payload, { updateCollapse = true } = {}){
     refreshRoomManageUi();
     const activeTab = document.querySelector("[data-room-manage-tab].active")?.dataset?.roomManageTab;
     if(activeTab === "events") refreshRoomEventsUi();
+  }
+  if (isDndRoom(currentRoom)) {
+    enableDndUI();
+  } else {
+    disableDndUI();
   }
   return true;
 }
@@ -21279,6 +21332,11 @@ initAppealsDurationSelect();
 
     // Join initial room so history + realtime messages work reliably
     joinRoom(currentRoom);
+    if (isDndRoom(currentRoom)) {
+      enableDndUI();
+    } else {
+      disableDndUI();
+    }
 
     if (chessState.isOpen && chessState.contextType && chessState.contextId) {
       socket.emit("chess:game:join", { contextType: chessState.contextType, contextId: chessState.contextId });

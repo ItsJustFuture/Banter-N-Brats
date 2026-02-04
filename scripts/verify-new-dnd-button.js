@@ -63,17 +63,17 @@ const hasIsDndRoomFn = isDndRoomPattern.test(appJsContent);
 console.log(`✓ isDndRoom function: ${hasIsDndRoomFn ? 'FOUND' : 'NOT FOUND'}`);
 
 // Check 9: Verify new button visibility toggle in setActiveRoom
-const newTogglePattern = /if\s*\(\s*dndNewOpenBtn\s*\)\s*dndNewOpenBtn\.hidden\s*=\s*!nowDndRoom/;
+const newTogglePattern = /function\s+setActiveRoom[\s\S]*?enableDndUI\s*\([\s\S]*?disableDndUI\s*\(/;
 const hasNewToggleLogic = newTogglePattern.test(appJsContent);
 console.log(`✓ New button visibility toggle logic: ${hasNewToggleLogic ? 'FOUND' : 'NOT FOUND'}`);
 
 // Check 10: Verify click event listener for new button
-const newClickListenerPattern = /dndNewOpenBtn\?\.addEventListener\s*\(\s*["']click["']/;
+const newClickListenerPattern = /enableDndUI\s*\([\s\S]*?dndNewOpenBtn\?\.addEventListener\s*\(\s*["']click["']/;
 const hasNewClickListener = newClickListenerPattern.test(appJsContent);
 console.log(`✓ New button click event listener: ${hasNewClickListener ? 'FOUND' : 'NOT FOUND'}`);
 
 // Check 11: Verify new button visibility in renderDndPanel
-const renderDndPattern = /if\s*\(\s*dndNewOpenBtn\s*\)\s*dndNewOpenBtn\.hidden\s*=\s*!isDndRoom\s*\(\s*currentRoom\s*\)/;
+const renderDndPattern = /function\s+renderDndPanel[\s\S]*?enableDndUI\s*\([\s\S]*?disableDndUI\s*\(/;
 const hasRenderDndToggle = renderDndPattern.test(appJsContent);
 console.log(`✓ New button toggle in renderDndPanel: ${hasRenderDndToggle ? 'FOUND' : 'NOT FOUND'}`);
 
