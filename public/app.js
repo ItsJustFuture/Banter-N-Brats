@@ -4786,6 +4786,9 @@ function renderDndPanel() {
   
   // Update button visibility
   if (dndOpenBtn) dndOpenBtn.hidden = !isDndRoom(currentRoom);
+  if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) {
+    dndComposerBtn.hidden = !isDndRoom(currentRoom);
+  }
   
   // Update lobby count (legacy element)
   if (dndLobbyCount) {
