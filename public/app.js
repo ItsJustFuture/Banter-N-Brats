@@ -4784,6 +4784,9 @@ function renderDndPanel() {
   // Update controls
   updateDndControls();
   
+  // Update button visibility
+  if (dndOpenBtn) dndOpenBtn.hidden = !isDndRoom(currentRoom);
+  
   // Update lobby count (legacy element)
   if (dndLobbyCount) {
     const count = (dndState.lobbyUserIds || []).length;
