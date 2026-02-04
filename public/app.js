@@ -924,7 +924,7 @@ const DICE_ROOM_ID = "diceroom";
 const SURVIVAL_ROOM_ID = "survivalsimulator";
 const DND_ROOM_ID = "dndstoryroom";
 const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator", "dndstoryroom"]);
-let lastDndRoomCheckKey = null;
+let lastDndRoomCheckSignature = "";
 function normalizeDndRoomKey(value) {
   return String(value || "")
     .trim()
@@ -933,9 +933,17 @@ function normalizeDndRoomKey(value) {
     .replace(/[^a-z0-9]/g, "");
 }
 function logDndRoomCheck(payload) {
-  const key = JSON.stringify(payload);
-  if (key === lastDndRoomCheckKey) return;
-  lastDndRoomCheckKey = key;
+  const signature = [
+    payload?.roomId ?? "",
+    payload?.roomName ?? "",
+    payload?.raw ?? "",
+    payload?.normalized?.id ?? "",
+    payload?.normalized?.name ?? "",
+    payload?.normalized?.raw ?? "",
+    payload?.result ? "1" : "0"
+  ].join("|");
+  if (signature === lastDndRoomCheckSignature) return;
+  lastDndRoomCheckSignature = signature;
   console.log("[dnd] isDndRoom check", payload);
 }
 function isDiceRoom(activeRoom){
@@ -958,7 +966,7 @@ function isDndRoom(activeRoom){
   const normalizedId = normalizeDndRoomKey(roomId);
   const normalizedName = normalizeDndRoomKey(roomName);
   const normalizedRaw = normalizeDndRoomKey(rawRoom);
-  const matchesId = String(roomId || "").toLowerCase() === DND_ROOM_ID || normalizedId === DND_ROOM_ID;
+  const matchesId = normalizedId === DND_ROOM_ID;
   const matchesName = normalizedName === DND_ROOM_ID;
   const matchesRaw = normalizedRaw === DND_ROOM_ID;
   const result = matchesId || matchesName || matchesRaw;
@@ -2714,13 +2722,13 @@ let dndState = {
 };
 let dndModalOpen = false;
 let dndModalTab = "characters";
-let dndUiListenersWired = false;
+let dndUiListenersAttached = false;
 function enableDndUI() {
   if (dndNewOpenBtn) dndNewOpenBtn.hidden = false;
   if (dndOpenBtn) dndOpenBtn.hidden = true;
   if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) dndComposerBtn.hidden = false;
-  if (!dndUiListenersWired) {
-    dndUiListenersWired = true;
+  if (!dndUiListenersAttached) {
+    dndUiListenersAttached = true;
     dndOpenBtn?.addEventListener("click", openDndModal); // Deprecated button
     dndNewOpenBtn?.addEventListener("click", openDndModal); // New button
     dndComposerBtn?.addEventListener("click", openDndModal);
