@@ -30,7 +30,7 @@ const hasIsDndRoomFn = isDndRoomPattern.test(appJsContent);
 console.log(`✓ isDndRoom function: ${hasIsDndRoomFn ? 'FOUND' : 'NOT FOUND'}`);
 
 // Check 4: Verify button visibility toggle in setActiveRoom
-const togglePattern = /dndOpenBtn\.hidden\s*=\s*!nowDndRoom/;
+const togglePattern = /function\s+setActiveRoom[\s\S]*?enableDndUI\s*\([\s\S]*?disableDndUI\s*\(/;
 const hasToggleLogic = togglePattern.test(appJsContent);
 console.log(`✓ Button visibility toggle logic: ${hasToggleLogic ? 'FOUND' : 'NOT FOUND'}`);
 
@@ -45,7 +45,7 @@ const hasJoinRoom = joinRoomPattern.test(appJsContent);
 console.log(`✓ joinRoom function with setActiveRoom call: ${hasJoinRoom ? 'FOUND' : 'NOT FOUND'}`);
 
 // Check 7: Verify click event listener for DnD button
-const clickListenerPattern = /dndOpenBtn\?\.addEventListener\s*\(\s*["']click["']/;
+const clickListenerPattern = /enableDndUI\s*\([\s\S]*?(?:dndOpenBtn|dndNewOpenBtn)[\s\S]*?\.addEventListener\s*\(\s*["']click["']/;
 const hasClickListener = clickListenerPattern.test(appJsContent);
 console.log(`✓ DnD button click event listener: ${hasClickListener ? 'FOUND' : 'NOT FOUND'}`);
 

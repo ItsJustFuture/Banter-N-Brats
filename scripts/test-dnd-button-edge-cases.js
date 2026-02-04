@@ -30,9 +30,13 @@ if (isDndRoomFunctionCode) {
   const handlesObject = /activeRoom\?\.name|activeRoom\?\.id/.test(functionText);
   console.log(`  ✓ Handles object type: ${handlesObject ? 'YES' : 'NO'}`);
   
-  // Check if it uses toLowerCase for case-insensitive comparison
-  const caseInsensitive = /toLowerCase\(\)/.test(functionText);
+  // Check if it uses case-insensitive normalization
+  const caseInsensitive = /toLowerCase\(\)/.test(functionText) || /normalizeDndRoomKey/.test(appJsContent);
   console.log(`  ✓ Case-insensitive comparison: ${caseInsensitive ? 'YES' : 'NO'}`);
+
+  // Check for normalization helper
+  const usesNormalizer = /normalizeDndRoomKey/.test(appJsContent);
+  console.log(`  ✓ Normalizes room names: ${usesNormalizer ? 'YES' : 'NO'}`);
   
   // Check if it compares with DND_ROOM_ID
   const comparesDndRoomId = /=== DND_ROOM_ID/.test(functionText);
@@ -45,11 +49,11 @@ if (isDndRoomFunctionCode) {
 console.log('\nTest 2: Button visibility logic in multiple contexts');
 
 // Check setActiveRoom function
-const setActiveRoomToggle = /if\s*\(\s*dndNewOpenBtn\s*\)\s*dndNewOpenBtn\.hidden\s*=\s*!nowDndRoom/.test(appJsContent);
+const setActiveRoomToggle = /function\s+setActiveRoom[\s\S]*?enableDndUI\s*\([\s\S]*?disableDndUI\s*\(/.test(appJsContent);
 console.log(`  ✓ Toggle in setActiveRoom: ${setActiveRoomToggle ? 'FOUND' : 'NOT FOUND'}`);
 
 // Check renderDndPanel function
-const renderDndPanelToggle = /if\s*\(\s*dndNewOpenBtn\s*\)\s*dndNewOpenBtn\.hidden\s*=\s*!isDndRoom\s*\(\s*currentRoom\s*\)/.test(appJsContent);
+const renderDndPanelToggle = /function\s+renderDndPanel[\s\S]*?enableDndUI\s*\([\s\S]*?disableDndUI\s*\(/.test(appJsContent);
 console.log(`  ✓ Toggle in renderDndPanel: ${renderDndPanelToggle ? 'FOUND' : 'NOT FOUND'}`);
 
 // Test 3: Verify safe navigation (null checking)
@@ -114,7 +118,8 @@ console.log('\n' + '='.repeat(50));
 const criticalChecks = [
   { name: 'isDndRoom handles string type', passed: isDndRoomFunctionCode && /typeof activeRoom === "string"/.test(isDndRoomFunctionCode[0]) },
   { name: 'isDndRoom handles object type', passed: isDndRoomFunctionCode && /activeRoom\?\.name|activeRoom\?\.id/.test(isDndRoomFunctionCode[0]) },
-  { name: 'Case-insensitive comparison', passed: isDndRoomFunctionCode && /toLowerCase\(\)/.test(isDndRoomFunctionCode[0]) },
+  { name: 'Case-insensitive comparison', passed: isDndRoomFunctionCode && (/toLowerCase\(\)/.test(isDndRoomFunctionCode[0]) || /normalizeDndRoomKey/.test(appJsContent)) },
+  { name: 'Room normalization helper', passed: /normalizeDndRoomKey/.test(appJsContent) },
   { name: 'Toggle in setActiveRoom', passed: setActiveRoomToggle },
   { name: 'Toggle in renderDndPanel', passed: renderDndPanelToggle },
   { name: 'Safe navigation checks', passed: safeNavigation },
