@@ -4695,6 +4695,8 @@ async function loadOlderSurvivalLog() {
 // DND STORY ROOM MODAL FUNCTIONS
 // ============================================
 
+const DND_MODAL_ANIM_MS = 120;
+
 function setDndModalTab(tab){
   const validTabs = ["characters", "events", "worldstate", "lobby", "spectate", "controls"];
   const next = validTabs.includes(tab) ? tab : "characters";
@@ -4727,16 +4729,36 @@ function openDndModal(){
   dndModalOpen = true;
   dndModal.hidden = false;
   dndModal.style.display = "flex";
+  dndModal.classList.remove("modal-closing");
+  lockBodyScroll(true);
   setDndModalTab(dndModalTab || "characters");
   renderDndPanel();
+  if (PREFERS_REDUCED_MOTION) {
+    dndModal.classList.add("modal-visible");
+  } else {
+    requestAnimationFrame(() => dndModal.classList.add("modal-visible"));
+  }
 }
 
 function closeDndModal(){
   if (!dndModal) return;
   dndModalOpen = false;
-  dndModal.hidden = true;
-  dndModal.style.display = "none";
+  dndModal.classList.remove("modal-visible");
   closeDndCharacterPanel();
+  if (PREFERS_REDUCED_MOTION) {
+    dndModal.style.display = "none";
+    dndModal.classList.remove("modal-closing");
+    dndModal.hidden = true;
+    lockBodyScroll(false);
+    return;
+  }
+  dndModal.classList.add("modal-closing");
+  setTimeout(() => {
+    dndModal.style.display = "none";
+    dndModal.classList.remove("modal-closing");
+    dndModal.hidden = true;
+    lockBodyScroll(false);
+  }, DND_MODAL_ANIM_MS);
 }
 
 function closeDndCharacterPanel(){
