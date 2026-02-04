@@ -924,7 +924,7 @@ const DICE_ROOM_ID = "diceroom";
 const SURVIVAL_ROOM_ID = "survivalsimulator";
 const DND_ROOM_ID = "dndstoryroom";
 const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator", "dndstoryroom"]);
-let lastDndRoomCheckSignature = "";
+let lastLoggedDndRoomCheckSignature = "";
 function normalizeDndRoomKey(value) {
   return String(value || "")
     .trim()
@@ -942,8 +942,8 @@ function logDndRoomCheck(payload) {
     payload?.normalized?.raw ?? "",
     payload?.result ? "1" : "0"
   ].join("|");
-  if (signature === lastDndRoomCheckSignature) return;
-  lastDndRoomCheckSignature = signature;
+  if (signature === lastLoggedDndRoomCheckSignature) return;
+  lastLoggedDndRoomCheckSignature = signature;
   console.log("[dnd] isDndRoom check", payload);
 }
 function isDiceRoom(activeRoom){
@@ -2727,9 +2727,12 @@ function enableDndUI() {
   if (dndNewOpenBtn) dndNewOpenBtn.hidden = false;
   if (dndOpenBtn) dndOpenBtn.hidden = true;
   if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) dndComposerBtn.hidden = false;
-  if (!dndUiListenersAttached) {
-    dndUiListenersAttached = true;
-    dndOpenBtn?.addEventListener("click", openDndModal); // Deprecated button
+  if (dndUiListenersAttached) {
+    console.log("[dnd] UI enabled");
+    return;
+  }
+  dndUiListenersAttached = true;
+  dndOpenBtn?.addEventListener("click", openDndModal); // Deprecated button (backwards compatibility)
     dndNewOpenBtn?.addEventListener("click", openDndModal); // New button
     dndComposerBtn?.addEventListener("click", openDndModal);
     dndModalClose?.addEventListener("click", closeDndModal);
@@ -2771,7 +2774,6 @@ function enableDndUI() {
     dndInfluenceHeal?.addEventListener("click", () => dndSpectatorInfluence("heal"));
     dndInfluenceBonus?.addEventListener("click", () => dndSpectatorInfluence("bonus"));
     dndInfluenceLuck?.addEventListener("click", () => dndSpectatorInfluence("luck"));
-  }
   console.log("[dnd] UI enabled");
 }
 function disableDndUI() {
