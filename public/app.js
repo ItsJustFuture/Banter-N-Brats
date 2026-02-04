@@ -2723,16 +2723,14 @@ let dndState = {
 let dndModalOpen = false;
 let dndModalTab = "characters";
 let dndUiListenersAttached = false;
+let dndUiEnabled = false;
 function enableDndUI() {
   if (dndNewOpenBtn) dndNewOpenBtn.hidden = false;
   if (dndOpenBtn) dndOpenBtn.hidden = true;
   if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) dndComposerBtn.hidden = false;
-  if (dndUiListenersAttached) {
-    console.log("[dnd] UI enabled");
-    return;
-  }
-  dndUiListenersAttached = true;
-  dndOpenBtn?.addEventListener("click", openDndModal); // Deprecated button (backwards compatibility)
+  if (!dndUiListenersAttached) {
+    dndUiListenersAttached = true;
+    dndOpenBtn?.addEventListener("click", openDndModal); // Deprecated button (backwards compatibility)
     dndNewOpenBtn?.addEventListener("click", openDndModal); // New button
     dndComposerBtn?.addEventListener("click", openDndModal);
     dndModalClose?.addEventListener("click", closeDndModal);
@@ -2774,14 +2772,21 @@ function enableDndUI() {
     dndInfluenceHeal?.addEventListener("click", () => dndSpectatorInfluence("heal"));
     dndInfluenceBonus?.addEventListener("click", () => dndSpectatorInfluence("bonus"));
     dndInfluenceLuck?.addEventListener("click", () => dndSpectatorInfluence("luck"));
-  console.log("[dnd] UI enabled");
+  }
+  if (!dndUiEnabled) {
+    dndUiEnabled = true;
+    console.log("[dnd] UI enabled");
+  }
 }
 function disableDndUI() {
   if (dndNewOpenBtn) dndNewOpenBtn.hidden = true;
   if (dndOpenBtn) dndOpenBtn.hidden = true;
   if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) dndComposerBtn.hidden = true;
   if (dndModalOpen) closeDndModal();
-  console.log("[dnd] UI disabled");
+  if (dndUiEnabled) {
+    dndUiEnabled = false;
+    console.log("[dnd] UI disabled");
+  }
 }
 
 const luckState = {

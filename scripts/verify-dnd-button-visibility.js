@@ -45,7 +45,7 @@ const hasJoinRoom = joinRoomPattern.test(appJsContent);
 console.log(`✓ joinRoom function with setActiveRoom call: ${hasJoinRoom ? 'FOUND' : 'NOT FOUND'}`);
 
 // Check 7: Verify click event listener for DnD button
-const clickListenerPattern = /enableDndUI\s*\([\s\S]*?addEventListener\s*\(\s*["']click["']/;
+const clickListenerPattern = /enableDndUI\s*\([\s\S]*?(?:dndOpenBtn|dndNewOpenBtn)[\s\S]*?\.addEventListener\s*\(\s*["']click["']/;
 const hasClickListener = clickListenerPattern.test(appJsContent);
 console.log(`✓ DnD button click event listener: ${hasClickListener ? 'FOUND' : 'NOT FOUND'}`);
 
