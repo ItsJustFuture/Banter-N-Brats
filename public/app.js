@@ -3936,21 +3936,6 @@ function closeSurvivalModal(){
   }, 180);
 }
 
-// On boot, hide dice-only UI unless we are already in the Dice Room.
-try {
-  const nowDiceRoom = isDiceRoom(currentRoom);
-  if (diceVariantWrap) diceVariantWrap.style.display = nowDiceRoom ? "" : "none";
-  if (luckMeter) luckMeter.style.display = nowDiceRoom ? "" : "none";
-  const nowSurvivalRoom = isSurvivalRoom(currentRoom);
-  if (survivalOpenBtn) survivalOpenBtn.hidden = !nowSurvivalRoom;
-  const nowDndRoom = isDndRoom(currentRoom);
-  if (dndOpenBtn) dndOpenBtn.hidden = !nowDndRoom;
-  if (dndComposerBtn) dndComposerBtn.hidden = !nowDndRoom;
-  if (nowDndRoom && !dndState.session) {
-    loadDndCurrent().catch(console.error);
-  }
-} catch {}
-
 function closeMediaMenu(){
   if(!mediaMenu) return;
   mediaMenuOpen = false;
