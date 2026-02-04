@@ -2773,8 +2773,9 @@ function enableDndUI() {
     dndInfluenceBonus?.addEventListener("click", () => dndSpectatorInfluence("bonus"));
     dndInfluenceLuck?.addEventListener("click", () => dndSpectatorInfluence("luck"));
   }
-  if (!dndUiEnabled) {
-    dndUiEnabled = true;
+  const shouldLog = !dndUiEnabled;
+  dndUiEnabled = true;
+  if (shouldLog) {
     console.log("[dnd] UI enabled");
   }
 }
