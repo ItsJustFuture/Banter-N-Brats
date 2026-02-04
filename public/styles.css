@@ -12577,7 +12577,21 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   align-items: center;
 }
 
-.dndOpenLabel {
+/* Deprecated button - kept for backwards compatibility */
+.dndOpenBtn.deprecated {
+  display: none !important;
+}
+
+/* New DnD Story Room button */
+.dndNewOpenBtn {
+  margin-left: 8px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.dndOpenLabel,
+.dndNewOpenLabel {
   font-weight: 800;
   letter-spacing: 0.02em;
   font-size: 12px;

@@ -3824,7 +3824,8 @@ const survivalLogModalList = document.getElementById("survivalLogModalList");
 const survivalLogLoadBtn = document.getElementById("survivalLogLoadBtn");
 
 // DnD Story Room elements
-const dndOpenBtn = document.getElementById("dndOpenBtn");
+const dndOpenBtn = document.getElementById("dndOpenBtn"); // Deprecated
+const dndNewOpenBtn = document.getElementById("dndNewOpenBtn"); // New button
 const dndComposerBtn = document.getElementById("dndComposerBtn");
 const dndModal = document.getElementById("dndModal");
 const dndModalClose = document.getElementById("dndModalClose");
@@ -4785,7 +4786,8 @@ function renderDndPanel() {
   updateDndControls();
   
   // Update button visibility
-  if (dndOpenBtn) dndOpenBtn.hidden = !isDndRoom(currentRoom);
+  if (dndOpenBtn) dndOpenBtn.hidden = !isDndRoom(currentRoom); // Deprecated button
+  if (dndNewOpenBtn) dndNewOpenBtn.hidden = !isDndRoom(currentRoom); // New button
   if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) {
     dndComposerBtn.hidden = !isDndRoom(currentRoom);
   }
@@ -14176,7 +14178,8 @@ survivalLobbyBtn?.addEventListener("click", async () => {
 });
 
 // DnD Story Room event listeners
-dndOpenBtn?.addEventListener("click", openDndModal);
+dndOpenBtn?.addEventListener("click", openDndModal); // Deprecated button
+dndNewOpenBtn?.addEventListener("click", openDndModal); // New button
 dndComposerBtn?.addEventListener("click", openDndModal);
 dndModalClose?.addEventListener("click", closeDndModal);
 dndModal?.addEventListener("click", (e) => {
@@ -14255,7 +14258,8 @@ function setActiveRoom(room){
   if (diceVariantWrap) diceVariantWrap.style.display = nowDiceRoom ? "" : "none";
   if (luckMeter) luckMeter.style.display = nowDiceRoom ? "" : "none";
   if (survivalOpenBtn) survivalOpenBtn.hidden = !nowSurvivalRoom;
-  if (dndOpenBtn) dndOpenBtn.hidden = !nowDndRoom;
+  if (dndOpenBtn) dndOpenBtn.hidden = !nowDndRoom; // Deprecated button
+  if (dndNewOpenBtn) dndNewOpenBtn.hidden = !nowDndRoom; // New button
   if (dndComposerBtn) dndComposerBtn.hidden = !nowDndRoom;
   if (!nowSurvivalRoom) {
     closeSurvivalModal();
