@@ -4784,6 +4784,12 @@ function renderDndPanel() {
   // Update controls
   updateDndControls();
   
+  // Update button visibility
+  if (dndOpenBtn) dndOpenBtn.hidden = !isDndRoom(currentRoom);
+  if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) {
+    dndComposerBtn.hidden = !isDndRoom(currentRoom);
+  }
+  
   // Update lobby count (legacy element)
   if (dndLobbyCount) {
     const count = (dndState.lobbyUserIds || []).length;
