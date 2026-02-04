@@ -72,10 +72,10 @@ const newClickListenerPattern = /dndNewOpenBtn\?\.addEventListener\s*\(\s*["']cl
 const hasNewClickListener = newClickListenerPattern.test(appJsContent);
 console.log(`✓ New button click event listener: ${hasNewClickListener ? 'FOUND' : 'NOT FOUND'}`);
 
-// Check 11: Verify new button visibility in renderDndArena
+// Check 11: Verify new button visibility in renderDndPanel
 const renderDndPattern = /if\s*\(\s*dndNewOpenBtn\s*\)\s*dndNewOpenBtn\.hidden\s*=\s*!isDndRoom\s*\(\s*currentRoom\s*\)/;
 const hasRenderDndToggle = renderDndPattern.test(appJsContent);
-console.log(`✓ New button toggle in renderDndArena: ${hasRenderDndToggle ? 'FOUND' : 'NOT FOUND'}`);
+console.log(`✓ New button toggle in renderDndPanel: ${hasRenderDndToggle ? 'FOUND' : 'NOT FOUND'}`);
 
 // Check 12: Verify setActiveRoom function exists
 const setActiveRoomPattern = /function\s+setActiveRoom\s*\(/;
@@ -117,7 +117,7 @@ if (passedChecks === totalChecks) {
   console.log('  ✓ Old button deprecated and hidden via CSS');
   console.log('  ✓ New button has proper CSS styling');
   console.log('  ✓ JavaScript references and logic implemented');
-  console.log('  ✓ Visibility toggles in setActiveRoom and renderDndArena');
+  console.log('  ✓ Visibility toggles in setActiveRoom and renderDndPanel');
   console.log('  ✓ Click event listener attached');
   console.log('\n🎯 Expected Behavior:');
   console.log('  - New button hidden when NOT in "dndstoryroom"');
@@ -138,7 +138,7 @@ if (passedChecks === totalChecks) {
   if (!hasIsDndRoomFn) console.log('  - isDndRoom function missing');
   if (!hasNewToggleLogic) console.log('  - Visibility toggle logic missing in setActiveRoom');
   if (!hasNewClickListener) console.log('  - Click event listener missing');
-  if (!hasRenderDndToggle) console.log('  - Visibility toggle missing in renderDndArena');
+  if (!hasRenderDndToggle) console.log('  - Visibility toggle missing in renderDndPanel');
   if (!hasSetActiveRoom) console.log('  - setActiveRoom function missing');
   if (!hasNowDndRoom) console.log('  - nowDndRoom variable assignment missing');
   process.exit(1);

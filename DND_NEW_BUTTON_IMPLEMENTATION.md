@@ -40,7 +40,7 @@ if (dndOpenBtn) dndOpenBtn.hidden = !nowDndRoom; // Deprecated button
 if (dndNewOpenBtn) dndNewOpenBtn.hidden = !nowDndRoom; // New button
 ```
 
-#### Visibility Toggle in `renderDndArena` (Line ~4788-4789)
+#### Visibility Toggle in `renderDndPanel` (Line ~4789-4790)
 ```javascript
 if (dndOpenBtn) dndOpenBtn.hidden = !isDndRoom(currentRoom); // Deprecated button
 if (dndNewOpenBtn) dndNewOpenBtn.hidden = !isDndRoom(currentRoom); // New button

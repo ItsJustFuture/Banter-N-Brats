@@ -48,9 +48,9 @@ console.log('\nTest 2: Button visibility logic in multiple contexts');
 const setActiveRoomToggle = /if\s*\(\s*dndNewOpenBtn\s*\)\s*dndNewOpenBtn\.hidden\s*=\s*!nowDndRoom/.test(appJsContent);
 console.log(`  ✓ Toggle in setActiveRoom: ${setActiveRoomToggle ? 'FOUND' : 'NOT FOUND'}`);
 
-// Check renderDndArena function
-const renderDndArenaToggle = /if\s*\(\s*dndNewOpenBtn\s*\)\s*dndNewOpenBtn\.hidden\s*=\s*!isDndRoom\s*\(\s*currentRoom\s*\)/.test(appJsContent);
-console.log(`  ✓ Toggle in renderDndArena: ${renderDndArenaToggle ? 'FOUND' : 'NOT FOUND'}`);
+// Check renderDndPanel function
+const renderDndPanelToggle = /if\s*\(\s*dndNewOpenBtn\s*\)\s*dndNewOpenBtn\.hidden\s*=\s*!isDndRoom\s*\(\s*currentRoom\s*\)/.test(appJsContent);
+console.log(`  ✓ Toggle in renderDndPanel: ${renderDndPanelToggle ? 'FOUND' : 'NOT FOUND'}`);
 
 // Test 3: Verify safe navigation (null checking)
 console.log('\nTest 3: Safe navigation and null checking');
@@ -109,13 +109,35 @@ if (oldButtonHandler && newButtonHandler) {
 
 // Summary
 console.log('\n' + '='.repeat(50));
-console.log('✅ Edge case testing complete!');
-console.log('\n📊 Implementation should handle:');
-console.log('  ✓ Different input types (string, object)');
-console.log('  ✓ Case-insensitive room name matching');
-console.log('  ✓ Rapid room switching');
-console.log('  ✓ Null/undefined button references');
-console.log('  ✓ Proper cleanup when leaving DnD room');
-console.log('  ✓ Consistent event handling across buttons');
 
-process.exit(0);
+// Collect all critical checks
+const criticalChecks = [
+  { name: 'isDndRoom handles string type', passed: isDndRoomFunctionCode && /typeof activeRoom === "string"/.test(isDndRoomFunctionCode[0]) },
+  { name: 'isDndRoom handles object type', passed: isDndRoomFunctionCode && /activeRoom\?\.name|activeRoom\?\.id/.test(isDndRoomFunctionCode[0]) },
+  { name: 'Case-insensitive comparison', passed: isDndRoomFunctionCode && /toLowerCase\(\)/.test(isDndRoomFunctionCode[0]) },
+  { name: 'Toggle in setActiveRoom', passed: setActiveRoomToggle },
+  { name: 'Toggle in renderDndPanel', passed: renderDndPanelToggle },
+  { name: 'Safe navigation checks', passed: safeNavigation },
+  { name: 'Optional chaining for event listener', passed: optionalChaining }
+];
+
+const failedChecks = criticalChecks.filter(check => !check.passed);
+
+if (failedChecks.length === 0) {
+  console.log('✅ Edge case testing complete!');
+  console.log('\n📊 Implementation should handle:');
+  console.log('  ✓ Different input types (string, object)');
+  console.log('  ✓ Case-insensitive room name matching');
+  console.log('  ✓ Rapid room switching');
+  console.log('  ✓ Null/undefined button references');
+  console.log('  ✓ Proper cleanup when leaving DnD room');
+  console.log('  ✓ Consistent event handling across buttons');
+  process.exit(0);
+} else {
+  console.log('❌ Edge case testing failed!');
+  console.log('\n🔍 Failed checks:');
+  failedChecks.forEach(check => {
+    console.log(`  ❌ ${check.name}`);
+  });
+  process.exit(1);
+}
