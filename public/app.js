@@ -983,9 +983,9 @@ function isDndRoom(activeRoom){
   const normalizedName = normalizeDndRoomKey(roomName);
   const normalizedRaw = normalizeDndRoomKey(rawRoom);
   
-  // Check if room ID matches R6 using normalized name
-  const currentRoomId = ROOM_IDS[normalizedRaw || normalizedName || normalizedId];
-  if (currentRoomId === "R6") {
+  // Check if room maps to R6 using normalized keys (prioritizes raw, then name, then id)
+  const mappedRoomCode = ROOM_IDS[normalizedRaw || normalizedName || normalizedId];
+  if (mappedRoomCode === "R6") {
     return true;
   }
   
@@ -1009,7 +1009,7 @@ function displayRoomName(room){
   return room;
 }
 
-function getRoomId(activeRoom){
+function getRoomCode(activeRoom){
   const roomName = typeof activeRoom === "string"
     ? activeRoom
     : (activeRoom?.name ?? activeRoom?.id ?? "");
