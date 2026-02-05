@@ -12574,9 +12574,16 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 .dndOpenBtn,
 .dndNewOpenBtn {
   margin-left: 8px;
-  display: inline-flex;
+  display: inline-flex !important;
   gap: 6px;
   align-items: center;
+  visibility: visible !important;
+  z-index: 1000;
+}
+
+/* Override hidden attribute to ensure button is always visible */
+.dndNewOpenBtn[hidden] {
+  display: inline-flex !important;
 }
 
 /* Deprecated button - kept for backwards compatibility */
