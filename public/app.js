@@ -978,17 +978,14 @@ function isDndRoom(activeRoom){
   const roomId = isString ? "" : (activeRoom?.id ?? "");
   const roomName = isString ? "" : (activeRoom?.name ?? "");
   const rawRoom = isString ? activeRoom : "";
-  
   const normalizedId = normalizeDndRoomKey(roomId);
   const normalizedName = normalizeDndRoomKey(roomName);
   const normalizedRaw = normalizeDndRoomKey(rawRoom);
-  
   // Check if room maps to R6 using normalized keys (prioritizes raw, then name, then id)
   const mappedRoomCode = ROOM_IDS[normalizedRaw || normalizedName || normalizedId];
   if (mappedRoomCode === "R6") {
     return true;
   }
-  
   const matchesId = matchesDndRoomKey(normalizedId);
   const matchesName = matchesDndRoomKey(normalizedName);
   const matchesRaw = matchesDndRoomKey(normalizedRaw);
