@@ -4037,31 +4037,33 @@ if (dndNewOpenBtn) {
     depth++;
   }
   
-  // Add console log confirming button exists and its properties
-  console.log("[DnD Button] Initialized with forced visibility:");
-  console.log("  - Button exists in DOM:", !!dndNewOpenBtn);
-  console.log("  - Button element:", dndNewOpenBtn);
-  
-  // Use requestAnimationFrame to log computed styles after render (for debugging purposes)
-  requestAnimationFrame(() => {
-    const computedStyle = window.getComputedStyle(dndNewOpenBtn);
-    const boundingBox = dndNewOpenBtn.getBoundingClientRect();
+  // Add console log confirming button exists and its properties (development only)
+  if (IS_DEV) {
+    console.log("[DnD Button] Initialized with forced visibility:");
+    console.log("  - Button exists in DOM:", !!dndNewOpenBtn);
+    console.log("  - Button element:", dndNewOpenBtn);
     
-    console.log("[DnD Button] Computed styles (after render):");
-    console.log("  - display:", computedStyle.display);
-    console.log("  - visibility:", computedStyle.visibility);
-    console.log("  - z-index:", computedStyle.zIndex);
-    console.log("  - position:", computedStyle.position);
-    console.log("  - Bounding box:", {
-      top: boundingBox.top,
-      left: boundingBox.left,
-      width: boundingBox.width,
-      height: boundingBox.height,
-      right: boundingBox.right,
-      bottom: boundingBox.bottom
+    // Use requestAnimationFrame to log computed styles after render (for debugging purposes)
+    requestAnimationFrame(() => {
+      const computedStyle = window.getComputedStyle(dndNewOpenBtn);
+      const boundingBox = dndNewOpenBtn.getBoundingClientRect();
+      
+      console.log("[DnD Button] Computed styles (after render):");
+      console.log("  - display:", computedStyle.display);
+      console.log("  - visibility:", computedStyle.visibility);
+      console.log("  - z-index:", computedStyle.zIndex);
+      console.log("  - position:", computedStyle.position);
+      console.log("  - Bounding box:", {
+        top: boundingBox.top,
+        left: boundingBox.left,
+        width: boundingBox.width,
+        height: boundingBox.height,
+        right: boundingBox.right,
+        bottom: boundingBox.bottom
+      });
+      console.log("  - Is visible (width > 0 && height > 0):", boundingBox.width > 0 && boundingBox.height > 0);
     });
-    console.log("  - Is visible (width > 0 && height > 0):", boundingBox.width > 0 && boundingBox.height > 0);
-  });
+  }
 }
 
 let mediaMenuOpen = false;
