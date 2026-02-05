@@ -12571,19 +12571,16 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
    ============================================ */
 
 /* DnD Story Room buttons - shared styling */
-.dndOpenBtn,
-.dndNewOpenBtn {
+.dndOpenBtn {
   margin-left: 8px;
-  display: inline-flex !important;
+  display: inline-flex;
   gap: 6px;
   align-items: center;
-  visibility: visible !important;
-  z-index: 1000;
 }
 
-/* Override hidden attribute to ensure button is always visible */
-.dndNewOpenBtn[hidden] {
-  display: inline-flex !important;
+/* New DnD button in input bar - styled as iconBtn */
+.dndNewOpenBtn {
+  /* Inherits iconBtn styles - no special styling needed */
 }
 
 /* Deprecated button - kept for backwards compatibility */
