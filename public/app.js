@@ -2786,6 +2786,11 @@ function enableDndUI() {
   }
 }
 function disableDndUI() {
+  // Guard: Do not hide DnD button if we're currently in a DnD room
+  if (isDndRoom(currentRoom)) {
+    console.log("[dnd] UI disable blocked - currently in DnD room");
+    return;
+  }
   if (dndNewOpenBtn) dndNewOpenBtn.hidden = true;
   if (dndOpenBtn) dndOpenBtn.hidden = true;
   if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) dndComposerBtn.hidden = true;
