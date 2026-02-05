@@ -2732,12 +2732,9 @@ let dndModalTab = "characters";
 let dndUiListenersAttached = false;
 let dndUiEnabled = false;
 function enableDndUI() {
-  // Force visibility styles on the button
+  // Show the DnD button in the input bar when in DnD Story Room
   if (dndNewOpenBtn) {
     dndNewOpenBtn.hidden = false;
-    dndNewOpenBtn.style.display = "inline-flex";
-    dndNewOpenBtn.style.visibility = "visible";
-    dndNewOpenBtn.style.zIndex = "1000";
     dndNewOpenBtn.setAttribute("aria-hidden", "false");
   }
   if (dndOpenBtn) {
@@ -2799,21 +2796,11 @@ function enableDndUI() {
   }
 }
 function disableDndUI() {
-  // NOTE: Per requirements, the DnD button (dndNewOpenBtn) should remain visible at all times.
-  // We no longer hide the button based on room detection.
-  // The button is always visible with forced styles applied on initialization.
-  // 
-  // BEHAVIORAL CHANGE: Previously, this function had a guard (isDndRoom check) that prevented
-  // hiding the button when in DnD rooms. That guard has been removed because the button now
-  // stays visible at ALL times, regardless of room state. This simplifies the logic and ensures
-  // consistent button visibility across the entire application.
-  // 
-  // This function now only handles:
-  // - Hiding the deprecated button (dndOpenBtn)
-  // - Hiding the composer button (dndComposerBtn)
-  // - Closing the DnD modal if open
-  // - Updating the UI state flag
-  
+  // Hide the DnD button when leaving DnD Story Room
+  if (dndNewOpenBtn) {
+    dndNewOpenBtn.hidden = true;
+    dndNewOpenBtn.setAttribute("aria-hidden", "true");
+  }
   if (dndOpenBtn) {
     dndOpenBtn.hidden = true;
     dndOpenBtn.setAttribute("aria-hidden", "true");
@@ -2825,7 +2812,7 @@ function disableDndUI() {
   if (dndModalOpen) closeDndModal();
   if (dndUiEnabled) {
     dndUiEnabled = false;
-    if (IS_DEV) console.log("[dnd] UI disabled (button remains visible)");
+    if (IS_DEV) console.log("[dnd] UI disabled");
   }
 }
 
@@ -4016,87 +4003,10 @@ const dndInfoRound = document.getElementById("dndInfoRound");
 const dndInfoAlive = document.getElementById("dndInfoAlive");
 const dndInfoCreated = document.getElementById("dndInfoCreated");
 
-// Force DnD button visibility on load (before any room detection)
-// This ensures the button is physically visible in the DOM before conditional logic is applied
-if (dndNewOpenBtn) {
-  // Remove any default hidden attributes
-  dndNewOpenBtn.hidden = false;
-  
-  // Force visibility styles
-  dndNewOpenBtn.style.display = "inline-flex";
-  dndNewOpenBtn.style.visibility = "visible";
-  dndNewOpenBtn.style.zIndex = "1000";
-  
-  // Set aria-hidden for accessibility
-  dndNewOpenBtn.setAttribute("aria-hidden", "false");
-  
-  // Ensure position is not off-screen - remove any negative positioning using removeProperty
-  dndNewOpenBtn.style.removeProperty("position");
-  dndNewOpenBtn.style.removeProperty("left");
-  dndNewOpenBtn.style.removeProperty("right");
-  dndNewOpenBtn.style.removeProperty("top");
-  dndNewOpenBtn.style.removeProperty("bottom");
-  
-  // Get the parent containers and ensure they're all visible
-  // Note: We only modify direct ancestors up to the topbar to avoid affecting unrelated UI
-  // MAX_DEPTH of 5 is sufficient for the expected DOM structure:
-  // button -> .topActions -> .topbar -> .chat-main -> main -> body
-  let parent = dndNewOpenBtn.parentElement;
-  let depth = 0;
-  const MAX_DEPTH = 5;
-  
-  // Known safe parent classes in the topbar hierarchy
-  const SAFE_PARENT_CLASSES = ['topActions', 'topbar', 'chat-main', 'row'];
-  
-  while (parent && parent !== document.body && depth < MAX_DEPTH) {
-    // Additional safety: only modify parents that are part of the topbar hierarchy
-    const parentClasses = parent.className || '';
-    const isSafeParent = SAFE_PARENT_CLASSES.some(cls => parentClasses.includes(cls)) || parent.tagName === 'MAIN';
-    
-    // Only modify if the parent is in the safe hierarchy or is intentionally hidden
-    if (isSafeParent || parent.hidden === true) {
-      if (parent.hidden === true) {
-        parent.hidden = false;
-      }
-      if (parent.style.display === "none") {
-        parent.style.removeProperty("display");
-      }
-      if (parent.style.visibility === "hidden") {
-        parent.style.removeProperty("visibility");
-      }
-    }
-    
-    parent = parent.parentElement;
-    depth++;
-  }
-  
-  // Add console log confirming button exists and its properties (development only)
-  if (IS_DEV) {
-    console.log("[DnD Button] Initialized with forced visibility:");
-    console.log("  - Button exists in DOM:", !!dndNewOpenBtn);
-    console.log("  - Button element:", dndNewOpenBtn);
-    
-    // Use requestAnimationFrame to log computed styles after render (for debugging purposes)
-    requestAnimationFrame(() => {
-      const computedStyle = window.getComputedStyle(dndNewOpenBtn);
-      const boundingBox = dndNewOpenBtn.getBoundingClientRect();
-      
-      console.log("[DnD Button] Computed styles (after render):");
-      console.log("  - display:", computedStyle.display);
-      console.log("  - visibility:", computedStyle.visibility);
-      console.log("  - z-index:", computedStyle.zIndex);
-      console.log("  - position:", computedStyle.position);
-      console.log("  - Bounding box:", {
-        top: boundingBox.top,
-        left: boundingBox.left,
-        width: boundingBox.width,
-        height: boundingBox.height,
-        right: boundingBox.right,
-        bottom: boundingBox.bottom
-      });
-      console.log("  - Is visible (width > 0 && height > 0):", boundingBox.width > 0 && boundingBox.height > 0);
-    });
-  }
+// DnD button initialization - will be shown/hidden based on room
+// Button is now in the input bar, similar to dndComposerBtn
+if (IS_DEV && dndNewOpenBtn) {
+  console.log("[DnD Button] Initialized - visibility controlled by room detection");
 }
 
 let mediaMenuOpen = false;
