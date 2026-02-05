@@ -979,15 +979,16 @@ function isDndRoom(activeRoom){
   const roomName = isString ? "" : (activeRoom?.name ?? "");
   const rawRoom = isString ? activeRoom : "";
   
-  // Check if room ID matches R6
-  const currentRoomId = getRoomId(activeRoom);
+  const normalizedId = normalizeDndRoomKey(roomId);
+  const normalizedName = normalizeDndRoomKey(roomName);
+  const normalizedRaw = normalizeDndRoomKey(rawRoom);
+  
+  // Check if room ID matches R6 using normalized name
+  const currentRoomId = ROOM_IDS[normalizedRaw || normalizedName || normalizedId];
   if (currentRoomId === "R6") {
     return true;
   }
   
-  const normalizedId = normalizeDndRoomKey(roomId);
-  const normalizedName = normalizeDndRoomKey(roomName);
-  const normalizedRaw = normalizeDndRoomKey(rawRoom);
   const matchesId = matchesDndRoomKey(normalizedId);
   const matchesName = matchesDndRoomKey(normalizedName);
   const matchesRaw = matchesDndRoomKey(normalizedRaw);
@@ -1012,7 +1013,7 @@ function getRoomId(activeRoom){
   const roomName = typeof activeRoom === "string"
     ? activeRoom
     : (activeRoom?.name ?? activeRoom?.id ?? "");
-  const normalized = String(roomName || "").toLowerCase();
+  const normalized = normalizeDndRoomKey(roomName);
   return ROOM_IDS[normalized] || null;
 }
 
