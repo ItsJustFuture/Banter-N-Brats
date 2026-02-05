@@ -930,7 +930,8 @@ function normalizeDndRoomKey(value) {
   return String(value || "")
     .trim()
     .toLowerCase()
-    .replace(/[\s_-]+/g, "");
+    .replace(/[\s_-]+/g, "")
+    .replace(/[^a-z0-9]/g, "");
 }
 const DND_ROOM_MATCHER_KEYS = DND_ROOM_MATCHERS.map((name) => normalizeDndRoomKey(name));
 function logDndRoomCheck(payload) {
@@ -967,9 +968,9 @@ function isDndRoom(activeRoom){
   const normalizedId = normalizeDndRoomKey(roomId);
   const normalizedName = normalizeDndRoomKey(roomName);
   const normalizedRaw = normalizeDndRoomKey(rawRoom);
-  const matchesId = Boolean(normalizedId && DND_ROOM_MATCHER_KEYS.some((matcher) => normalizedId.includes(matcher)));
-  const matchesName = Boolean(normalizedName && DND_ROOM_MATCHER_KEYS.some((matcher) => normalizedName.includes(matcher)));
-  const matchesRaw = Boolean(normalizedRaw && DND_ROOM_MATCHER_KEYS.some((matcher) => normalizedRaw.includes(matcher)));
+  const matchesId = Boolean(normalizedId && DND_ROOM_MATCHER_KEYS.some((matcher) => normalizedId.includes(matcher) && matcher.includes(normalizedId)));
+  const matchesName = Boolean(normalizedName && DND_ROOM_MATCHER_KEYS.some((matcher) => normalizedName.includes(matcher) && matcher.includes(normalizedName)));
+  const matchesRaw = Boolean(normalizedRaw && DND_ROOM_MATCHER_KEYS.some((matcher) => normalizedRaw.includes(matcher) && matcher.includes(normalizedRaw)));
   const result = matchesId || matchesName || matchesRaw;
   logDndRoomCheck({
     roomId: roomId || null,
