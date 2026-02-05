@@ -4003,17 +4003,23 @@ if (dndNewOpenBtn) {
   dndNewOpenBtn.style.visibility = "visible";
   dndNewOpenBtn.style.zIndex = "1000";
   
-  // Ensure position is not off-screen (remove any negative positioning)
-  dndNewOpenBtn.style.position = "";
-  dndNewOpenBtn.style.left = "";
-  dndNewOpenBtn.style.right = "";
-  dndNewOpenBtn.style.top = "";
-  dndNewOpenBtn.style.bottom = "";
+  // Ensure position is not off-screen - remove any negative positioning using removeProperty
+  dndNewOpenBtn.style.removeProperty("position");
+  dndNewOpenBtn.style.removeProperty("left");
+  dndNewOpenBtn.style.removeProperty("right");
+  dndNewOpenBtn.style.removeProperty("top");
+  dndNewOpenBtn.style.removeProperty("bottom");
   
   // Get the parent containers and ensure they're all visible
+  // Note: We only modify direct ancestors up to the topbar to avoid affecting unrelated UI
   let parent = dndNewOpenBtn.parentElement;
-  while (parent && parent !== document.body) {
-    parent.hidden = false;
+  let depth = 0;
+  const MAX_DEPTH = 5; // Limit to prevent affecting too many parents
+  while (parent && parent !== document.body && depth < MAX_DEPTH) {
+    // Only modify if the parent seems intentionally hidden
+    if (parent.hidden === true) {
+      parent.hidden = false;
+    }
     if (parent.style.display === "none") {
       parent.style.display = "";
     }
@@ -4021,6 +4027,7 @@ if (dndNewOpenBtn) {
       parent.style.visibility = "";
     }
     parent = parent.parentElement;
+    depth++;
   }
   
   // Add console log confirming button exists and its properties
@@ -4028,12 +4035,12 @@ if (dndNewOpenBtn) {
   console.log("  - Button exists in DOM:", !!dndNewOpenBtn);
   console.log("  - Button element:", dndNewOpenBtn);
   
-  // Log computed styles after a short delay to ensure styles are applied
-  setTimeout(() => {
+  // Use requestAnimationFrame to log computed styles after render (for debugging purposes)
+  requestAnimationFrame(() => {
     const computedStyle = window.getComputedStyle(dndNewOpenBtn);
     const boundingBox = dndNewOpenBtn.getBoundingClientRect();
     
-    console.log("[DnD Button] Computed styles:");
+    console.log("[DnD Button] Computed styles (after render):");
     console.log("  - display:", computedStyle.display);
     console.log("  - visibility:", computedStyle.visibility);
     console.log("  - z-index:", computedStyle.zIndex);
@@ -4047,7 +4054,7 @@ if (dndNewOpenBtn) {
       bottom: boundingBox.bottom
     });
     console.log("  - Is visible (width > 0 && height > 0):", boundingBox.width > 0 && boundingBox.height > 0);
-  }, 100);
+  });
 }
 
 let mediaMenuOpen = false;

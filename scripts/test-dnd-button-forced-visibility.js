@@ -144,8 +144,9 @@ test(
 // Test 15: Parent containers are made visible
 test(
   'Parent containers visibility loop exists',
-  /while\s*\(\s*parent\s*&&\s*parent\s*!==\s*document\.body\s*\)[\s\S]{0,500}parent\.hidden\s*=\s*false/.test(appJsContent),
-  'Should ensure all parent containers are visible'
+  /while\s*\(\s*parent\s*&&\s*parent\s*!==\s*document\.body\s*&&[\s\S]{0,500}parent\.hidden/.test(appJsContent) ||
+  /let\s+depth\s*=\s*0[\s\S]{0,200}while\s*\([^)]*depth\s*<\s*MAX_DEPTH[\s\S]{0,500}parent\.hidden/.test(appJsContent),
+  'Should ensure parent containers are visible (with depth limit for safety)'
 );
 
 // Test 16: enableDndUI forces styles
