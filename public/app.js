@@ -2735,7 +2735,7 @@ function enableDndUI() {
   // Force visibility styles on the button
   if (dndNewOpenBtn) {
     dndNewOpenBtn.hidden = false;
-    dndNewOpenBtn.style.display = "flex";
+    dndNewOpenBtn.style.display = "inline-flex";
     dndNewOpenBtn.style.visibility = "visible";
     dndNewOpenBtn.style.zIndex = "1000";
   }
@@ -3999,7 +3999,7 @@ if (dndNewOpenBtn) {
   dndNewOpenBtn.hidden = false;
   
   // Force visibility styles
-  dndNewOpenBtn.style.display = "flex";
+  dndNewOpenBtn.style.display = "inline-flex";
   dndNewOpenBtn.style.visibility = "visible";
   dndNewOpenBtn.style.zIndex = "1000";
   
@@ -4021,10 +4021,10 @@ if (dndNewOpenBtn) {
       parent.hidden = false;
     }
     if (parent.style.display === "none") {
-      parent.style.display = "";
+      parent.style.removeProperty("display");
     }
     if (parent.style.visibility === "hidden") {
-      parent.style.visibility = "";
+      parent.style.removeProperty("visibility");
     }
     parent = parent.parentElement;
     depth++;

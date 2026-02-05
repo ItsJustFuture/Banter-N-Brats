@@ -100,9 +100,9 @@ test(
 
 // Test 9: Initialization forces display style
 test(
-  'Initialization forces display = "flex"',
-  /dndNewOpenBtn\.style\.display\s*=\s*["']flex["']/.test(appJsContent),
-  'Should set display to flex on initialization'
+  'Initialization forces display = "inline-flex"',
+  /dndNewOpenBtn\.style\.display\s*=\s*["']inline-flex["']/.test(appJsContent),
+  'Should set display to inline-flex on initialization'
 );
 
 // Test 10: Initialization forces visibility style
