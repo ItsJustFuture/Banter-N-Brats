@@ -68,6 +68,9 @@ if (dndNewOpenBtn) {
   dndNewOpenBtn.style.visibility = "visible";
   dndNewOpenBtn.style.zIndex = "1000";
   
+  // Set aria-hidden for accessibility
+  dndNewOpenBtn.setAttribute("aria-hidden", "false");
+  
   // Ensure position is not off-screen
   dndNewOpenBtn.style.removeProperty("position");
   dndNewOpenBtn.style.removeProperty("left");
@@ -80,32 +83,46 @@ if (dndNewOpenBtn) {
   let parent = dndNewOpenBtn.parentElement;
   let depth = 0;
   const MAX_DEPTH = 5;
+  
+  // Known safe parent classes in the topbar hierarchy
+  const SAFE_PARENT_CLASSES = ['topActions', 'topbar', 'chat-main', 'row'];
+  
   while (parent && parent !== document.body && depth < MAX_DEPTH) {
-    if (parent.hidden === true) parent.hidden = false;
-    if (parent.style.display === "none") parent.style.removeProperty("display");
-    if (parent.style.visibility === "hidden") parent.style.removeProperty("visibility");
+    // Additional safety: only modify parents that are part of the topbar hierarchy
+    const parentClasses = parent.className || '';
+    const isSafeParent = SAFE_PARENT_CLASSES.some(cls => parentClasses.includes(cls)) || parent.tagName === 'MAIN';
+    
+    // Only modify if the parent is in the safe hierarchy or is intentionally hidden
+    if (isSafeParent || parent.hidden === true) {
+      if (parent.hidden === true) parent.hidden = false;
+      if (parent.style.display === "none") parent.style.removeProperty("display");
+      if (parent.style.visibility === "hidden") parent.style.removeProperty("visibility");
+    }
+    
     parent = parent.parentElement;
     depth++;
   }
   
-  // Console logging for debugging
-  console.log("[DnD Button] Initialized with forced visibility:");
-  console.log("  - Button exists in DOM:", !!dndNewOpenBtn);
-  console.log("  - Button element:", dndNewOpenBtn);
-  
-  // Log computed styles after render
-  requestAnimationFrame(() => {
-    const computedStyle = window.getComputedStyle(dndNewOpenBtn);
-    const boundingBox = dndNewOpenBtn.getBoundingClientRect();
+  // Console logging for debugging (development only)
+  if (IS_DEV) {
+    console.log("[DnD Button] Initialized with forced visibility:");
+    console.log("  - Button exists in DOM:", !!dndNewOpenBtn);
+    console.log("  - Button element:", dndNewOpenBtn);
     
-    console.log("[DnD Button] Computed styles (after render):");
-    console.log("  - display:", computedStyle.display);
-    console.log("  - visibility:", computedStyle.visibility);
-    console.log("  - z-index:", computedStyle.zIndex);
-    console.log("  - position:", computedStyle.position);
-    console.log("  - Bounding box:", boundingBox);
-    console.log("  - Is visible:", boundingBox.width > 0 && boundingBox.height > 0);
-  });
+    // Log computed styles after render
+    requestAnimationFrame(() => {
+      const computedStyle = window.getComputedStyle(dndNewOpenBtn);
+      const boundingBox = dndNewOpenBtn.getBoundingClientRect();
+      
+      console.log("[DnD Button] Computed styles (after render):");
+      console.log("  - display:", computedStyle.display);
+      console.log("  - visibility:", computedStyle.visibility);
+      console.log("  - z-index:", computedStyle.zIndex);
+      console.log("  - position:", computedStyle.position);
+      console.log("  - Bounding box:", boundingBox);
+      console.log("  - Is visible:", boundingBox.width > 0 && boundingBox.height > 0);
+    });
+  }
 }
 ```
 
@@ -118,8 +135,21 @@ function enableDndUI() {
     dndNewOpenBtn.style.display = "inline-flex";
     dndNewOpenBtn.style.visibility = "visible";
     dndNewOpenBtn.style.zIndex = "1000";
+    dndNewOpenBtn.setAttribute("aria-hidden", "false");
+  }
+  if (dndOpenBtn) {
+    dndOpenBtn.hidden = true;
+    dndOpenBtn.setAttribute("aria-hidden", "true");
+  }
+  if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) {
+    dndComposerBtn.hidden = false;
+    dndComposerBtn.setAttribute("aria-hidden", "false");
   }
   // ... rest of function
+  if (!dndUiEnabled) {
+    dndUiEnabled = true;
+    if (IS_DEV) console.log("[dnd] UI enabled");
+  }
 }
 ```
 
@@ -128,18 +158,31 @@ function enableDndUI() {
 function disableDndUI() {
   // NOTE: Per requirements, the DnD button (dndNewOpenBtn) should remain visible at all times.
   // We no longer hide the button based on room detection.
+  // The button is always visible with forced styles applied on initialization.
+  // 
+  // BEHAVIORAL CHANGE: Previously, this function had a guard (isDndRoom check) that prevented
+  // hiding the button when in DnD rooms. That guard has been removed because the button now
+  // stays visible at ALL times, regardless of room state. This simplifies the logic and ensures
+  // consistent button visibility across the entire application.
+  // 
   // This function now only handles:
   // - Hiding the deprecated button (dndOpenBtn)
   // - Hiding the composer button (dndComposerBtn)
   // - Closing the DnD modal if open
   // - Updating the UI state flag
   
-  if (dndOpenBtn) dndOpenBtn.hidden = true;
-  if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) dndComposerBtn.hidden = true;
+  if (dndOpenBtn) {
+    dndOpenBtn.hidden = true;
+    dndOpenBtn.setAttribute("aria-hidden", "true");
+  }
+  if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) {
+    dndComposerBtn.hidden = true;
+    dndComposerBtn.setAttribute("aria-hidden", "true");
+  }
   if (dndModalOpen) closeDndModal();
   if (dndUiEnabled) {
     dndUiEnabled = false;
-    console.log("[dnd] UI disabled (button remains visible)");
+    if (IS_DEV) console.log("[dnd] UI disabled (button remains visible)");
   }
 }
 ```
@@ -160,12 +203,25 @@ function disableDndUI() {
 - Ensures styles are computed after browser render
 - Better performance characteristics
 
-### 4. MAX_DEPTH limit for parent traversal
+### 4. MAX_DEPTH limit and safe parent classes for parent traversal
 - Prevents unintended side effects on unrelated UI
 - Safe upper bound based on known DOM structure
+- Only modifies parents with known safe classes (topActions, topbar, chat-main, row) or explicitly hidden parents
 - Stops at 5 levels: button → .topActions → .topbar → .chat-main → main → body
 
-### 5. Keeping button visible at all times
+### 5. Accessibility with aria-hidden attribute
+- Explicitly sets `aria-hidden="false"` on visible button for screen reader compatibility
+- Sets `aria-hidden="true"` on deprecated/hidden buttons
+- Follows accessibility patterns used elsewhere in the codebase
+- Ensures screen readers are informed of button visibility state
+
+### 6. Development-only console logging
+- All console.log statements are gated by `IS_DEV` check
+- Reduces production console noise
+- Still provides rich debugging information in development
+- Includes initialization logs, UI state changes, and computed styles
+
+### 7. Keeping button visible at all times
 - No longer tied to room detection
 - Simplified logic (no conditional hiding)
 - Better user experience (consistent UI)

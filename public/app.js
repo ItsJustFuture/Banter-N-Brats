@@ -2738,9 +2738,16 @@ function enableDndUI() {
     dndNewOpenBtn.style.display = "inline-flex";
     dndNewOpenBtn.style.visibility = "visible";
     dndNewOpenBtn.style.zIndex = "1000";
+    dndNewOpenBtn.setAttribute("aria-hidden", "false");
   }
-  if (dndOpenBtn) dndOpenBtn.hidden = true;
-  if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) dndComposerBtn.hidden = false;
+  if (dndOpenBtn) {
+    dndOpenBtn.hidden = true;
+    dndOpenBtn.setAttribute("aria-hidden", "true");
+  }
+  if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) {
+    dndComposerBtn.hidden = false;
+    dndComposerBtn.setAttribute("aria-hidden", "false");
+  }
   if (!dndUiListenersAttached) {
     dndUiListenersAttached = true;
     dndOpenBtn?.addEventListener("click", openDndModal); // Deprecated button (backwards compatibility)
@@ -2788,25 +2795,37 @@ function enableDndUI() {
   }
   if (!dndUiEnabled) {
     dndUiEnabled = true;
-    console.log("[dnd] UI enabled");
+    if (IS_DEV) console.log("[dnd] UI enabled");
   }
 }
 function disableDndUI() {
   // NOTE: Per requirements, the DnD button (dndNewOpenBtn) should remain visible at all times.
   // We no longer hide the button based on room detection.
   // The button is always visible with forced styles applied on initialization.
+  // 
+  // BEHAVIORAL CHANGE: Previously, this function had a guard (isDndRoom check) that prevented
+  // hiding the button when in DnD rooms. That guard has been removed because the button now
+  // stays visible at ALL times, regardless of room state. This simplifies the logic and ensures
+  // consistent button visibility across the entire application.
+  // 
   // This function now only handles:
   // - Hiding the deprecated button (dndOpenBtn)
   // - Hiding the composer button (dndComposerBtn)
   // - Closing the DnD modal if open
   // - Updating the UI state flag
   
-  if (dndOpenBtn) dndOpenBtn.hidden = true;
-  if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) dndComposerBtn.hidden = true;
+  if (dndOpenBtn) {
+    dndOpenBtn.hidden = true;
+    dndOpenBtn.setAttribute("aria-hidden", "true");
+  }
+  if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) {
+    dndComposerBtn.hidden = true;
+    dndComposerBtn.setAttribute("aria-hidden", "true");
+  }
   if (dndModalOpen) closeDndModal();
   if (dndUiEnabled) {
     dndUiEnabled = false;
-    console.log("[dnd] UI disabled (button remains visible)");
+    if (IS_DEV) console.log("[dnd] UI disabled (button remains visible)");
   }
 }
 
@@ -4008,6 +4027,9 @@ if (dndNewOpenBtn) {
   dndNewOpenBtn.style.visibility = "visible";
   dndNewOpenBtn.style.zIndex = "1000";
   
+  // Set aria-hidden for accessibility
+  dndNewOpenBtn.setAttribute("aria-hidden", "false");
+  
   // Ensure position is not off-screen - remove any negative positioning using removeProperty
   dndNewOpenBtn.style.removeProperty("position");
   dndNewOpenBtn.style.removeProperty("left");
@@ -4022,17 +4044,28 @@ if (dndNewOpenBtn) {
   let parent = dndNewOpenBtn.parentElement;
   let depth = 0;
   const MAX_DEPTH = 5;
+  
+  // Known safe parent classes in the topbar hierarchy
+  const SAFE_PARENT_CLASSES = ['topActions', 'topbar', 'chat-main', 'row'];
+  
   while (parent && parent !== document.body && depth < MAX_DEPTH) {
-    // Only modify if the parent seems intentionally hidden
-    if (parent.hidden === true) {
-      parent.hidden = false;
+    // Additional safety: only modify parents that are part of the topbar hierarchy
+    const parentClasses = parent.className || '';
+    const isSafeParent = SAFE_PARENT_CLASSES.some(cls => parentClasses.includes(cls)) || parent.tagName === 'MAIN';
+    
+    // Only modify if the parent is in the safe hierarchy or is intentionally hidden
+    if (isSafeParent || parent.hidden === true) {
+      if (parent.hidden === true) {
+        parent.hidden = false;
+      }
+      if (parent.style.display === "none") {
+        parent.style.removeProperty("display");
+      }
+      if (parent.style.visibility === "hidden") {
+        parent.style.removeProperty("visibility");
+      }
     }
-    if (parent.style.display === "none") {
-      parent.style.removeProperty("display");
-    }
-    if (parent.style.visibility === "hidden") {
-      parent.style.removeProperty("visibility");
-    }
+    
     parent = parent.parentElement;
     depth++;
   }
