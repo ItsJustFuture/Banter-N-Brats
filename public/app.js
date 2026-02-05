@@ -923,14 +923,21 @@ const memoryCacheByFilter = new Map();
 const DICE_ROOM_ID = "diceroom";
 const SURVIVAL_ROOM_ID = "survivalsimulator";
 const DND_ROOM_ID = "dndstoryroom";
+const DND_ROOM_MATCHERS = ["dndstoryroom", "DnD Story Room"];
 const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator", "dndstoryroom"]);
 let lastLoggedDndRoomCheckSignature = "";
 function normalizeDndRoomKey(value) {
   return String(value || "")
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, "")
+    .replace(/[\s_-]+/g, "")
     .replace(/[^a-z0-9]/g, "");
+}
+const DND_ROOM_MATCHER_KEYS = Array.from(new Set(
+  DND_ROOM_MATCHERS.map((name) => normalizeDndRoomKey(name))
+));
+function matchesDndRoomKey(value) {
+  return Boolean(value && DND_ROOM_MATCHER_KEYS.some((matcher) => value.includes(matcher)));
 }
 function logDndRoomCheck(payload) {
   const signature = [
@@ -966,9 +973,9 @@ function isDndRoom(activeRoom){
   const normalizedId = normalizeDndRoomKey(roomId);
   const normalizedName = normalizeDndRoomKey(roomName);
   const normalizedRaw = normalizeDndRoomKey(rawRoom);
-  const matchesId = normalizedId === DND_ROOM_ID;
-  const matchesName = normalizedName === DND_ROOM_ID;
-  const matchesRaw = normalizedRaw === DND_ROOM_ID;
+  const matchesId = matchesDndRoomKey(normalizedId);
+  const matchesName = matchesDndRoomKey(normalizedName);
+  const matchesRaw = matchesDndRoomKey(normalizedRaw);
   const result = matchesId || matchesName || matchesRaw;
   logDndRoomCheck({
     roomId: roomId || null,

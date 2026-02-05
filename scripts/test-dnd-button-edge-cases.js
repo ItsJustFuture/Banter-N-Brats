@@ -38,9 +38,9 @@ if (isDndRoomFunctionCode) {
   const usesNormalizer = /normalizeDndRoomKey/.test(appJsContent);
   console.log(`  ✓ Normalizes room names: ${usesNormalizer ? 'YES' : 'NO'}`);
   
-  // Check if it compares with DND_ROOM_ID
-  const comparesDndRoomId = /=== DND_ROOM_ID/.test(functionText);
-  console.log(`  ✓ Compares with DND_ROOM_ID: ${comparesDndRoomId ? 'YES' : 'NO'}`);
+  // Check if it references DND_ROOM_ID
+  const comparesDndRoomId = /DND_ROOM_ID/.test(functionText) || /DND_ROOM_MATCHER_KEYS/.test(functionText) || /matchesDndRoomKey/.test(functionText);
+  console.log(`  ✓ Uses DND room matcher: ${comparesDndRoomId ? 'YES' : 'NO'}`);
 } else {
   console.log('  ❌ isDndRoom function not found');
 }
@@ -120,6 +120,7 @@ const criticalChecks = [
   { name: 'isDndRoom handles object type', passed: isDndRoomFunctionCode && /activeRoom\?\.name|activeRoom\?\.id/.test(isDndRoomFunctionCode[0]) },
   { name: 'Case-insensitive comparison', passed: isDndRoomFunctionCode && (/toLowerCase\(\)/.test(isDndRoomFunctionCode[0]) || /normalizeDndRoomKey/.test(appJsContent)) },
   { name: 'Room normalization helper', passed: /normalizeDndRoomKey/.test(appJsContent) },
+  { name: 'Uses DnD room matcher', passed: isDndRoomFunctionCode && (/DND_ROOM_ID/.test(isDndRoomFunctionCode[0]) || /DND_ROOM_MATCHER_KEYS/.test(isDndRoomFunctionCode[0]) || /matchesDndRoomKey/.test(isDndRoomFunctionCode[0])) },
   { name: 'Toggle in setActiveRoom', passed: setActiveRoomToggle },
   { name: 'Toggle in renderDndPanel', passed: renderDndPanelToggle },
   { name: 'Safe navigation checks', passed: safeNavigation },
