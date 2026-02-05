@@ -12578,11 +12578,6 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   align-items: center;
 }
 
-/* New DnD button in input bar - styled as iconBtn */
-.dndNewOpenBtn {
-  /* Inherits iconBtn styles - no special styling needed */
-}
-
 /* Deprecated button - kept for backwards compatibility */
 .dndOpenBtn.deprecated {
   display: none !important;
