@@ -2792,9 +2792,14 @@ function enableDndUI() {
   }
 }
 function disableDndUI() {
-  // NOTE: Per requirements, the DnD button should remain visible at all times.
+  // NOTE: Per requirements, the DnD button (dndNewOpenBtn) should remain visible at all times.
   // We no longer hide the button based on room detection.
   // The button is always visible with forced styles applied on initialization.
+  // This function now only handles:
+  // - Hiding the deprecated button (dndOpenBtn)
+  // - Hiding the composer button (dndComposerBtn)
+  // - Closing the DnD modal if open
+  // - Updating the UI state flag
   
   if (dndOpenBtn) dndOpenBtn.hidden = true;
   if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) dndComposerBtn.hidden = true;
@@ -4012,9 +4017,11 @@ if (dndNewOpenBtn) {
   
   // Get the parent containers and ensure they're all visible
   // Note: We only modify direct ancestors up to the topbar to avoid affecting unrelated UI
+  // MAX_DEPTH of 5 is sufficient for the expected DOM structure:
+  // button -> .topActions -> .topbar -> .chat-main -> main -> body
   let parent = dndNewOpenBtn.parentElement;
   let depth = 0;
-  const MAX_DEPTH = 5; // Limit to prevent affecting too many parents
+  const MAX_DEPTH = 5;
   while (parent && parent !== document.body && depth < MAX_DEPTH) {
     // Only modify if the parent seems intentionally hidden
     if (parent.hidden === true) {

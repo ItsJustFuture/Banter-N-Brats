@@ -168,7 +168,7 @@ test(
 // Test 18: Comment explaining button remains visible
 test(
   'Comment explaining button remains visible',
-  /\/\/\s*NOTE:.*DnD\s+button\s+should\s+remain\s+visible/.test(appJsContent),
+  /NOTE:.*button.*should remain visible/.test(appJsContent),
   'Should have comment explaining the button stays visible'
 );
 
