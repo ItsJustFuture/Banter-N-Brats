@@ -2732,7 +2732,13 @@ let dndModalTab = "characters";
 let dndUiListenersAttached = false;
 let dndUiEnabled = false;
 function enableDndUI() {
-  if (dndNewOpenBtn) dndNewOpenBtn.hidden = false;
+  // Force visibility styles on the button
+  if (dndNewOpenBtn) {
+    dndNewOpenBtn.hidden = false;
+    dndNewOpenBtn.style.display = "flex";
+    dndNewOpenBtn.style.visibility = "visible";
+    dndNewOpenBtn.style.zIndex = "1000";
+  }
   if (dndOpenBtn) dndOpenBtn.hidden = true;
   if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) dndComposerBtn.hidden = false;
   if (!dndUiListenersAttached) {
@@ -2786,18 +2792,16 @@ function enableDndUI() {
   }
 }
 function disableDndUI() {
-  // Guard: Do not hide DnD button if we're currently in a DnD room
-  if (isDndRoom(currentRoom)) {
-    console.log("[dnd] UI disable blocked - currently in DnD room");
-    return;
-  }
-  if (dndNewOpenBtn) dndNewOpenBtn.hidden = true;
+  // NOTE: Per requirements, the DnD button should remain visible at all times.
+  // We no longer hide the button based on room detection.
+  // The button is always visible with forced styles applied on initialization.
+  
   if (dndOpenBtn) dndOpenBtn.hidden = true;
   if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) dndComposerBtn.hidden = true;
   if (dndModalOpen) closeDndModal();
   if (dndUiEnabled) {
     dndUiEnabled = false;
-    console.log("[dnd] UI disabled");
+    console.log("[dnd] UI disabled (button remains visible)");
   }
 }
 
@@ -3987,6 +3991,64 @@ const dndInfoStatus = document.getElementById("dndInfoStatus");
 const dndInfoRound = document.getElementById("dndInfoRound");
 const dndInfoAlive = document.getElementById("dndInfoAlive");
 const dndInfoCreated = document.getElementById("dndInfoCreated");
+
+// Force DnD button visibility on load (before any room detection)
+// This ensures the button is physically visible in the DOM before conditional logic is applied
+if (dndNewOpenBtn) {
+  // Remove any default hidden attributes
+  dndNewOpenBtn.hidden = false;
+  
+  // Force visibility styles
+  dndNewOpenBtn.style.display = "flex";
+  dndNewOpenBtn.style.visibility = "visible";
+  dndNewOpenBtn.style.zIndex = "1000";
+  
+  // Ensure position is not off-screen (remove any negative positioning)
+  dndNewOpenBtn.style.position = "";
+  dndNewOpenBtn.style.left = "";
+  dndNewOpenBtn.style.right = "";
+  dndNewOpenBtn.style.top = "";
+  dndNewOpenBtn.style.bottom = "";
+  
+  // Get the parent containers and ensure they're all visible
+  let parent = dndNewOpenBtn.parentElement;
+  while (parent && parent !== document.body) {
+    parent.hidden = false;
+    if (parent.style.display === "none") {
+      parent.style.display = "";
+    }
+    if (parent.style.visibility === "hidden") {
+      parent.style.visibility = "";
+    }
+    parent = parent.parentElement;
+  }
+  
+  // Add console log confirming button exists and its properties
+  console.log("[DnD Button] Initialized with forced visibility:");
+  console.log("  - Button exists in DOM:", !!dndNewOpenBtn);
+  console.log("  - Button element:", dndNewOpenBtn);
+  
+  // Log computed styles after a short delay to ensure styles are applied
+  setTimeout(() => {
+    const computedStyle = window.getComputedStyle(dndNewOpenBtn);
+    const boundingBox = dndNewOpenBtn.getBoundingClientRect();
+    
+    console.log("[DnD Button] Computed styles:");
+    console.log("  - display:", computedStyle.display);
+    console.log("  - visibility:", computedStyle.visibility);
+    console.log("  - z-index:", computedStyle.zIndex);
+    console.log("  - position:", computedStyle.position);
+    console.log("  - Bounding box:", {
+      top: boundingBox.top,
+      left: boundingBox.left,
+      width: boundingBox.width,
+      height: boundingBox.height,
+      right: boundingBox.right,
+      bottom: boundingBox.bottom
+    });
+    console.log("  - Is visible (width > 0 && height > 0):", boundingBox.width > 0 && boundingBox.height > 0);
+  }, 100);
+}
 
 let mediaMenuOpen = false;
 let voiceRec = { recorder: null, stream: null, chunks: [], startedAt: 0 };
