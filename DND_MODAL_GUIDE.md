@@ -206,7 +206,7 @@ The 📖 DnD buttons (`#dndNewOpenBtn` in the top bar and `#dndComposerBtn` in t
 
 **Implementation Details**:
 - The `setActiveRoom(room)` function is called whenever a user switches rooms
-- Inside `setActiveRoom`, the `isDndRoom(room)` function normalizes the room id/name to detect `"dndstoryroom"` even if the display name contains spaces
+- Inside `setActiveRoom`, the `isDndRoom(room)` function normalizes the room id/name to detect the DnD room (e.g., `"dndstoryroom"` / `"DnD Story Room"`) even if the display name contains spaces, dashes, or underscores
 - The centralized `enableDndUI()` / `disableDndUI()` helpers toggle the buttons when entering/leaving the DnD room
 - This ensures buttons are only visible in the appropriate context
 
@@ -215,7 +215,7 @@ The 📖 DnD buttons (`#dndNewOpenBtn` in the top bar and `#dndComposerBtn` in t
 2. `joinRoom` calls `setActiveRoom(roomName)`
 3. `setActiveRoom` evaluates `nowDndRoom = isDndRoom(roomName)`
 4. Button visibility is updated via `enableDndUI()` / `disableDndUI()`
-5. The button becomes visible when the normalized room id/name resolves to `dndstoryroom`, hidden otherwise
+5. The button becomes visible when the normalized room id/name resolves to the DnD room matcher, hidden otherwise
 
 **Defensive Programming**:
 - Element existence is checked before setting properties (`if (dndNewOpenBtn) ...`)

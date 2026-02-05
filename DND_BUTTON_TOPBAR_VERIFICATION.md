@@ -151,12 +151,12 @@ socket.on("connect", () => {
 
 ```javascript
 function isDndRoom(activeRoom) {
-  // Normalizes room name/id and compares to "dndstoryroom"
+  // Normalizes room name/id and checks for DnD room matchers.
   // Handles:
   // - String inputs: "dndstoryroom", "DnD Story Room", etc.
   // - Object inputs: { id: "dndstoryroom" } or { name: "DnD Story Room" }
   // - Case-insensitive matching
-  // - Special character normalization
+  // - Space/dash/underscore normalization
   return matchesId || matchesName || matchesRaw;
 }
 ```
