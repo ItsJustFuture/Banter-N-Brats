@@ -2732,7 +2732,7 @@ let dndModalTab = "characters";
 let dndUiListenersAttached = false;
 let dndUiEnabled = false;
 function enableDndUI() {
-  // Show the DnD button in the input bar when in dndstoryroom
+  // Show the DnD button in the input bar when in DnD Story Room
   if (dndNewOpenBtn) {
     dndNewOpenBtn.hidden = false;
     dndNewOpenBtn.setAttribute("aria-hidden", "false");
@@ -2796,7 +2796,7 @@ function enableDndUI() {
   }
 }
 function disableDndUI() {
-  // Hide the DnD button when leaving dndstoryroom
+  // Hide the DnD button when leaving DnD Story Room
   if (dndNewOpenBtn) {
     dndNewOpenBtn.hidden = true;
     dndNewOpenBtn.setAttribute("aria-hidden", "true");
