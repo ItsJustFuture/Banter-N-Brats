@@ -923,6 +923,7 @@ const memoryCacheByFilter = new Map();
 const DICE_ROOM_ID = "diceroom";
 const SURVIVAL_ROOM_ID = "survivalsimulator";
 const DND_ROOM_ID = "dndstoryroom";
+const DND_ROOM_CODE = "R6";
 const DND_ROOM_MATCHERS = ["dndstoryroom", "DnD", "DnD Story Room"];
 const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator", "dndstoryroom"]);
 const ROOM_IDS = {
@@ -981,9 +982,9 @@ function isDndRoom(activeRoom){
   const normalizedId = normalizeDndRoomKey(roomId);
   const normalizedName = normalizeDndRoomKey(roomName);
   const normalizedRaw = normalizeDndRoomKey(rawRoom);
-  // Check if room maps to R6 using normalized keys (prioritizes raw, then name, then id)
+  // Check if room maps to DnD room code using normalized keys (prioritizes raw, then name, then id)
   const mappedRoomCode = ROOM_IDS[normalizedRaw || normalizedName || normalizedId];
-  if (mappedRoomCode === "R6") {
+  if (mappedRoomCode === DND_ROOM_CODE) {
     return true;
   }
   const matchesId = matchesDndRoomKey(normalizedId);
