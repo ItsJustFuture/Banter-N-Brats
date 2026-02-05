@@ -923,8 +923,16 @@ const memoryCacheByFilter = new Map();
 const DICE_ROOM_ID = "diceroom";
 const SURVIVAL_ROOM_ID = "survivalsimulator";
 const DND_ROOM_ID = "dndstoryroom";
-const DND_ROOM_MATCHERS = ["dndstoryroom", "DnD Story Room"];
+const DND_ROOM_MATCHERS = ["dndstoryroom", "DnD", "DnD Story Room"];
 const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator", "dndstoryroom"]);
+const ROOM_IDS = {
+  "main": "R1",
+  "music": "R2",
+  "nsfw": "R3",
+  "diceroom": "R4",
+  "survivalsimulator": "R5",
+  "dndstoryroom": "R6"
+};
 let lastLoggedDndRoomCheckSignature = "";
 function normalizeDndRoomKey(value) {
   return String(value || "")
@@ -970,6 +978,13 @@ function isDndRoom(activeRoom){
   const roomId = isString ? "" : (activeRoom?.id ?? "");
   const roomName = isString ? "" : (activeRoom?.name ?? "");
   const rawRoom = isString ? activeRoom : "";
+  
+  // Check if room ID matches R6
+  const currentRoomId = getRoomId(activeRoom);
+  if (currentRoomId === "R6") {
+    return true;
+  }
+  
   const normalizedId = normalizeDndRoomKey(roomId);
   const normalizedName = normalizeDndRoomKey(roomName);
   const normalizedRaw = normalizeDndRoomKey(rawRoom);
@@ -989,8 +1004,16 @@ function isDndRoom(activeRoom){
 function displayRoomName(room){
   if (isDiceRoom(room)) return "Dice Room";
   if (isSurvivalRoom(room)) return "Survival Simulator";
-  if (isDndRoom(room)) return "DnD Story Room";
+  if (isDndRoom(room)) return "DnD";
   return room;
+}
+
+function getRoomId(activeRoom){
+  const roomName = typeof activeRoom === "string"
+    ? activeRoom
+    : (activeRoom?.name ?? activeRoom?.id ?? "");
+  const normalized = String(roomName || "").toLowerCase();
+  return ROOM_IDS[normalized] || null;
 }
 
 let lastUsers = [];
