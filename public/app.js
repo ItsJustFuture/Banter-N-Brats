@@ -7727,7 +7727,8 @@ function renderTicTacToeSystemMessage(payload) {
       if (winningLine.includes(i)) cell.classList.add("ttt-cell--win");
       const isDisabled = !canInteract || !!value || isLocked || meta.status !== "active";
       cell.disabled = isDisabled;
-      cell.setAttribute("aria-label", `Cell ${i + 1}`);
+      const stateLabel = value ? value : (isLocked ? "Locked" : "Empty");
+      cell.setAttribute("aria-label", `Cell ${i + 1} (${stateLabel})`);
       if (!isDisabled) {
         cell.addEventListener("click", () => {
           socket?.emit("tictactoe:move", { gameId, index: i });

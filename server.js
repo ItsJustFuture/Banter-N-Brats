@@ -662,7 +662,7 @@ for (const dir of [UPLOADS_DIR, AVATARS_DIR]) {
       if (TICTACTOE_GAMES.get(game.room) !== game || game.status !== "active" || game.winner) return;
       const winner = game.turn === "X" ? "O" : "X";
       finalizeTicTacToeGame(game.room, game, { winner, reason: "timeout" });
-    }, TICTACTOE_BLITZ_MOVE_MS + 50);
+    }, TICTACTOE_BLITZ_MOVE_MS);
   }
 
   function finalizeTicTacToeGame(room, game, { winner, reason, endedBy } = {}) {
@@ -17058,10 +17058,16 @@ if (!room) {
       return respond({ ok: false, error: "Not your turn" });
     }
     const cellIndex = Number(index);
-    if (!Number.isInteger(cellIndex) || cellIndex < 0 || cellIndex > 8) {
+    if (!Number.isInteger(cellIndex)) {
       return respond({ ok: false, error: "Invalid move" });
     }
-    if (!Array.isArray(game.board) || game.board[cellIndex]) {
+    if (!Array.isArray(game.board) || game.board.length < 9) {
+      return respond({ ok: false, error: "Invalid board" });
+    }
+    if (cellIndex < 0 || cellIndex >= game.board.length) {
+      return respond({ ok: false, error: "Invalid move" });
+    }
+    if (game.board[cellIndex]) {
       return respond({ ok: false, error: "Illegal move" });
     }
     if (game.chaos && Array.isArray(game.lockedCells) && game.lockedCells.includes(cellIndex)) {
