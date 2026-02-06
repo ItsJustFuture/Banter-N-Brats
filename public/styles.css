@@ -2875,6 +2875,9 @@ body.keyboard-open .menuContent{ padding-bottom: calc(200px + var(--kb, 0px) + e
   font-weight:700;
   cursor:pointer;
 }
+.chat-main .sys.sys-ttt .ttt-cell:disabled{
+  cursor:not-allowed;
+}
 .chat-main .sys.sys-ttt .ttt-cell--x{ color:var(--ttt-x-color); }
 .chat-main .sys.sys-ttt .ttt-cell--o{ color:var(--ttt-o-color); }
 .chat-main .sys.sys-ttt .ttt-cell--locked{

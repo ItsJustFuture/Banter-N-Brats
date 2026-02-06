@@ -7640,6 +7640,11 @@ function renderTicTacToeSystemMessage(payload) {
       note.className = "ttt-note";
       note.textContent = "Challenge cancelled.";
       actionRow.appendChild(note);
+    } else if (status === "expired") {
+      const note = document.createElement("div");
+      note.className = "ttt-note";
+      note.textContent = "Challenge expired.";
+      actionRow.appendChild(note);
     } else if (viewerId && Number(meta.challenger?.id || 0) === viewerId) {
       const note = document.createElement("div");
       note.className = "ttt-note";
