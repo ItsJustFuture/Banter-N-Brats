@@ -7622,18 +7622,56 @@ function renderTicTacToeSystemMessage(payload) {
     const actionRow = document.createElement("div");
     actionRow.className = "ttt-actions";
     if (canAccept) {
-      const acceptBtn = document.createElement("button");
-      acceptBtn.className = "ttt-btn";
-      acceptBtn.type = "button";
-      acceptBtn.textContent = "Accept";
-      acceptBtn.addEventListener("click", () => {
-        socket?.emit("tictactoe:accept", { gameId });
+      const acceptLabel = document.createElement("label");
+      acceptLabel.className = "ttt-accept";
+      const acceptBox = document.createElement("input");
+      acceptBox.type = "checkbox";
+      acceptBox.className = "ttt-accept-box";
+      acceptBox.setAttribute("aria-label", "Accept Tic Tac Toe challenge");
+      acceptBox.addEventListener("change", () => {
+        if (!acceptBox.checked) return;
+        acceptBox.disabled = true;
+        if (!socket?.connected || typeof socket.emit !== "function") {
+          acceptBox.checked = false;
+          acceptBox.disabled = false;
+          return;
+        }
+        let reverted = false;
+        const revert = () => {
+          if (reverted) return;
+          reverted = true;
+          acceptBox.checked = false;
+          acceptBox.disabled = false;
+        };
+        const onDisconnect = () => {
+          revert();
+        };
+        if (typeof socket.once === "function") {
+          socket.once("disconnect", onDisconnect);
+        }
+        const ackTimeout = setTimeout(() => {
+          revert();
+        }, 10000);
+        socket.emit("tictactoe:accept", { gameId }, (response) => {
+          clearTimeout(ackTimeout);
+          if (typeof socket.off === "function") {
+            socket.off("disconnect", onDisconnect);
+          }
+          if (response && response.ok) {
+            return;
+          }
+          revert();
+        });
       });
-      actionRow.appendChild(acceptBtn);
+      const acceptText = document.createElement("span");
+      acceptText.textContent = "Accept";
+      acceptLabel.appendChild(acceptBox);
+      acceptLabel.appendChild(acceptText);
+      actionRow.appendChild(acceptLabel);
     } else if (status === "accepted") {
       const note = document.createElement("div");
       note.className = "ttt-note";
-      note.textContent = "Challenge accepted. Game starting!";
+      note.textContent = "(game in progress)";
       actionRow.appendChild(note);
     } else if (status === "cancelled") {
       const note = document.createElement("div");
