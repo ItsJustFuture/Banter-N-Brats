@@ -7516,6 +7516,254 @@ function addSystem(text, options = {}){
   if(!shouldStick) noteUnseenMainMessage();
 }
 
+let tttCountdownTicker = null;
+function updateTicTacToeCountdowns() {
+  const items = document.querySelectorAll(".sys-ttt[data-ttt-deadline]");
+  if (!items.length) {
+    if (tttCountdownTicker) {
+      clearInterval(tttCountdownTicker);
+      tttCountdownTicker = null;
+    }
+    return;
+  }
+  const now = Date.now();
+  items.forEach((container) => {
+    const deadline = Number(container.dataset.tttDeadline || 0);
+    if (!deadline) return;
+    const blitzRow = container.querySelector(".ttt-blitz");
+    if (!blitzRow) return;
+    const secondsLeft = Math.max(0, Math.ceil((deadline - now) / 1000));
+    blitzRow.textContent = secondsLeft > 0
+      ? `⏱️ ${secondsLeft}s on the clock`
+      : "⏱️ Time's up";
+  });
+}
+function ensureTicTacToeCountdownTicker() {
+  if (tttCountdownTicker) return;
+  tttCountdownTicker = setInterval(updateTicTacToeCountdowns, 1000);
+}
+
+function renderTicTacToeSystemMessage(payload) {
+  const meta = payload && typeof payload === "object" ? payload.meta : null;
+  if (!meta || meta.kind !== "tictactoe") return false;
+  const phase = String(meta.phase || "");
+  const gameId = String(meta.gameId || "");
+  if (!phase || !gameId) return false;
+  const existing = msgs.querySelector(`.sys-ttt[data-game-id="${gameId}"][data-ttt-phase="${phase}"]`);
+  const container = existing || document.createElement("div");
+  const isNew = !existing;
+  container.className = "sys sys-ttt";
+  container.dataset.gameId = gameId;
+  container.dataset.tttPhase = phase;
+  container.innerHTML = "";
+
+  const baseColors = meta.colors || {};
+  let xColor = baseColors.x || "#dc143c";
+  let oColor = baseColors.o || "#2f80ff";
+  const swapColors = !!meta.colorSwap && String(meta.turn || "").toUpperCase() === "O";
+  if (swapColors) {
+    const temp = xColor;
+    xColor = oColor;
+    oColor = temp;
+  }
+  const activeSymbol = String(meta.turn || "");
+  const activeColor = activeSymbol === "O" ? oColor : xColor;
+  const winColor = meta.winner === "O" ? oColor : meta.winner === "X" ? xColor : "var(--success)";
+  container.style.setProperty("--ttt-x-color", xColor);
+  container.style.setProperty("--ttt-o-color", oColor);
+  container.style.setProperty("--ttt-active-color", activeColor);
+  container.style.setProperty("--ttt-win-color", winColor);
+  if (meta.blitz && meta.turnDeadline && meta.status === "active") {
+    container.dataset.tttDeadline = String(meta.turnDeadline);
+    ensureTicTacToeCountdownTicker();
+  } else {
+    container.removeAttribute("data-ttt-deadline");
+  }
+
+  const header = document.createElement("div");
+  header.className = "ttt-header";
+  const title = document.createElement("div");
+  title.className = "ttt-title";
+  title.textContent = "Tic Tac Toe";
+  const metaLine = document.createElement("div");
+  metaLine.className = "ttt-meta";
+  const modeLabel = meta.modeLabel || meta.mode || "Classic";
+  const paletteLabel = meta.paletteLabel || meta.palette || "Default";
+  const modeText = `${modeLabel} · ${paletteLabel}`;
+  metaLine.textContent = modeText;
+  header.appendChild(title);
+  header.appendChild(metaLine);
+  container.appendChild(header);
+
+  const viewerId = Number(me?.id || 0);
+  const players = meta.players || {};
+  const playerX = players.X || {};
+  const playerO = players.O || {};
+  const viewerSymbol = viewerId && Number(playerX.id || 0) === viewerId
+    ? "X"
+    : viewerId && Number(playerO.id || 0) === viewerId
+      ? "O"
+      : "";
+  const isSpectator = !viewerSymbol;
+  const hideTurnFromViewer = !!meta.hiddenTurn && isSpectator;
+
+  if (phase === "challenge") {
+    const challengeText = document.createElement("div");
+    challengeText.className = "ttt-challenge-text";
+    challengeText.textContent = String(payload.text || "Tic Tac Toe challenge");
+    container.appendChild(challengeText);
+    const details = document.createElement("div");
+    details.className = "ttt-challenge-details";
+    const challengerName = meta.challenger?.username || "Player X";
+    details.textContent = `Challenger: ${challengerName}`;
+    container.appendChild(details);
+    const status = String(meta.challengeStatus || "pending");
+    const canAccept = status === "pending" && Number(meta.challenger?.id || 0) !== viewerId;
+    const actionRow = document.createElement("div");
+    actionRow.className = "ttt-actions";
+    if (canAccept) {
+      const acceptBtn = document.createElement("button");
+      acceptBtn.className = "ttt-btn";
+      acceptBtn.type = "button";
+      acceptBtn.textContent = "Accept";
+      acceptBtn.addEventListener("click", () => {
+        socket?.emit("tictactoe:accept", { gameId });
+      });
+      actionRow.appendChild(acceptBtn);
+    } else if (status === "accepted") {
+      const note = document.createElement("div");
+      note.className = "ttt-note";
+      note.textContent = "Challenge accepted. Game starting!";
+      actionRow.appendChild(note);
+    } else if (status === "cancelled") {
+      const note = document.createElement("div");
+      note.className = "ttt-note";
+      note.textContent = "Challenge cancelled.";
+      actionRow.appendChild(note);
+    } else if (status === "expired") {
+      const note = document.createElement("div");
+      note.className = "ttt-note";
+      note.textContent = "Challenge expired.";
+      actionRow.appendChild(note);
+    } else if (viewerId && Number(meta.challenger?.id || 0) === viewerId) {
+      const note = document.createElement("div");
+      note.className = "ttt-note";
+      note.textContent = "Waiting for someone to accept...";
+      actionRow.appendChild(note);
+    }
+    container.appendChild(actionRow);
+  } else {
+    const playersRow = document.createElement("div");
+    playersRow.className = "ttt-players";
+    const xTag = document.createElement("div");
+    xTag.className = "ttt-player ttt-player--x";
+    xTag.textContent = `${playerX.username || "Player X"} (X)`;
+    const oTag = document.createElement("div");
+    oTag.className = "ttt-player ttt-player--o";
+    oTag.textContent = `${playerO.username || "Player O"} (O)`;
+    if (!hideTurnFromViewer && meta.status === "active") {
+      if (activeSymbol === "X") xTag.classList.add("ttt-player--active");
+      if (activeSymbol === "O") oTag.classList.add("ttt-player--active");
+      container.classList.add("ttt-active");
+    } else {
+      container.classList.remove("ttt-active");
+    }
+    playersRow.appendChild(xTag);
+    playersRow.appendChild(oTag);
+    container.appendChild(playersRow);
+
+    const statusRow = document.createElement("div");
+    statusRow.className = "ttt-status";
+    if (meta.status === "ended") {
+      if (meta.winner === "draw") {
+        statusRow.textContent = "🤝 Draw!";
+      } else if (meta.winner === "X" || meta.winner === "O") {
+        const winnerName = meta.winner === "X" ? (playerX.username || "Player X") : (playerO.username || "Player O");
+        statusRow.textContent = `🏆 ${winnerName} wins!`;
+      } else if (meta.endedBy?.username) {
+        statusRow.textContent = `⏹️ Ended by ${meta.endedBy.username}`;
+      } else {
+        statusRow.textContent = "⏹️ Game ended.";
+      }
+    } else if (viewerSymbol && viewerSymbol === activeSymbol) {
+      statusRow.textContent = "🎯 Your turn!";
+    } else if (hideTurnFromViewer) {
+      statusRow.textContent = "Waiting for next move";
+    } else {
+      const activeName = activeSymbol === "O" ? (playerO.username || "Player O") : (playerX.username || "Player X");
+      statusRow.textContent = `Waiting for ${activeName}`;
+    }
+    container.appendChild(statusRow);
+
+    if (meta.blitz) {
+      const blitzRow = document.createElement("div");
+      blitzRow.className = "ttt-blitz";
+      const secondsLeft = meta.turnDeadline ? Math.max(0, Math.ceil((Number(meta.turnDeadline) - Date.now()) / 1000)) : null;
+      blitzRow.textContent = secondsLeft != null
+        ? `⏱️ ${secondsLeft}s on the clock`
+        : "⏱️ Blitz mode";
+      container.appendChild(blitzRow);
+    }
+
+    const board = document.createElement("div");
+    board.className = "ttt-board";
+    const boardValues = Array.isArray(meta.board) ? meta.board : Array(9).fill(null);
+    const lockedCells = Array.isArray(meta.lockedCells) ? meta.lockedCells : [];
+    const winningLine = Array.isArray(meta.winningLine) ? meta.winningLine : [];
+    const canInteract = meta.status === "active" && viewerSymbol === activeSymbol;
+    for (let i = 0; i < 9; i += 1) {
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "ttt-cell";
+      const value = boardValues[i];
+      const isLocked = lockedCells.includes(i);
+      if (value === "X") {
+        cell.classList.add("ttt-cell--x");
+        cell.textContent = "X";
+      } else if (value === "O") {
+        cell.classList.add("ttt-cell--o");
+        cell.textContent = "O";
+      } else if (isLocked) {
+        cell.classList.add("ttt-cell--locked");
+        cell.textContent = "🔒";
+      } else {
+        cell.textContent = "";
+      }
+      if (winningLine.includes(i)) cell.classList.add("ttt-cell--win");
+      const isDisabled = !canInteract || !!value || isLocked || meta.status !== "active";
+      cell.disabled = isDisabled;
+      const stateLabel = value ? value : (isLocked ? "Locked" : "Empty");
+      cell.setAttribute("aria-label", `Cell ${i + 1} (${stateLabel})`);
+      if (!isDisabled) {
+        cell.addEventListener("click", () => {
+          socket?.emit("tictactoe:move", { gameId, index: i });
+        });
+      }
+      board.appendChild(cell);
+    }
+    if (!canInteract || meta.status !== "active") board.classList.add("ttt-board--locked");
+    container.appendChild(board);
+
+    if (meta.chaos) {
+      const chaosRow = document.createElement("div");
+      chaosRow.className = "ttt-chaos";
+      chaosRow.textContent = "⚡ Chaos mode: random cells are locked each turn.";
+      container.appendChild(chaosRow);
+    }
+  }
+
+  if (isNew) {
+    msgs.appendChild(container);
+    const shouldStick = isNearBottom(msgs, 160);
+    stickToBottomIfWanted({ force: shouldStick });
+    if (!shouldStick) noteUnseenMainMessage();
+  }
+  if (meta.blitz && meta.turnDeadline && meta.status === "active") {
+    updateTicTacToeCountdowns();
+  }
+  return true;
+}
+
 let commandPopupDismissed=false;
 let selectedVibeTags = [];
 function hideCommandPopup(){
@@ -21838,6 +22086,10 @@ socket.on("mod:case_event", (payload = {}) => {
     if (!room) return;
     if (resolvedRoomId && currentRoomId && resolvedRoomId !== currentRoomId) return;
     if (!resolvedRoomId && room !== currentRoom) return;
+
+    if (meta && typeof meta === "object" && meta.kind === "tictactoe") {
+      if (renderTicTacToeSystemMessage(payload)) return;
+    }
 
     addSystem(text, { className: isDiceResultSystemMessage(text) ? "diceResult" : "" });
   });
