@@ -659,7 +659,7 @@ for (const dir of [UPLOADS_DIR, AVATARS_DIR]) {
     const deadline = Date.now() + TICTACTOE_BLITZ_MOVE_MS;
     game.turnDeadline = deadline;
     game.turnTimer = setTimeout(() => {
-      if (TICTACTOE_GAMES.get(game.room) !== game || game.status !== "active") return;
+      if (TICTACTOE_GAMES.get(game.room) !== game || game.status !== "active" || game.winner) return;
       const winner = game.turn === "X" ? "O" : "X";
       finalizeTicTacToeGame(game.room, game, { winner, reason: "timeout" });
     }, TICTACTOE_BLITZ_MOVE_MS + 50);
@@ -4402,7 +4402,6 @@ function parseTicTacToeOptions(args = []) {
   for (const argRaw of args) {
     const arg = String(argRaw || "").trim();
     if (!arg) continue;
-    if (arg.toLowerCase() === "start") continue;
     const modeKey = normalizeTicTacToeMode(arg);
     if (modeKey) {
       mode = modeKey;

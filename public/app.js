@@ -7516,6 +7516,33 @@ function addSystem(text, options = {}){
   if(!shouldStick) noteUnseenMainMessage();
 }
 
+let tttCountdownTicker = null;
+function updateTicTacToeCountdowns() {
+  const items = document.querySelectorAll(".sys-ttt[data-ttt-deadline]");
+  if (!items.length) {
+    if (tttCountdownTicker) {
+      clearInterval(tttCountdownTicker);
+      tttCountdownTicker = null;
+    }
+    return;
+  }
+  const now = Date.now();
+  items.forEach((container) => {
+    const deadline = Number(container.dataset.tttDeadline || 0);
+    if (!deadline) return;
+    const blitzRow = container.querySelector(".ttt-blitz");
+    if (!blitzRow) return;
+    const secondsLeft = Math.max(0, Math.ceil((deadline - now) / 1000));
+    blitzRow.textContent = secondsLeft > 0
+      ? `⏱️ ${secondsLeft}s on the clock`
+      : "⏱️ Time's up";
+  });
+}
+function ensureTicTacToeCountdownTicker() {
+  if (tttCountdownTicker) return;
+  tttCountdownTicker = setInterval(updateTicTacToeCountdowns, 1000);
+}
+
 function renderTicTacToeSystemMessage(payload) {
   const meta = payload && typeof payload === "object" ? payload.meta : null;
   if (!meta || meta.kind !== "tictactoe") return false;
@@ -7546,6 +7573,12 @@ function renderTicTacToeSystemMessage(payload) {
   container.style.setProperty("--ttt-o-color", oColor);
   container.style.setProperty("--ttt-active-color", activeColor);
   container.style.setProperty("--ttt-win-color", winColor);
+  if (meta.blitz && meta.turnDeadline && meta.status === "active") {
+    container.dataset.tttDeadline = String(meta.turnDeadline);
+    ensureTicTacToeCountdownTicker();
+  } else {
+    container.removeAttribute("data-ttt-deadline");
+  }
 
   const header = document.createElement("div");
   header.className = "ttt-header";
@@ -7718,6 +7751,9 @@ function renderTicTacToeSystemMessage(payload) {
     const shouldStick = isNearBottom(msgs, 160);
     stickToBottomIfWanted({ force: shouldStick });
     if (!shouldStick) noteUnseenMainMessage();
+  }
+  if (meta.blitz && meta.turnDeadline && meta.status === "active") {
+    updateTicTacToeCountdowns();
   }
   return true;
 }
