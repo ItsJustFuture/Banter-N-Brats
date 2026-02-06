@@ -22,6 +22,12 @@ const checks = [
     passed: /const\s+DND_ROOM_CODE\s*=\s*["']R6["']/.test(appJs),
   },
   {
+    name: "Room code normalization handles R6 inputs",
+    passed: /function\s+normalizeRoomCode/.test(appJs)
+      && /ROOM_CODE_PATTERN/.test(appJs)
+      && /function\s+getRoomIdFromName[\s\S]*normalizeRoomCode/.test(appJs),
+  },
+  {
     name: "isDndRoom checks room.id first",
     passed: /function\s+isDndRoom[\s\S]*room\?\.id[\s\S]*DND_ROOM_CODE/.test(appJs),
   },

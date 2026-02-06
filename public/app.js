@@ -938,6 +938,12 @@ const ROOM_IDS = {
 function normalizeRoomKey(value) {
   return String(value || "").toLowerCase().replace(/\s+/g, "");
 }
+const ROOM_CODE_PATTERN = /^r\d+$/i;
+function normalizeRoomCode(value) {
+  const normalized = normalizeRoomKey(value);
+  if (!normalized) return null;
+  return ROOM_CODE_PATTERN.test(normalized) ? normalized.toUpperCase() : null;
+}
 const DND_ROOM_MATCHERS = ["dnd", "dndstoryroom", "dndstory"];
 const DND_ROOM_MATCHER_KEYS = DND_ROOM_MATCHERS.map((key) => normalizeRoomKey(key));
 function matchesDndRoomKey(value) {
@@ -947,13 +953,16 @@ function matchesDndRoomKey(value) {
 function getRoomIdFromName(activeRoom){
   if (activeRoom && typeof activeRoom === "object") {
     const directId = activeRoom?.id ?? activeRoom?.room_id ?? activeRoom?.roomId;
-    if (directId) return String(directId);
+    if (directId) {
+      const normalizedDirect = normalizeRoomKey(directId);
+      return ROOM_IDS[normalizedDirect] || normalizeRoomCode(directId) || String(directId);
+    }
   }
   const roomName = typeof activeRoom === "string"
     ? activeRoom
     : (activeRoom?.name ?? activeRoom?.id ?? "");
   const normalized = normalizeRoomKey(roomName);
-  return ROOM_IDS[normalized] || null;
+  return ROOM_IDS[normalized] || normalizeRoomCode(roomName) || null;
 }
 function getRoomMeta(activeRoom) {
   if (activeRoom && typeof activeRoom === "object") {
