@@ -7631,7 +7631,7 @@ function renderTicTacToeSystemMessage(payload) {
       acceptBox.addEventListener("change", () => {
         if (!acceptBox.checked) return;
         acceptBox.disabled = true;
-        if (!socket?.emit) {
+        if (!socket?.connected || typeof socket.emit !== "function") {
           acceptBox.checked = false;
           acceptBox.disabled = false;
           return;
