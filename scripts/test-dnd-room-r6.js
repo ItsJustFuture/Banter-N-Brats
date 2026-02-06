@@ -33,9 +33,10 @@ if (normalizeRoomCodeDefined) {
     sandbox
   );
   const normalizeRoomCode = sandbox.normalizeRoomCode;
-  normalizeRoomCodeWorks = normalizeRoomCode?.("r6") === "R6"
-    && normalizeRoomCode?.("R6") === "R6"
-    && normalizeRoomCode?.("dnd") === null;
+  const lowerCode = normalizeRoomCode?.("r6");
+  const upperCode = normalizeRoomCode?.("R6");
+  const invalidCode = normalizeRoomCode?.("dnd");
+  normalizeRoomCodeWorks = lowerCode === "R6" && upperCode === "R6" && invalidCode === null;
 }
 
 const checks = [

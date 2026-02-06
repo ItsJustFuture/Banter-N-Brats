@@ -957,7 +957,7 @@ function getRoomIdFromName(activeRoom){
   if (activeRoom && typeof activeRoom === "object") {
     const directId = activeRoom?.id ?? activeRoom?.room_id ?? activeRoom?.roomId;
     if (directId) {
-      const normalizedDirect = normalizeRoomKey(directId); // normalized once for lookups + room-code checks
+      const normalizedDirect = normalizeRoomKey(directId); // normalized once for lookups + room code checks
       return ROOM_IDS[normalizedDirect] || roomCodeFromNormalized(normalizedDirect) || String(directId);
     }
   }
