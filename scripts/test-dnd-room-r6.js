@@ -23,20 +23,26 @@ function extractFunction(source, name) {
   if (start < 0) return null;
   const braceStart = source.indexOf("{", start);
   if (braceStart < 0) return null;
-  let depth = 0;
-  for (let i = braceStart; i < source.length; i += 1) {
-    const ch = source[i];
-    if (ch === "{") depth += 1;
-    if (ch === "}") {
-      depth -= 1;
-      if (depth === 0) return source.slice(start, i + 1);
+  let depth = 1;
+  let cursor = braceStart + 1;
+  while (cursor < source.length) {
+    const nextOpen = source.indexOf("{", cursor);
+    const nextClose = source.indexOf("}", cursor);
+    if (nextClose < 0) return null;
+    if (nextOpen > -1 && nextOpen < nextClose) {
+      depth += 1;
+      cursor = nextOpen + 1;
+      continue;
     }
+    depth -= 1;
+    cursor = nextClose + 1;
+    if (depth === 0) return source.slice(start, cursor);
   }
   return null;
 }
 
 const normalizeRoomKeySource = extractFunction(appJs, "normalizeRoomKey");
-const roomCodePatternMatch = appJs.match(/const\s+ROOM_CODE_PATTERN\s*=\s*[^;]+;/);
+const roomCodePatternMatch = appJs.match(/const\s+ROOM_CODE_PATTERN\s*=\s*\/[^/]+\/[gimuy]*;/);
 const roomCodeFromNormalizedSource = extractFunction(appJs, "roomCodeFromNormalized");
 const normalizeRoomCodeSource = extractFunction(appJs, "normalizeRoomCode");
 const normalizeRoomCodeDefined = Boolean(
