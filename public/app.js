@@ -21904,7 +21904,7 @@ socket.on("mod:case_event", (payload = {}) => {
       return;
     }
 
-    // Animation: minimum 1 second total (12 ticks at 70ms = 840ms + 600ms display = 1440ms total)
+    // Animation: 1.44 seconds total (12 ticks at 70ms = 840ms + 600ms display = 1440ms)
     let t = 0;
     const ANIMATION_TICKS = 12;
     const TICK_INTERVAL_MS = 70;
