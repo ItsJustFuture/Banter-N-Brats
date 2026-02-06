@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 
 console.log("🧪 Testing DnD room R6 integration...\n");
 
@@ -16,6 +17,24 @@ const serverJs = fs.readFileSync(serverJsPath, "utf8");
 const indexHtml = fs.readFileSync(indexHtmlPath, "utf8");
 const migrationSql = fs.existsSync(migrationPath) ? fs.readFileSync(migrationPath, "utf8") : "";
 
+let normalizeRoomCodeWorks = false;
+const normalizeRoomKeyMatch = appJs.match(/function\s+normalizeRoomKey\s*\([^)]*\)\s*\{[\s\S]*?\n\}/);
+const roomCodePatternMatch = appJs.match(/const\s+ROOM_CODE_PATTERN\s*=\s*[^;]+;/);
+const roomCodeFromNormalizedMatch = appJs.match(/function\s+roomCodeFromNormalized\s*\([^)]*\)\s*\{[\s\S]*?\n\}/);
+const normalizeRoomCodeMatch = appJs.match(/function\s+normalizeRoomCode\s*\([^)]*\)\s*\{[\s\S]*?\n\}/);
+if (normalizeRoomKeyMatch && roomCodePatternMatch && roomCodeFromNormalizedMatch && normalizeRoomCodeMatch) {
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(
+    `${normalizeRoomKeyMatch[0]}\n${roomCodePatternMatch[0]}\n${roomCodeFromNormalizedMatch[0]}\n${normalizeRoomCodeMatch[0]}`,
+    sandbox
+  );
+  const normalizeRoomCode = sandbox.normalizeRoomCode;
+  normalizeRoomCodeWorks = normalizeRoomCode?.("r6") === "R6"
+    && normalizeRoomCode?.("R6") === "R6"
+    && normalizeRoomCode?.("dnd") === null;
+}
+
 const checks = [
   {
     name: "DND_ROOM_CODE is R6 (app.js)",
@@ -23,9 +42,7 @@ const checks = [
   },
   {
     name: "Room code normalization handles R6 inputs",
-    passed: /function\s+normalizeRoomCode/.test(appJs)
-      && /ROOM_CODE_PATTERN/.test(appJs)
-      && /function\s+getRoomIdFromName[\s\S]*normalizeRoomCode/.test(appJs),
+    passed: normalizeRoomCodeWorks,
   },
   {
     name: "isDndRoom checks room.id first",

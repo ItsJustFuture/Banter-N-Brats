@@ -939,10 +939,13 @@ function normalizeRoomKey(value) {
   return String(value || "").toLowerCase().replace(/\s+/g, "");
 }
 const ROOM_CODE_PATTERN = /^r\d+$/i;
-function normalizeRoomCode(value) {
-  const normalized = normalizeRoomKey(value);
+function roomCodeFromNormalized(normalized) {
   if (!normalized) return null;
   return ROOM_CODE_PATTERN.test(normalized) ? normalized.toUpperCase() : null;
+}
+function normalizeRoomCode(value) {
+  const normalized = normalizeRoomKey(value);
+  return roomCodeFromNormalized(normalized);
 }
 const DND_ROOM_MATCHERS = ["dnd", "dndstoryroom", "dndstory"];
 const DND_ROOM_MATCHER_KEYS = DND_ROOM_MATCHERS.map((key) => normalizeRoomKey(key));
@@ -955,7 +958,7 @@ function getRoomIdFromName(activeRoom){
     const directId = activeRoom?.id ?? activeRoom?.room_id ?? activeRoom?.roomId;
     if (directId) {
       const normalizedDirect = normalizeRoomKey(directId);
-      return ROOM_IDS[normalizedDirect] || normalizeRoomCode(directId) || String(directId);
+      return ROOM_IDS[normalizedDirect] || roomCodeFromNormalized(normalizedDirect) || String(directId);
     }
   }
   const roomName = typeof activeRoom === "string"
