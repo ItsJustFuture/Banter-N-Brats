@@ -2794,6 +2794,115 @@ body.keyboard-open .menuContent{ padding-bottom: calc(200px + var(--kb, 0px) + e
 .chat-main .sys.sys-dice{ --sys-rail: color-mix(in srgb, var(--accent) 55%, transparent); }
 .chat-main .sys.sys-mod{ --sys-rail: color-mix(in srgb, var(--warning) 60%, transparent); }
 .chat-main .sys.sys-sim{ --sys-rail: color-mix(in srgb, var(--success) 55%, transparent); }
+.chat-main .sys.sys-ttt{
+  --sys-rail: color-mix(in srgb, var(--accent) 40%, transparent);
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:10px 12px 12px 16px;
+  border-radius:12px;
+  width:min(92%, 520px);
+}
+.chat-main .sys.sys-ttt.ttt-active{
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ttt-active-color) 45%, transparent),
+    0 0 16px color-mix(in srgb, var(--ttt-active-color) 35%, transparent);
+}
+.chat-main .sys.sys-ttt .ttt-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.chat-main .sys.sys-ttt .ttt-title{
+  font-weight:600;
+  font-size:12px;
+  letter-spacing:0.02em;
+}
+.chat-main .sys.sys-ttt .ttt-meta{
+  font-size:10px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+}
+.chat-main .sys.sys-ttt .ttt-players{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.chat-main .sys.sys-ttt .ttt-player{
+  font-size:10px;
+  padding:2px 8px;
+  border-radius:999px;
+  border:1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background:color-mix(in srgb, var(--panel2) 70%, transparent);
+}
+.chat-main .sys.sys-ttt .ttt-player--x{
+  color:var(--ttt-x-color);
+  border-color:color-mix(in srgb, var(--ttt-x-color) 50%, transparent);
+}
+.chat-main .sys.sys-ttt .ttt-player--o{
+  color:var(--ttt-o-color);
+  border-color:color-mix(in srgb, var(--ttt-o-color) 50%, transparent);
+}
+.chat-main .sys.sys-ttt .ttt-player--active{
+  box-shadow:0 0 0 2px color-mix(in srgb, var(--ttt-active-color) 60%, transparent);
+}
+.chat-main .sys.sys-ttt .ttt-status{
+  font-size:11px;
+  font-weight:600;
+}
+.chat-main .sys.sys-ttt .ttt-blitz,
+.chat-main .sys.sys-ttt .ttt-chaos,
+.chat-main .sys.sys-ttt .ttt-note,
+.chat-main .sys.sys-ttt .ttt-challenge-details{
+  font-size:10px;
+  color:var(--muted);
+}
+.chat-main .sys.sys-ttt .ttt-board{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:6px;
+  align-self:flex-start;
+}
+.chat-main .sys.sys-ttt .ttt-cell{
+  width:48px;
+  height:48px;
+  border-radius:10px;
+  border:1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background:color-mix(in srgb, var(--panel2) 80%, transparent);
+  color:var(--text);
+  font-size:20px;
+  font-weight:700;
+  cursor:pointer;
+}
+.chat-main .sys.sys-ttt .ttt-cell--x{ color:var(--ttt-x-color); }
+.chat-main .sys.sys-ttt .ttt-cell--o{ color:var(--ttt-o-color); }
+.chat-main .sys.sys-ttt .ttt-cell--locked{
+  opacity:0.55;
+  cursor:not-allowed;
+}
+.chat-main .sys.sys-ttt .ttt-cell--win{
+  border-color:color-mix(in srgb, var(--ttt-win-color) 60%, transparent);
+  box-shadow:0 0 0 2px color-mix(in srgb, var(--ttt-win-color) 55%, transparent);
+}
+.chat-main .sys.sys-ttt .ttt-board--locked .ttt-cell{
+  cursor:not-allowed;
+}
+.chat-main .sys.sys-ttt .ttt-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:4px;
+}
+.chat-main .sys.sys-ttt .ttt-btn{
+  background:var(--btnPrimaryBg);
+  color:var(--btnPrimaryText);
+  border:none;
+  border-radius:10px;
+  padding:4px 10px;
+  font-size:10px;
+  cursor:pointer;
+}
 
 .dmMessages,
 .dmMsgs,

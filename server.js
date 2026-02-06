@@ -65,6 +65,44 @@ const DND_ROOM_DB_ID = 2; // Will be created dynamically if needed
 const DND_SESSION_COOLDOWN_MS = 2 * 60 * 1000;
 const DND_ADVANCE_COOLDOWN_MS = 2000;
 
+// Tic Tac Toe (room-scoped, in-memory)
+const TICTACTOE_GAMES = new Map(); // room -> game state
+const TICTACTOE_DEFAULT_MODE = "classic";
+const TICTACTOE_DEFAULT_PALETTE = "default";
+const TICTACTOE_BLITZ_MOVE_MS = 15_000;
+const TICTACTOE_CHAOS_LOCK_COUNT = 2;
+const TICTACTOE_WIN_LINES = [
+  [0, 1, 2],
+  [3, 4, 5],
+  [6, 7, 8],
+  [0, 3, 6],
+  [1, 4, 7],
+  [2, 5, 8],
+  [0, 4, 8],
+  [2, 4, 6],
+];
+const TICTACTOE_MODES = {
+  classic: { label: "Classic" },
+  blitz: { label: "Blitz", blitz: true },
+  chaos: { label: "Chaos", chaos: true },
+  colorswap: { label: "Color Swap", colorSwap: true },
+  hiddenturn: { label: "Hidden Turn", hiddenTurn: true },
+};
+const TICTACTOE_MODE_ALIASES = {
+  "color-swap": "colorswap",
+  "color": "colorswap",
+  "swap": "colorswap",
+  "hidden": "hiddenturn",
+  "hidden-turn": "hiddenturn",
+};
+const TICTACTOE_PALETTES = {
+  default: { label: "Default", x: "#dc143c", o: "#2f80ff" },
+  neon: { label: "Neon", x: "#ff4fd8", o: "#31e7ff" },
+  monochrome: { label: "Monochrome", x: "#f5f5f5", o: "#9aa0a6" },
+  highcontrast: { label: "High Contrast", x: "#ffd400", o: "#111111" },
+  pastel: { label: "Pastel", x: "#f2a7c2", o: "#8ec9ff" },
+};
+
 function resolveRoomCode(roomName) {
   const normalized = normalizeRoomKey(roomName);
   if (!normalized) return null;
@@ -449,6 +487,266 @@ for (const dir of [UPLOADS_DIR, AVATARS_DIR]) {
     if (DEBUG_ROOMS) {
       console.log("[rooms] system emit", { room: "__global__", text: payload.text, meta: payload.meta || null });
     }
+  }
+
+  function normalizeTicTacToeMode(raw) {
+    const key = String(raw || "").trim().toLowerCase();
+    if (!key) return "";
+    if (TICTACTOE_MODES[key]) return key;
+    const alias = TICTACTOE_MODE_ALIASES[key];
+    if (alias && TICTACTOE_MODES[alias]) return alias;
+    return "";
+  }
+
+  function normalizeTicTacToePalette(raw) {
+    const key = String(raw || "").trim().toLowerCase();
+    if (!key) return "";
+    if (TICTACTOE_PALETTES[key]) return key;
+    if (key === "high-contrast" || key === "highcontrast" || key === "contrast") return "highcontrast";
+    return "";
+  }
+
+  function createTicTacToeId() {
+    return `ttt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function getTicTacToePalette(key) {
+    return TICTACTOE_PALETTES[key] || TICTACTOE_PALETTES[TICTACTOE_DEFAULT_PALETTE];
+  }
+
+  function getTicTacToeMode(key) {
+    return TICTACTOE_MODES[key] || TICTACTOE_MODES[TICTACTOE_DEFAULT_MODE];
+  }
+
+  function getTicTacToePlayerSymbol(game, userId) {
+    const uid = Number(userId || 0);
+    if (!uid || !game?.players) return "";
+    if (Number(game.players.X?.id || 0) === uid) return "X";
+    if (Number(game.players.O?.id || 0) === uid) return "O";
+    return "";
+  }
+
+  function pickTicTacToeChaosLocks(board = []) {
+    const open = board
+      .map((cell, idx) => (cell ? null : idx))
+      .filter((idx) => Number.isInteger(idx));
+    const count = Math.min(TICTACTOE_CHAOS_LOCK_COUNT, open.length);
+    const locked = [];
+    for (let i = 0; i < count; i += 1) {
+      const pickIndex = Math.floor(Math.random() * open.length);
+      const picked = open.splice(pickIndex, 1)[0];
+      if (Number.isInteger(picked)) locked.push(picked);
+    }
+    return locked;
+  }
+
+  function evaluateTicTacToeWinner(board = []) {
+    for (const line of TICTACTOE_WIN_LINES) {
+      const [a, b, c] = line;
+      const mark = board[a];
+      if (mark && mark === board[b] && mark === board[c]) {
+        return { winner: mark, line };
+      }
+    }
+    return { winner: null, line: [] };
+  }
+
+  function buildTicTacToeMeta(game, overrides = {}) {
+    const palette = getTicTacToePalette(game?.palette);
+    const mode = getTicTacToeMode(game?.mode);
+    return {
+      kind: "tictactoe",
+      gameId: game?.id || "",
+      room: game?.room || "",
+      status: game?.status || "",
+      mode: game?.mode || TICTACTOE_DEFAULT_MODE,
+      modeLabel: mode.label,
+      palette: game?.palette || TICTACTOE_DEFAULT_PALETTE,
+      paletteLabel: palette.label,
+      colors: { x: palette.x, o: palette.o },
+      challenger: game?.challenger || null,
+      acceptor: game?.acceptor || null,
+      players: game?.players || null,
+      board: Array.isArray(game?.board) ? game.board : null,
+      turn: game?.turn || "",
+      moveCount: Number(game?.moveCount || 0),
+      lockedCells: Array.isArray(game?.lockedCells) ? game.lockedCells : [],
+      winner: game?.winner || null,
+      winningLine: Array.isArray(game?.winningLine) ? game.winningLine : [],
+      blitz: !!game?.blitz,
+      chaos: !!game?.chaos,
+      colorSwap: !!game?.colorSwap,
+      hiddenTurn: !!game?.hiddenTurn,
+      turnDeadline: game?.turnDeadline || null,
+      endedReason: game?.endedReason || "",
+      endedBy: game?.endedBy || null,
+      ...overrides,
+    };
+  }
+
+  function getTicTacToeWinnerName(game, symbol) {
+    if (!game?.players) return symbol;
+    return (symbol === "X" ? game.players.X?.username : game.players.O?.username) || symbol;
+  }
+
+  function ticTacToeChallengeText(game, status) {
+    const challengerName = game?.challenger?.username || "Someone";
+    const acceptorName = game?.acceptor?.username || "Someone";
+    if (status === "accepted") {
+      return `✅ ${acceptorName} accepted the Tic Tac Toe challenge!`;
+    }
+    if (status === "cancelled") {
+      return `⏹️ ${challengerName} canceled the Tic Tac Toe challenge.`;
+    }
+    return `🎮 ${challengerName} has challenged the room to Tic Tac Toe.`;
+  }
+
+  function ticTacToeStateText(game) {
+    if (game?.status === "ended") {
+      if (game?.winner === "draw") {
+        return "🤝 Tic Tac Toe ended in a draw.";
+      }
+      if (game?.winner === "X" || game?.winner === "O") {
+        const winnerName = getTicTacToeWinnerName(game, game.winner);
+        if (game.endedReason === "timeout") {
+          return `⏱️ ${winnerName} wins by timeout!`;
+        }
+        if (game.endedReason === "disconnect") {
+          return `🔌 ${winnerName} wins after a disconnect.`;
+        }
+        return `🏆 ${winnerName} wins Tic Tac Toe!`;
+      }
+      if (game?.endedBy?.username) {
+        return `⏹️ Tic Tac Toe ended by ${game.endedBy.username}.`;
+      }
+      return "⏹️ Tic Tac Toe ended.";
+    }
+    const xName = game?.players?.X?.username || "Player X";
+    const oName = game?.players?.O?.username || "Player O";
+    return `🎮 Tic Tac Toe: ${xName} (X) vs ${oName} (O)`;
+  }
+
+  function emitTicTacToeChallenge(room, game, challengeStatus = "pending") {
+    emitRoomSystem(
+      room,
+      ticTacToeChallengeText(game, challengeStatus),
+      buildTicTacToeMeta(game, { phase: "challenge", challengeStatus })
+    );
+  }
+
+  function emitTicTacToeState(room, game) {
+    emitRoomSystem(room, ticTacToeStateText(game), buildTicTacToeMeta(game, { phase: "state" }));
+  }
+
+  function emitTicTacToeSnapshotToSocket(socket, game) {
+    if (!socket || !game?.room) return;
+    const phase = game.status === "pending" ? "challenge" : "state";
+    const text = phase === "challenge" ? ticTacToeChallengeText(game, "pending") : ticTacToeStateText(game);
+    const payload = buildSystemPayload(game.room, text, buildTicTacToeMeta(game, { phase }));
+    socket.emit("system", payload);
+  }
+
+  function clearTicTacToeTimer(game) {
+    if (game?.turnTimer) {
+      clearTimeout(game.turnTimer);
+      game.turnTimer = null;
+    }
+  }
+
+  function scheduleTicTacToeTimer(game) {
+    if (!game || !game.blitz || game.status !== "active") return;
+    clearTicTacToeTimer(game);
+    const deadline = Date.now() + TICTACTOE_BLITZ_MOVE_MS;
+    game.turnDeadline = deadline;
+    game.turnTimer = setTimeout(() => {
+      if (TICTACTOE_GAMES.get(game.room) !== game || game.status !== "active") return;
+      const winner = game.turn === "X" ? "O" : "X";
+      finalizeTicTacToeGame(game.room, game, { winner, reason: "timeout" });
+    }, TICTACTOE_BLITZ_MOVE_MS + 50);
+  }
+
+  function finalizeTicTacToeGame(room, game, { winner, reason, endedBy } = {}) {
+    if (!game) return;
+    clearTicTacToeTimer(game);
+    game.status = "ended";
+    game.winner = winner || null;
+    game.endedReason = reason || "";
+    game.endedBy = endedBy || null;
+    game.turnDeadline = null;
+    game.lockedCells = [];
+    emitTicTacToeState(room, game);
+    TICTACTOE_GAMES.delete(room);
+  }
+
+  function createTicTacToeChallenge({ room, challenger, mode, palette }) {
+    const resolvedMode = mode || TICTACTOE_DEFAULT_MODE;
+    const resolvedPalette = palette || TICTACTOE_DEFAULT_PALETTE;
+    const modeMeta = getTicTacToeMode(resolvedMode);
+    const now = Date.now();
+    const game = {
+      id: createTicTacToeId(),
+      room,
+      status: "pending",
+      challenger: { id: challenger.id, username: challenger.username },
+      acceptor: null,
+      players: null,
+      mode: resolvedMode,
+      palette: resolvedPalette,
+      blitz: !!modeMeta.blitz,
+      chaos: !!modeMeta.chaos,
+      colorSwap: !!modeMeta.colorSwap,
+      hiddenTurn: !!modeMeta.hiddenTurn,
+      board: null,
+      turn: "X",
+      moveCount: 0,
+      lockedCells: [],
+      winner: null,
+      winningLine: [],
+      createdAt: now,
+      updatedAt: now,
+      endedReason: "",
+      endedBy: null,
+      turnDeadline: null,
+      turnTimer: null,
+    };
+    TICTACTOE_GAMES.set(room, game);
+    emitTicTacToeChallenge(room, game, "pending");
+    return game;
+  }
+
+  function startTicTacToeGame(game, acceptor) {
+    if (!game) return;
+    const now = Date.now();
+    game.acceptor = { id: acceptor.id, username: acceptor.username };
+    game.players = { X: game.challenger, O: game.acceptor };
+    game.status = "active";
+    game.board = Array(9).fill(null);
+    game.turn = "X";
+    game.moveCount = 0;
+    game.winner = null;
+    game.winningLine = [];
+    game.lockedCells = game.chaos ? pickTicTacToeChaosLocks(game.board) : [];
+    game.updatedAt = now;
+    emitTicTacToeChallenge(game.room, game, "accepted");
+    if (game.blitz) scheduleTicTacToeTimer(game);
+    emitTicTacToeState(game.room, game);
+  }
+
+  function handleTicTacToePlayerExit(room, user, reason) {
+    const game = TICTACTOE_GAMES.get(room);
+    if (!game || !user?.id) return;
+    if (game.status === "pending") {
+      if (Number(game.challenger?.id) === Number(user.id)) {
+        emitTicTacToeChallenge(room, game, "cancelled");
+        TICTACTOE_GAMES.delete(room);
+      }
+      return;
+    }
+    if (game.status !== "active") return;
+    const symbol = getTicTacToePlayerSymbol(game, user.id);
+    if (!symbol) return;
+    const winner = symbol === "X" ? "O" : "X";
+    finalizeTicTacToeGame(room, game, { winner, reason: reason || "disconnect" });
   }
 const PG_ENABLED = Boolean(process.env.DATABASE_URL);
 const pgPool = PG_ENABLED
@@ -4097,6 +4395,81 @@ async function spendGold(userId, amount, reason, opts = {}) {
   }
 }
 
+function parseTicTacToeOptions(args = []) {
+  let mode = TICTACTOE_DEFAULT_MODE;
+  let palette = TICTACTOE_DEFAULT_PALETTE;
+  const unknown = [];
+  for (const argRaw of args) {
+    const arg = String(argRaw || "").trim();
+    if (!arg) continue;
+    if (arg.toLowerCase() === "start") continue;
+    const modeKey = normalizeTicTacToeMode(arg);
+    if (modeKey) {
+      mode = modeKey;
+      continue;
+    }
+    const paletteKey = normalizeTicTacToePalette(arg);
+    if (paletteKey) {
+      palette = paletteKey;
+      continue;
+    }
+    unknown.push(arg);
+  }
+  return { mode, palette, unknown };
+}
+
+async function handleTicTacToeCommand({ args, room, socket }) {
+  if (!socket?.user) return { ok: false, message: "Unauthorized" };
+  if (!room) return { ok: false, message: "Join a room first." };
+  const action = String(args[0] || "").trim().toLowerCase();
+  if (action === "accept") {
+    const game = TICTACTOE_GAMES.get(room);
+    if (!game || game.status !== "pending") {
+      socket.emit("system", buildSystemPayload(room, "No Tic Tac Toe challenge to accept.", { kind: "tictactoe" }));
+      return { ok: false, message: "No Tic Tac Toe challenge to accept." };
+    }
+    if (Number(game.challenger?.id) === Number(socket.user.id)) {
+      socket.emit("system", buildSystemPayload(room, "You cannot accept your own Tic Tac Toe challenge.", { kind: "tictactoe" }));
+      return { ok: false, message: "You cannot accept your own challenge." };
+    }
+    if (game.acceptor) {
+      socket.emit("system", buildSystemPayload(room, "Tic Tac Toe challenge already accepted.", { kind: "tictactoe" }));
+      return { ok: false, message: "Challenge already accepted." };
+    }
+    startTicTacToeGame(game, socket.user);
+    return { ok: true, message: "Challenge accepted. Game starting!" };
+  }
+  if (action === "end" || action === "cancel" || action === "stop") {
+    const game = TICTACTOE_GAMES.get(room);
+    if (!game) return { ok: false, message: "No active Tic Tac Toe game." };
+    const isParticipant = Number(game.challenger?.id) === Number(socket.user.id)
+      || Number(game.players?.X?.id) === Number(socket.user.id)
+      || Number(game.players?.O?.id) === Number(socket.user.id);
+    if (!isParticipant) return { ok: false, message: "Only players can end the game." };
+    if (game.status === "pending") {
+      emitTicTacToeChallenge(room, game, "cancelled");
+      TICTACTOE_GAMES.delete(room);
+      return { ok: true, message: "Challenge cancelled." };
+    }
+    finalizeTicTacToeGame(room, game, { reason: "manual", endedBy: { id: socket.user.id, username: socket.user.username } });
+    return { ok: true, message: "Game ended." };
+  }
+
+  const options = parseTicTacToeOptions(action ? args : []);
+  if (options.unknown.length) {
+    const modes = Object.keys(TICTACTOE_MODES).map((m) => TICTACTOE_MODES[m].label).join(", ");
+    const palettes = Object.keys(TICTACTOE_PALETTES).map((p) => TICTACTOE_PALETTES[p].label).join(", ");
+    return { ok: false, message: `Unknown option(s): ${options.unknown.join(", ")}. Modes: ${modes}. Palettes: ${palettes}.` };
+  }
+  const existing = TICTACTOE_GAMES.get(room);
+  if (existing && existing.status !== "ended") {
+    emitTicTacToeSnapshotToSocket(socket, existing);
+    return { ok: false, message: "A Tic Tac Toe game is already active in this room." };
+  }
+  createTicTacToeChallenge({ room, challenger: socket.user, mode: options.mode, palette: options.palette });
+  return { ok: true, message: "Tic Tac Toe challenge sent!" };
+}
+
 const commandRegistry = {
   help: {
     minRole: "User",
@@ -4116,6 +4489,20 @@ const commandRegistry = {
         .sort((a, b) => a.name.localeCompare(b.name));
       return { ok: true, type: "help", commands, role: ROLE_DISPLAY[actorRole] || actorRole };
     },
+  },
+  ttt: {
+    minRole: "User",
+    description: "Start or manage a Tic Tac Toe game in this room",
+    usage: "/ttt [mode] [palette] | /ttt accept | /ttt end",
+    example: "/ttt blitz neon",
+    handler: handleTicTacToeCommand,
+  },
+  tictactoe: {
+    minRole: "User",
+    description: "Alias for /ttt",
+    usage: "/tictactoe [mode] [palette] | /tictactoe accept | /tictactoe end",
+    example: "/tictactoe classic pastel",
+    handler: handleTicTacToeCommand,
   },
   mute: {
     minRole: "Moderator",
@@ -16004,6 +16391,9 @@ function doJoin(room, status) {
   }
   socket.currentRoom = targetRoom;
   socket.data.currentRoom = targetRoom;
+  if (previousRoom && previousRoom !== targetRoom) {
+    handleTicTacToePlayerExit(previousRoom, socket.user, "room-change");
+  }
 
   // session map + heat + daily unique rooms
   try {
@@ -16109,6 +16499,8 @@ function doJoin(room, status) {
   );
 
   socket.emit("system", buildSystemPayload(room, "Joined " + room));
+  const tttGame = TICTACTOE_GAMES.get(room);
+  if (tttGame) emitTicTacToeSnapshotToSocket(socket, tttGame);
   emitUserList(room);
 }
 
@@ -16588,6 +16980,138 @@ if (!room) {
     });
   });
 
+
+  socket.on("tictactoe:challenge", ({ mode, palette } = {}, ack) => {
+    const respond = (payload) => {
+      if (typeof ack === "function") ack(payload);
+    };
+    if (!socket.user) return respond({ ok: false, error: "Unauthorized" });
+    const room = socket.currentRoom;
+    if (!room) return respond({ ok: false, error: "Join a room first" });
+    const existing = TICTACTOE_GAMES.get(room);
+    if (existing && existing.status !== "ended") {
+      emitTicTacToeSnapshotToSocket(socket, existing);
+      return respond({ ok: false, error: "Game already active" });
+    }
+    const modeKey = normalizeTicTacToeMode(mode) || TICTACTOE_DEFAULT_MODE;
+    const paletteKey = normalizeTicTacToePalette(palette) || TICTACTOE_DEFAULT_PALETTE;
+    if (mode && !normalizeTicTacToeMode(mode)) {
+      return respond({ ok: false, error: "Invalid mode" });
+    }
+    if (palette && !normalizeTicTacToePalette(palette)) {
+      return respond({ ok: false, error: "Invalid palette" });
+    }
+    createTicTacToeChallenge({ room, challenger: socket.user, mode: modeKey, palette: paletteKey });
+    respond({ ok: true });
+  });
+
+  socket.on("tictactoe:accept", ({ gameId } = {}, ack) => {
+    const respond = (payload) => {
+      if (typeof ack === "function") ack(payload);
+    };
+    if (!socket.user) return respond({ ok: false, error: "Unauthorized" });
+    const room = socket.currentRoom;
+    if (!room) return respond({ ok: false, error: "Join a room first" });
+    const game = TICTACTOE_GAMES.get(room);
+    if (!game || game.status !== "pending") {
+      socket.emit("system", buildSystemPayload(room, "No Tic Tac Toe challenge to accept.", { kind: "tictactoe" }));
+      return respond({ ok: false, error: "No pending challenge" });
+    }
+    if (gameId && gameId !== game.id) {
+      return respond({ ok: false, error: "Challenge not found" });
+    }
+    if (Number(game.challenger?.id) === Number(socket.user.id)) {
+      socket.emit("system", buildSystemPayload(room, "You cannot accept your own Tic Tac Toe challenge.", { kind: "tictactoe" }));
+      return respond({ ok: false, error: "Cannot accept your own challenge" });
+    }
+    if (game.acceptor) {
+      socket.emit("system", buildSystemPayload(room, "Tic Tac Toe challenge already accepted.", { kind: "tictactoe" }));
+      return respond({ ok: false, error: "Challenge already accepted" });
+    }
+    startTicTacToeGame(game, socket.user);
+    respond({ ok: true });
+  });
+
+  socket.on("tictactoe:move", ({ gameId, index } = {}, ack) => {
+    const respond = (payload) => {
+      if (typeof ack === "function") ack(payload);
+    };
+    if (!socket.user) return respond({ ok: false, error: "Unauthorized" });
+    if (!allowSocketEvent(socket, "tictactoe_move", 12, 4000)) {
+      return respond({ ok: false, error: "Rate limited" });
+    }
+    const room = socket.currentRoom;
+    if (!room) return respond({ ok: false, error: "Join a room first" });
+    const game = TICTACTOE_GAMES.get(room);
+    if (!game || game.status !== "active") {
+      return respond({ ok: false, error: "No active game" });
+    }
+    if (gameId && gameId !== game.id) {
+      return respond({ ok: false, error: "Game mismatch" });
+    }
+    const symbol = getTicTacToePlayerSymbol(game, socket.user.id);
+    if (!symbol) {
+      socket.emit("system", buildSystemPayload(room, "Spectators cannot play Tic Tac Toe.", { kind: "tictactoe" }));
+      return respond({ ok: false, error: "Not a player" });
+    }
+    if (game.turn !== symbol) {
+      socket.emit("system", buildSystemPayload(room, "⚠️ Not your turn yet.", { kind: "tictactoe" }));
+      return respond({ ok: false, error: "Not your turn" });
+    }
+    const cellIndex = Number(index);
+    if (!Number.isInteger(cellIndex) || cellIndex < 0 || cellIndex > 8) {
+      return respond({ ok: false, error: "Invalid move" });
+    }
+    if (!Array.isArray(game.board) || game.board[cellIndex]) {
+      return respond({ ok: false, error: "Illegal move" });
+    }
+    if (game.chaos && Array.isArray(game.lockedCells) && game.lockedCells.includes(cellIndex)) {
+      return respond({ ok: false, error: "Cell is locked" });
+    }
+    game.board[cellIndex] = symbol;
+    game.moveCount = Number(game.moveCount || 0) + 1;
+    game.updatedAt = Date.now();
+    const { winner, line } = evaluateTicTacToeWinner(game.board);
+    if (winner) {
+      game.winner = winner;
+      game.winningLine = line;
+      finalizeTicTacToeGame(room, game, { winner });
+      return respond({ ok: true });
+    }
+    if (game.board.every((cell) => cell)) {
+      game.winner = "draw";
+      finalizeTicTacToeGame(room, game, { winner: "draw", reason: "draw" });
+      return respond({ ok: true });
+    }
+    game.turn = symbol === "X" ? "O" : "X";
+    game.lockedCells = game.chaos ? pickTicTacToeChaosLocks(game.board) : [];
+    if (game.blitz) scheduleTicTacToeTimer(game);
+    emitTicTacToeState(room, game);
+    respond({ ok: true });
+  });
+
+  socket.on("tictactoe:end", ({ gameId } = {}, ack) => {
+    const respond = (payload) => {
+      if (typeof ack === "function") ack(payload);
+    };
+    if (!socket.user) return respond({ ok: false, error: "Unauthorized" });
+    const room = socket.currentRoom;
+    if (!room) return respond({ ok: false, error: "Join a room first" });
+    const game = TICTACTOE_GAMES.get(room);
+    if (!game) return respond({ ok: false, error: "No active game" });
+    if (gameId && gameId !== game.id) return respond({ ok: false, error: "Game mismatch" });
+    const isParticipant = Number(game.challenger?.id) === Number(socket.user.id)
+      || Number(game.players?.X?.id) === Number(socket.user.id)
+      || Number(game.players?.O?.id) === Number(socket.user.id);
+    if (!isParticipant) return respond({ ok: false, error: "Only players can end the game" });
+    if (game.status === "pending") {
+      emitTicTacToeChallenge(room, game, "cancelled");
+      TICTACTOE_GAMES.delete(room);
+      return respond({ ok: true });
+    }
+    finalizeTicTacToeGame(room, game, { reason: "manual", endedBy: { id: socket.user.id, username: socket.user.username } });
+    respond({ ok: true });
+  });
 
   socket.on("chess:challenge:create", async ({ dmThreadId, challengedUserId } = {}, ack) => {
     const respond = (payload) => {
@@ -18118,6 +18642,9 @@ socket.on("disconnect", (reason) => {
     emitOnlineUsers();
 
     const room = socket.currentRoom;
+    if (room) {
+      handleTicTacToePlayerExit(room, socket.user, "disconnect");
+    }
 
     // Always clear per-socket rate tracking
     msgRate.delete(socket.id);
