@@ -18,18 +18,35 @@ const indexHtml = fs.readFileSync(indexHtmlPath, "utf8");
 const migrationSql = fs.existsSync(migrationPath) ? fs.readFileSync(migrationPath, "utf8") : "";
 
 let normalizeRoomCodeWorks = false;
-const normalizeRoomKeyMatch = appJs.match(/function\s+normalizeRoomKey\s*\([^)]*\)\s*\{[\s\S]*?\n\}/);
+function extractFunction(source, name) {
+  const start = source.indexOf(`function ${name}`);
+  if (start < 0) return null;
+  const braceStart = source.indexOf("{", start);
+  if (braceStart < 0) return null;
+  let depth = 0;
+  for (let i = braceStart; i < source.length; i += 1) {
+    const ch = source[i];
+    if (ch === "{") depth += 1;
+    if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+const normalizeRoomKeySource = extractFunction(appJs, "normalizeRoomKey");
 const roomCodePatternMatch = appJs.match(/const\s+ROOM_CODE_PATTERN\s*=\s*[^;]+;/);
-const roomCodeFromNormalizedMatch = appJs.match(/function\s+roomCodeFromNormalized\s*\([^)]*\)\s*\{[\s\S]*?\n\}/);
-const normalizeRoomCodeMatch = appJs.match(/function\s+normalizeRoomCode\s*\([^)]*\)\s*\{[\s\S]*?\n\}/);
+const roomCodeFromNormalizedSource = extractFunction(appJs, "roomCodeFromNormalized");
+const normalizeRoomCodeSource = extractFunction(appJs, "normalizeRoomCode");
 const normalizeRoomCodeDefined = Boolean(
-  normalizeRoomKeyMatch && roomCodePatternMatch && roomCodeFromNormalizedMatch && normalizeRoomCodeMatch
+  normalizeRoomKeySource && roomCodePatternMatch && roomCodeFromNormalizedSource && normalizeRoomCodeSource
 );
 if (normalizeRoomCodeDefined) {
   const sandbox = {};
   vm.createContext(sandbox);
   vm.runInContext(
-    `${normalizeRoomKeyMatch[0]}\n${roomCodePatternMatch[0]}\n${roomCodeFromNormalizedMatch[0]}\n${normalizeRoomCodeMatch[0]}`,
+    `${normalizeRoomKeySource}\n${roomCodePatternMatch[0]}\n${roomCodeFromNormalizedSource}\n${normalizeRoomCodeSource}`,
     sandbox
   );
   const normalizeRoomCode = sandbox.normalizeRoomCode;
