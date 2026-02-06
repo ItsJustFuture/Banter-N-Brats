@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 
 console.log("🧪 Testing DnD room R6 integration...\n");
 
@@ -16,10 +17,115 @@ const serverJs = fs.readFileSync(serverJsPath, "utf8");
 const indexHtml = fs.readFileSync(indexHtmlPath, "utf8");
 const migrationSql = fs.existsSync(migrationPath) ? fs.readFileSync(migrationPath, "utf8") : "";
 
+let roomCodeNormalizationWorks = false;
+function extractFunction(source, name) {
+  const start = source.indexOf(`function ${name}`);
+  if (start < 0) return null;
+  const braceStart = source.indexOf("{", start);
+  if (braceStart < 0) return null;
+  let depth = 1;
+  let inSingle = false;
+  let inDouble = false;
+  let inTemplate = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+  let escaped = false;
+  for (let i = braceStart + 1; i < source.length; i++) {
+    const ch = source[i];
+    const next = source[i + 1];
+    if (inLineComment) {
+      if (ch === "\n") inLineComment = false;
+      continue;
+    }
+    if (inBlockComment) {
+      if (ch === "*" && next === "/") {
+        inBlockComment = false;
+        i += 1;
+      }
+      continue;
+    }
+    if (inSingle) {
+      if (!escaped && ch === "'") inSingle = false;
+      escaped = !escaped && ch === "\\";
+      continue;
+    }
+    if (inDouble) {
+      if (!escaped && ch === '"') inDouble = false;
+      escaped = !escaped && ch === "\\";
+      continue;
+    }
+    if (inTemplate) {
+      if (!escaped && ch === "`") inTemplate = false;
+      escaped = !escaped && ch === "\\";
+      continue;
+    }
+    if (ch === "/" && next === "/") {
+      inLineComment = true;
+      i += 1;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      inBlockComment = true;
+      i += 1;
+      continue;
+    }
+    if (ch === "'") {
+      inSingle = true;
+      escaped = false;
+      continue;
+    }
+    if (ch === '"') {
+      inDouble = true;
+      escaped = false;
+      continue;
+    }
+    if (ch === "`") {
+      inTemplate = true;
+      escaped = false;
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+const normalizeRoomKeySource = extractFunction(appJs, "normalizeRoomKey");
+const roomCodePatternMatch = appJs.match(/const\s+ROOM_CODE_PATTERN\s*=\s*\/[^/]+\/[gimuy]*;/);
+const roomCodeFromNormalizedSource = extractFunction(appJs, "roomCodeFromNormalized");
+const roomCodeNormalizationDefined = Boolean(
+  normalizeRoomKeySource && roomCodePatternMatch && roomCodeFromNormalizedSource
+);
+if (roomCodeNormalizationDefined) {
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(
+    `${normalizeRoomKeySource}\n${roomCodePatternMatch[0]}\n${roomCodeFromNormalizedSource}`,
+    sandbox
+  );
+  const normalizeRoomKey = sandbox.normalizeRoomKey;
+  const roomCodeFromNormalized = sandbox.roomCodeFromNormalized;
+  const lowerCode = roomCodeFromNormalized?.(normalizeRoomKey?.("r6"));
+  const upperCode = roomCodeFromNormalized?.(normalizeRoomKey?.("R6"));
+  const invalidCode = roomCodeFromNormalized?.(normalizeRoomKey?.("dnd"));
+  roomCodeNormalizationWorks = lowerCode === "R6" && upperCode === "R6" && invalidCode === null;
+}
+
 const checks = [
   {
     name: "DND_ROOM_CODE is R6 (app.js)",
     passed: /const\s+DND_ROOM_CODE\s*=\s*["']R6["']/.test(appJs),
+  },
+  {
+    name: "Room code normalization helpers are defined",
+    passed: roomCodeNormalizationDefined,
+  },
+  {
+    name: "Room code normalization handles R6 inputs",
+    passed: roomCodeNormalizationWorks,
   },
   {
     name: "isDndRoom checks room.id first",
