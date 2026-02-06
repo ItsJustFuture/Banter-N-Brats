@@ -7631,7 +7631,16 @@ function renderTicTacToeSystemMessage(payload) {
       acceptBox.addEventListener("change", () => {
         if (!acceptBox.checked) return;
         acceptBox.disabled = true;
-        socket?.emit("tictactoe:accept", { gameId });
+        if (!socket?.emit) {
+          acceptBox.checked = false;
+          acceptBox.disabled = false;
+          return;
+        }
+        socket.emit("tictactoe:accept", { gameId }, (response) => {
+          if (response && response.ok) return;
+          acceptBox.checked = false;
+          acceptBox.disabled = false;
+        });
       });
       const acceptText = document.createElement("span");
       acceptText.textContent = "Accept";
