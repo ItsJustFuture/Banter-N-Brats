@@ -12578,6 +12578,12 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   align-items: center;
 }
 
+.dndNewOpenBtn {
+  margin-left: 6px;
+  position: relative;
+  z-index: 5;
+}
+
 /* Deprecated button - kept for backwards compatibility */
 .dndOpenBtn.deprecated {
   display: none !important;

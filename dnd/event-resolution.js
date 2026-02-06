@@ -1,7 +1,7 @@
 "use strict";
 
 // ===================================
-// DND STORY ROOM - EVENT RESOLUTION
+// DND ROOM - EVENT RESOLUTION
 // ===================================
 // D20-based resolution engine
 // Reuses Survival Simulator's outcome application pattern
