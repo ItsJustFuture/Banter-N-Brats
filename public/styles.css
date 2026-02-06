@@ -2913,6 +2913,14 @@ body.keyboard-open .menuContent{ padding-bottom: calc(200px + var(--kb, 0px) + e
   accent-color:var(--ttt-active-color);
   cursor:pointer;
 }
+.chat-main .sys.sys-ttt .ttt-accept-box:disabled{
+  cursor:not-allowed;
+  opacity:0.6;
+}
+.chat-main .sys.sys-ttt .ttt-accept:has(.ttt-accept-box:disabled){
+  cursor:not-allowed;
+  opacity:0.7;
+}
 .chat-main .sys.sys-ttt .ttt-btn{
   background:var(--btnPrimaryBg);
   color:var(--btnPrimaryText);
