@@ -17,7 +17,7 @@ const serverJs = fs.readFileSync(serverJsPath, "utf8");
 const indexHtml = fs.readFileSync(indexHtmlPath, "utf8");
 const migrationSql = fs.existsSync(migrationPath) ? fs.readFileSync(migrationPath, "utf8") : "";
 
-let normalizeRoomCodeWorks = false;
+let roomCodeNormalizationWorks = false;
 function extractFunction(source, name) {
   const start = source.indexOf(`function ${name}`);
   if (start < 0) return null;
@@ -96,22 +96,22 @@ function extractFunction(source, name) {
 const normalizeRoomKeySource = extractFunction(appJs, "normalizeRoomKey");
 const roomCodePatternMatch = appJs.match(/const\s+ROOM_CODE_PATTERN\s*=\s*\/[^/]+\/[gimuy]*;/);
 const roomCodeFromNormalizedSource = extractFunction(appJs, "roomCodeFromNormalized");
-const normalizeRoomCodeSource = extractFunction(appJs, "normalizeRoomCode");
-const normalizeRoomCodeDefined = Boolean(
-  normalizeRoomKeySource && roomCodePatternMatch && roomCodeFromNormalizedSource && normalizeRoomCodeSource
+const roomCodeNormalizationDefined = Boolean(
+  normalizeRoomKeySource && roomCodePatternMatch && roomCodeFromNormalizedSource
 );
-if (normalizeRoomCodeDefined) {
+if (roomCodeNormalizationDefined) {
   const sandbox = {};
   vm.createContext(sandbox);
   vm.runInContext(
-    `${normalizeRoomKeySource}\n${roomCodePatternMatch[0]}\n${roomCodeFromNormalizedSource}\n${normalizeRoomCodeSource}`,
+    `${normalizeRoomKeySource}\n${roomCodePatternMatch[0]}\n${roomCodeFromNormalizedSource}`,
     sandbox
   );
-  const normalizeRoomCode = sandbox.normalizeRoomCode;
-  const lowerCode = normalizeRoomCode?.("r6");
-  const upperCode = normalizeRoomCode?.("R6");
-  const invalidCode = normalizeRoomCode?.("dnd");
-  normalizeRoomCodeWorks = lowerCode === "R6" && upperCode === "R6" && invalidCode === null;
+  const normalizeRoomKey = sandbox.normalizeRoomKey;
+  const roomCodeFromNormalized = sandbox.roomCodeFromNormalized;
+  const lowerCode = roomCodeFromNormalized?.(normalizeRoomKey?.("r6"));
+  const upperCode = roomCodeFromNormalized?.(normalizeRoomKey?.("R6"));
+  const invalidCode = roomCodeFromNormalized?.(normalizeRoomKey?.("dnd"));
+  roomCodeNormalizationWorks = lowerCode === "R6" && upperCode === "R6" && invalidCode === null;
 }
 
 const checks = [
@@ -120,12 +120,12 @@ const checks = [
     passed: /const\s+DND_ROOM_CODE\s*=\s*["']R6["']/.test(appJs),
   },
   {
-    name: "normalizeRoomCode helper is defined",
-    passed: normalizeRoomCodeDefined,
+    name: "Room code normalization helpers are defined",
+    passed: roomCodeNormalizationDefined,
   },
   {
     name: "Room code normalization handles R6 inputs",
-    passed: normalizeRoomCodeWorks,
+    passed: roomCodeNormalizationWorks,
   },
   {
     name: "isDndRoom checks room.id first",

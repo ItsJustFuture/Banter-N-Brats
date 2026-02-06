@@ -943,10 +943,6 @@ function roomCodeFromNormalized(normalized) {
   if (!normalized) return null;
   return ROOM_CODE_PATTERN.test(normalized) ? normalized.toUpperCase() : null;
 }
-function normalizeRoomCode(value) {
-  const normalized = normalizeRoomKey(value);
-  return roomCodeFromNormalized(normalized);
-}
 const DND_ROOM_MATCHERS = ["dnd", "dndstoryroom", "dndstory"];
 const DND_ROOM_MATCHER_KEYS = DND_ROOM_MATCHERS.map((key) => normalizeRoomKey(key));
 function matchesDndRoomKey(value) {
