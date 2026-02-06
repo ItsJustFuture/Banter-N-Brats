@@ -2897,6 +2897,22 @@ body.keyboard-open .menuContent{ padding-bottom: calc(200px + var(--kb, 0px) + e
   gap:8px;
   margin-top:4px;
 }
+.chat-main .sys.sys-ttt .ttt-accept{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:10px;
+  color:var(--text);
+  cursor:pointer;
+  user-select:none;
+}
+.chat-main .sys.sys-ttt .ttt-accept-box{
+  width:12px;
+  height:12px;
+  margin:0;
+  accent-color:var(--ttt-active-color);
+  cursor:pointer;
+}
 .chat-main .sys.sys-ttt .ttt-btn{
   background:var(--btnPrimaryBg);
   color:var(--btnPrimaryText);
