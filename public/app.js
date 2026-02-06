@@ -21781,6 +21781,7 @@ socket.on("mod:case_event", (payload = {}) => {
       const kind = meta && typeof meta === "object" ? String(meta.kind || "") : "";
       if (kind === "dice" && room !== "diceroom") return;
       if (kind === "survival" && room !== "survivalsimulator") return;
+      if (kind === "dnd" && room !== "dndstoryroom") return;
     } catch(_){ }
 
     // Global system messages should ONLY render when explicitly marked.
