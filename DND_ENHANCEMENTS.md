@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the enhancements made to the DnD Story Room game, including new diverse event types and couple system integration.
+This document describes the enhancements made to the DnD game, including new diverse event types and couple system integration.
 
 ## New Features
 

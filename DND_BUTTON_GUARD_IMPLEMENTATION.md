@@ -31,7 +31,7 @@ The guard uses the existing `isDndRoom()` function which:
 - Accepts room name or id (string or object)
 - Normalizes by lowercasing and removing spaces, dashes, and underscores
 - Uses `includes()` for matching instead of strict equality
-- Returns `true` if the normalized value includes "dndstoryroom"
+- Returns `true` if the normalized value includes "dnd"
 
 ### Normalization Function
 ```javascript
@@ -46,7 +46,7 @@ function normalizeDndRoomKey(value) {
 
 ### Matcher Configuration
 ```javascript
-const DND_ROOM_MATCHERS = ["dndstoryroom", "DnD Story Room"];
+const DND_ROOM_MATCHERS = ["dnd", "DnD"];
 ```
 
 ## Benefits
@@ -58,7 +58,7 @@ const DND_ROOM_MATCHERS = ["dndstoryroom", "DnD Story Room"];
 ## Edge Cases Handled
 1. **Rapid Room Switching**: Guard checks current room state, not intermediate states
 2. **Undefined Room States**: Empty or undefined room values are handled by normalization
-3. **Case Variations**: Room names are case-insensitive ("DnD Story Room", "dndstoryroom", "DND-Story-Room")
+3. **Case Variations**: Room names are case-insensitive ("DnD", "dnd", "DND-Story-Room")
 4. **Multiple Call Sites**: All places that call `disableDndUI()` are protected by the guard
 
 ## Call Sites Protected

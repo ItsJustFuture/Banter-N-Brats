@@ -1,4 +1,4 @@
--- DnD Story Room game mode tables
+-- DnD game mode tables
 
 -- DnD sessions table
 CREATE TABLE IF NOT EXISTS dnd_sessions (

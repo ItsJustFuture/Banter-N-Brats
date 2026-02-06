@@ -1,8 +1,8 @@
-# DnD Story Room Modal Button in Topbar - Verification
+# DnD Modal Button in Topbar - Verification
 
 ## Status: ✅ FULLY IMPLEMENTED AND VERIFIED
 
-The DnD Story Room modal button **already appears in the topbar when in dndstoryroom**. This document verifies the complete implementation.
+The DnD modal button **already appears in the topbar when in dnd**. This document verifies the complete implementation.
 
 ## Implementation Overview
 
@@ -25,11 +25,11 @@ The button is located in the topbar, within the `topActions` section:
 <div class="topbar">
   <div class="row topActions" style="align-items:center; gap:10px;">
     <!-- Other buttons: search, DMs, notifications, chess -->
-    <button aria-label="Open DnD Story Room" 
+    <button aria-label="Open DnD" 
             class="btn secondary small dndNewOpenBtn" 
             hidden 
             id="dndNewOpenBtn" 
-            title="Open DnD Story Room" 
+            title="Open DnD" 
             type="button">
       📖 <span class="dndNewOpenLabel">DnD</span>
     </button>
@@ -153,8 +153,8 @@ socket.on("connect", () => {
 function isDndRoom(activeRoom) {
   // Normalizes room name/id and checks for DnD room matchers.
   // Handles:
-  // - String inputs: "dndstoryroom", "DnD Story Room", etc.
-  // - Object inputs: { id: "dndstoryroom" } or { name: "DnD Story Room" }
+  // - String inputs: "dnd", "DnD", etc.
+  // - Object inputs: { id: "dnd" } or { name: "DnD" }
   // - Case-insensitive matching
   // - Space/dash/underscore normalization
   return matchesId || matchesName || matchesRaw;
@@ -171,10 +171,10 @@ function isDndRoom(activeRoom) {
    - Loads in "main" room
    - Button is **hidden** (not visible in topbar)
 
-2. **User Navigates to DnD Story Room**
-   - Clicks "DnD Story Room" in channel list
-   - `joinRoom("dndstoryroom")` is called
-   - `setActiveRoom("dndstoryroom")` is called
+2. **User Navigates to DnD**
+   - Clicks "DnD" in channel list
+   - `joinRoom("dnd")` is called
+   - `setActiveRoom("dnd")` is called
    - `isDndRoom(room)` returns `true`
    - `enableDndUI()` is called
    - Button becomes **visible** in topbar
@@ -183,14 +183,14 @@ function isDndRoom(activeRoom) {
    - `openDndModal()` is triggered
    - DnD modal appears with character/event/control tabs
 
-4. **User Leaves DnD Story Room**
+4. **User Leaves DnD**
    - Navigates to different room (e.g., "main")
    - `setActiveRoom("main")` is called
    - `isDndRoom(room)` returns `false`
    - `disableDndUI()` is called
    - Button becomes **hidden** again
 
-5. **User Returns to DnD Story Room**
+5. **User Returns to DnD**
    - Process repeats from step 2
    - Button reappears
 
@@ -199,7 +199,7 @@ function isDndRoom(activeRoom) {
 ✅ **Socket Reconnection:** Button state restored based on current room  
 ✅ **Page Refresh:** Button state initialized correctly on load  
 ✅ **Rapid Room Switching:** Button visibility updates immediately  
-✅ **Case-Insensitive Matching:** Works with any capitalization of "dndstoryroom"  
+✅ **Case-Insensitive Matching:** Works with any capitalization of "dnd"  
 ✅ **Special Characters:** Normalizes room names properly  
 
 ---
@@ -258,14 +258,14 @@ Related documentation:
 
 ## 8. Conclusion
 
-✅ **The DnD Story Room modal button fully meets the requirement:**
+✅ **The DnD modal button fully meets the requirement:**
 
-> "make the dndstoryroom modal button appear in the topbar when in dndstoryroom"
+> "make the dnd modal button appear in the topbar when in dnd"
 
 **Implementation Status:**
 - ✅ Button exists in topbar HTML
-- ✅ Button appears when entering dndstoryroom
-- ✅ Button disappears when leaving dndstoryroom
+- ✅ Button appears when entering dnd
+- ✅ Button disappears when leaving dnd
 - ✅ Button opens DnD modal when clicked
 - ✅ Handles all edge cases (reconnection, refresh, etc.)
 - ✅ Fully tested and verified

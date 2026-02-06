@@ -1,7 +1,7 @@
-# DnD Story Room Button Implementation - Summary
+# DnD Button Implementation - Summary
 
 ## Problem
-The existing "Open DnD Story Room" button (`#dndOpenBtn`) was not functioning correctly and did not appear in the top bar under any conditions.
+The existing "Open DnD" button (`#dndOpenBtn`) was not functioning correctly and did not appear in the top bar under any conditions.
 
 ## Solution
 A new button with ID `#dndNewOpenBtn` has been implemented to resolve the issue.
@@ -15,10 +15,10 @@ A new button with ID `#dndNewOpenBtn` has been implemented to resolve the issue.
 
 ```html
 <!-- Deprecated button -->
-<button aria-label="Open DnD Story Room" class="btn secondary small dndOpenBtn deprecated" hidden id="dndOpenBtn" title="Open DnD Story Room (Deprecated)" type="button">📖 <span class="dndOpenLabel">DnD</span></button>
+<button aria-label="Open DnD" class="btn secondary small dndOpenBtn deprecated" hidden id="dndOpenBtn" title="Open DnD (Deprecated)" type="button">📖 <span class="dndOpenLabel">DnD</span></button>
 
 <!-- New working button -->
-<button aria-label="Open DnD Story Room" class="btn secondary small dndNewOpenBtn" hidden id="dndNewOpenBtn" title="Open DnD Story Room" type="button">📖 <span class="dndNewOpenLabel">DnD</span></button>
+<button aria-label="Open DnD" class="btn secondary small dndNewOpenBtn" hidden id="dndNewOpenBtn" title="Open DnD" type="button">📖 <span class="dndNewOpenLabel">DnD</span></button>
 ```
 
 ### 2. CSS (`public/styles.css`)
@@ -54,12 +54,12 @@ dndNewOpenBtn?.addEventListener("click", openDndModal); // New button
 
 ## Behavior
 
-### When user enters "DnD Story Room" (`dndstoryroom`):
+### When user enters "DnD" (`dnd`):
 1. The new button's `hidden` attribute is removed via JavaScript
 2. Button becomes visible in the top navigation bar
 3. Clicking the button opens the DnD modal
 
-### When user leaves "DnD Story Room":
+### When user leaves "DnD":
 1. The new button's `hidden` attribute is applied via JavaScript
 2. Button is hidden from the top navigation bar
 3. Any open DnD modal is closed
@@ -86,7 +86,7 @@ node scripts/test-dnd-button-edge-cases.js
 
 ## Key Features
 
-✅ **Proper visibility toggle**: Button only appears in DnD Story Room context  
+✅ **Proper visibility toggle**: Button only appears in DnD context  
 ✅ **Safe navigation**: Uses optional chaining and null checks  
 ✅ **Case-insensitive**: Room name comparison is case-insensitive  
 ✅ **Rapid room switching**: Handles quick transitions properly  

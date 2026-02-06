@@ -922,16 +922,16 @@ let roomCollapseState = { master: {}, category: {} };
 const memoryCacheByFilter = new Map();
 const DICE_ROOM_ID = "diceroom";
 const SURVIVAL_ROOM_ID = "survivalsimulator";
-const DND_ROOM_ID = "dndstoryroom";
+const DND_ROOM_ID = "dnd";
 const DND_ROOM_CODE = "R6";
-const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator", "dndstoryroom"]);
+const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator", "dnd"]);
 const ROOM_IDS = {
   "main": "R1",
   "music": "R2",
   "nsfw": "R3",
   "diceroom": "R4",
   "survivalsimulator": "R5",
-  "dndstoryroom": "R6"
+  "dnd": "R6"
 };
 function isDiceRoom(activeRoom){
   const roomName = typeof activeRoom === "string"
@@ -4814,14 +4814,14 @@ function openDndModal(){
   if (!dndModal || !isDndRoom(currentRoom)) return;
   closeMemberMenu();
   closeMembersAdminMenu();
-  closeChessMenu?.();
+  closeChessModal?.();
   closeDiceVariantMenu();
-  closeAllDMMenus();
-  closeThreadFlair();
-  closeAllReactMenus();
-  closeChangelogPanel();
+  if (typeof closeAllDMMenus === "function") closeAllDMMenus();
+  if (typeof closeThreadFlair === "function") closeThreadFlair();
+  if (typeof closeAllReactMenus === "function") closeAllReactMenus();
+  if (typeof closeChangelogPanel === "function") closeChangelogPanel();
   closeMediaMenu();
-  closeChallengesPanel();
+  if (typeof closeChallengesPanel === "function") closeChallengesPanel();
   dndModalOpen = true;
   dndModal.hidden = false;
   dndModal.style.display = "flex";
@@ -14287,7 +14287,7 @@ survivalLobbyBtn?.addEventListener("click", async () => {
   renderSurvivalArena();
 });
 
-// DnD Story Room event listeners are wired in enableDndUI()
+// DnD room event listeners are wired in enableDndUI()
 
 survivalAutoRunBtn?.addEventListener("click", () => {
   if (!survivalAutoRunning) startSurvivalAutoRun();
@@ -21781,7 +21781,7 @@ socket.on("mod:case_event", (payload = {}) => {
       const kind = meta && typeof meta === "object" ? String(meta.kind || "") : "";
       if (kind === "dice" && room !== "diceroom") return;
       if (kind === "survival" && room !== "survivalsimulator") return;
-      if (kind === "dnd" && room !== "dndstoryroom") return;
+      if (kind === "dnd" && room !== DND_ROOM_ID) return;
     } catch(_){ }
 
     // Global system messages should ONLY render when explicitly marked.

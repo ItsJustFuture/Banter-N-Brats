@@ -94,7 +94,7 @@ if (!matchesMatch) {
   if (!usesIncludes) allChecksPassed = false;
   
   // Check if it doesn't use strict equality
-  const noStrictEquality = !/===.*dndstoryroom|dndstoryroom.*===/.test(functionBody.toLowerCase());
+  const noStrictEquality = !/===.*dnd|dnd.*===/.test(functionBody.toLowerCase());
   console.log(`  ${noStrictEquality ? '✅' : '❌'} Does not use strict equality: ${noStrictEquality}`);
   if (!noStrictEquality) allChecksPassed = false;
 }
@@ -108,14 +108,14 @@ if (!matchersMatch) {
 } else {
   const matchersValue = matchersMatch[1];
   
-  // Check if it includes "dndstoryroom"
-  const hasDndStoryRoom = /["']dndstoryroom["']/.test(matchersValue);
-  console.log(`  ${hasDndStoryRoom ? '✅' : '❌'} Includes "dndstoryroom": ${hasDndStoryRoom}`);
+  // Check if it includes "dnd"
+  const hasDndStoryRoom = /["']dnd["']/.test(matchersValue);
+  console.log(`  ${hasDndStoryRoom ? '✅' : '❌'} Includes "dnd": ${hasDndStoryRoom}`);
   if (!hasDndStoryRoom) allChecksPassed = false;
   
-  // Check if it includes "DnD Story Room"
-  const hasDndStoryRoomSpaced = /["']DnD Story Room["']/.test(matchersValue);
-  console.log(`  ${hasDndStoryRoomSpaced ? '✅' : '❌'} Includes "DnD Story Room": ${hasDndStoryRoomSpaced}`);
+  // Check if it includes "DnD"
+  const hasDndStoryRoomSpaced = /["']DnD["']/.test(matchersValue);
+  console.log(`  ${hasDndStoryRoomSpaced ? '✅' : '❌'} Includes "DnD": ${hasDndStoryRoomSpaced}`);
   if (!hasDndStoryRoomSpaced) allChecksPassed = false;
 }
 
@@ -154,10 +154,10 @@ if (allChecksPassed) {
   console.log('  ✓ Normalization removes spaces, dashes, and underscores');
   console.log('  ✓ Normalization converts to lowercase');
   console.log('  ✓ Matching uses includes() instead of strict equality');
-  console.log('  ✓ DND_ROOM_MATCHERS includes both "dndstoryroom" and "DnD Story Room"');
+  console.log('  ✓ DND_ROOM_MATCHERS includes both "dnd" and "DnD"');
   console.log('  ✓ Button is still hidden in non-DnD rooms');
   console.log('\n🎯 Expected Behavior:');
-  console.log('  1. User is in DnD Story Room - button is visible');
+  console.log('  1. User is in DnD - button is visible');
   console.log('  2. UI refresh or room sync event occurs');
   console.log('  3. disableDndUI() is called but guard blocks it');
   console.log('  4. Button remains visible while in DnD room');

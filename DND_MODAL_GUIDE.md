@@ -1,17 +1,17 @@
-# DnD Story Room - Comprehensive Modal Guide
+# DnD - Comprehensive Modal Guide
 
 ## Overview
 
-The DnD Story Room now features a comprehensive modal interface that provides access to all game capabilities in an organized, tabbed layout. This modal serves as the central hub for all DnD activities, from character creation to session management.
+The DnD now features a comprehensive modal interface that provides access to all game capabilities in an organized, tabbed layout. This modal serves as the central hub for all DnD activities, from character creation to session management.
 
 ## Accessing the Modal
 
-The modal can be accessed in two ways when in the DnD Story Room:
+The modal can be accessed in two ways when in the DnD:
 
 1. **Top Bar Button**: Click the 📖 button in the top navigation bar
 2. **Composer Button**: Click the 📖 button next to the media uploader (＋) in the message input area
 
-Both buttons are only visible when you're in the DnD Story Room (`dndstoryroom`).
+Both buttons are only visible when you're in the DnD (`dnd`).
 
 ## Modal Tabs
 
@@ -206,7 +206,7 @@ The 📖 DnD buttons (`#dndNewOpenBtn` in the top bar and `#dndComposerBtn` in t
 
 **Implementation Details**:
 - The `setActiveRoom(room)` function is called whenever a user switches rooms
-- Inside `setActiveRoom`, the `isDndRoom(room)` function normalizes the room id/name to detect the DnD room (e.g., `"dndstoryroom"` / `"DnD Story Room"`) even if the display name contains spaces, dashes, or underscores
+- Inside `setActiveRoom`, the `isDndRoom(room)` function normalizes the room id/name to detect the DnD room (e.g., `"dnd"` / `"DnD"`) even if the display name contains spaces, dashes, or underscores
 - The centralized `enableDndUI()` / `disableDndUI()` helpers toggle the buttons when entering/leaving the DnD room
 - This ensures buttons are only visible in the appropriate context
 
@@ -324,7 +324,7 @@ Potential improvements for future versions:
 ## Troubleshooting
 
 **Modal won't open**:
-- Ensure you're in the DnD Story Room
+- Ensure you're in the DnD
 - Check browser console for errors
 - Try refreshing the page
 
