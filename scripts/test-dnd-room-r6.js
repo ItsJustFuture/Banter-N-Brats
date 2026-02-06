@@ -24,19 +24,71 @@ function extractFunction(source, name) {
   const braceStart = source.indexOf("{", start);
   if (braceStart < 0) return null;
   let depth = 1;
-  let cursor = braceStart + 1;
-  while (cursor < source.length) {
-    const nextOpen = source.indexOf("{", cursor);
-    const nextClose = source.indexOf("}", cursor);
-    if (nextClose < 0) return null;
-    if (nextOpen > -1 && nextOpen < nextClose) {
-      depth += 1;
-      cursor = nextOpen + 1;
+  let inSingle = false;
+  let inDouble = false;
+  let inTemplate = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+  let escaped = false;
+  for (let i = braceStart + 1; i < source.length; i += 1) {
+    const ch = source[i];
+    const next = source[i + 1];
+    if (inLineComment) {
+      if (ch === "\n") inLineComment = false;
       continue;
     }
-    depth -= 1;
-    cursor = nextClose + 1;
-    if (depth === 0) return source.slice(start, cursor);
+    if (inBlockComment) {
+      if (ch === "*" && next === "/") {
+        inBlockComment = false;
+        i += 1;
+      }
+      continue;
+    }
+    if (inSingle) {
+      if (!escaped && ch === "'") inSingle = false;
+      escaped = !escaped && ch === "\\";
+      continue;
+    }
+    if (inDouble) {
+      if (!escaped && ch === '"') inDouble = false;
+      escaped = !escaped && ch === "\\";
+      continue;
+    }
+    if (inTemplate) {
+      if (!escaped && ch === "`") inTemplate = false;
+      escaped = !escaped && ch === "\\";
+      continue;
+    }
+    if (ch === "/" && next === "/") {
+      inLineComment = true;
+      i += 1;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      inBlockComment = true;
+      i += 1;
+      continue;
+    }
+    if (ch === "'") {
+      inSingle = true;
+      escaped = false;
+      continue;
+    }
+    if (ch === '"') {
+      inDouble = true;
+      escaped = false;
+      continue;
+    }
+    if (ch === "`") {
+      inTemplate = true;
+      escaped = false;
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, i + 1);
+    }
   }
   return null;
 }
