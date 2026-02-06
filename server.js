@@ -42,12 +42,12 @@ const diceRollRateByUserId = new Map();
 const SURVIVAL_ROOM_ID = "survivalsimulator";
 const SURVIVAL_ROOM_DB_ID = 1;
 const CORE_ROOMS = [
-  { name: "main", sortOrder: 0 },
-  { name: "music", sortOrder: 1 },
-  { name: "nsfw", sortOrder: 2 },
-  { name: "diceroom", sortOrder: 3 },
-  { name: "survivalsimulator", sortOrder: 4 },
-  { name: "dndstoryroom", sortOrder: 5 },
+  { name: "main", sortOrder: 0, roomId: "R1" },
+  { name: "music", sortOrder: 1, roomId: "R2" },
+  { name: "nsfw", sortOrder: 2, roomId: "R3" },
+  { name: "diceroom", sortOrder: 3, roomId: "R4" },
+  { name: "survivalsimulator", sortOrder: 4, roomId: "R5" },
+  { name: "dndstoryroom", sortOrder: 5, roomId: "R6" },
 ];
 const CORE_ROOM_NAMES = new Set(CORE_ROOMS.map((room) => room.name));
 const SURVIVAL_SEASON_COOLDOWN_MS = 2 * 60 * 1000;

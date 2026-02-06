@@ -923,8 +923,17 @@ const memoryCacheByFilter = new Map();
 const DICE_ROOM_ID = "diceroom";
 const SURVIVAL_ROOM_ID = "survivalsimulator";
 const DND_ROOM_ID = "dndstoryroom";
-const DND_ROOM_MATCHERS = ["dndstoryroom", "DnD Story Room"];
+const DND_ROOM_CODE = "R6";
+const DND_ROOM_MATCHERS = ["dndstoryroom", "DnD", "DnD Story Room"];
 const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator", "dndstoryroom"]);
+const ROOM_IDS = {
+  "main": "R1",
+  "music": "R2",
+  "nsfw": "R3",
+  "diceroom": "R4",
+  "survivalsimulator": "R5",
+  "dndstoryroom": "R6"
+};
 let lastLoggedDndRoomCheckSignature = "";
 function normalizeDndRoomKey(value) {
   return String(value || "")
@@ -973,6 +982,12 @@ function isDndRoom(activeRoom){
   const normalizedId = normalizeDndRoomKey(roomId);
   const normalizedName = normalizeDndRoomKey(roomName);
   const normalizedRaw = normalizeDndRoomKey(rawRoom);
+  // Check if room maps to DnD room code using normalized keys (prioritizes raw, then name, then id)
+  const lookupKey = normalizedRaw || normalizedName || normalizedId;
+  const mappedRoomCode = lookupKey ? ROOM_IDS[lookupKey] : null;
+  if (mappedRoomCode === DND_ROOM_CODE) {
+    return true;
+  }
   const matchesId = matchesDndRoomKey(normalizedId);
   const matchesName = matchesDndRoomKey(normalizedName);
   const matchesRaw = matchesDndRoomKey(normalizedRaw);
@@ -989,8 +1004,18 @@ function isDndRoom(activeRoom){
 function displayRoomName(room){
   if (isDiceRoom(room)) return "Dice Room";
   if (isSurvivalRoom(room)) return "Survival Simulator";
-  if (isDndRoom(room)) return "DnD Story Room";
+  if (isDndRoom(room)) return "DnD";
   return room;
+}
+
+// Helper function to get room ID (e.g., "R6") from room name
+// Uses normalizeDndRoomKey since ROOM_IDS keys are normalized the same way
+function getRoomIdFromName(activeRoom){
+  const roomName = typeof activeRoom === "string"
+    ? activeRoom
+    : (activeRoom?.name ?? activeRoom?.id ?? "");
+  const normalized = normalizeDndRoomKey(roomName);
+  return ROOM_IDS[normalized] || null;
 }
 
 let lastUsers = [];
