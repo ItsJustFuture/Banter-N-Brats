@@ -22,7 +22,10 @@ const normalizeRoomKeyMatch = appJs.match(/function\s+normalizeRoomKey\s*\([^)]*
 const roomCodePatternMatch = appJs.match(/const\s+ROOM_CODE_PATTERN\s*=\s*[^;]+;/);
 const roomCodeFromNormalizedMatch = appJs.match(/function\s+roomCodeFromNormalized\s*\([^)]*\)\s*\{[\s\S]*?\n\}/);
 const normalizeRoomCodeMatch = appJs.match(/function\s+normalizeRoomCode\s*\([^)]*\)\s*\{[\s\S]*?\n\}/);
-if (normalizeRoomKeyMatch && roomCodePatternMatch && roomCodeFromNormalizedMatch && normalizeRoomCodeMatch) {
+const normalizeRoomCodeDefined = Boolean(
+  normalizeRoomKeyMatch && roomCodePatternMatch && roomCodeFromNormalizedMatch && normalizeRoomCodeMatch
+);
+if (normalizeRoomCodeDefined) {
   const sandbox = {};
   vm.createContext(sandbox);
   vm.runInContext(
@@ -39,6 +42,10 @@ const checks = [
   {
     name: "DND_ROOM_CODE is R6 (app.js)",
     passed: /const\s+DND_ROOM_CODE\s*=\s*["']R6["']/.test(appJs),
+  },
+  {
+    name: "normalizeRoomCode helper is defined",
+    passed: normalizeRoomCodeDefined,
   },
   {
     name: "Room code normalization handles R6 inputs",
