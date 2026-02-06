@@ -30,7 +30,7 @@ function extractFunction(source, name) {
   let inLineComment = false;
   let inBlockComment = false;
   let escaped = false;
-  for (let i = braceStart + 1; i < source.length; i += 1) {
+  for (let i = braceStart + 1; i < source.length; i++) {
     const ch = source[i];
     const next = source[i + 1];
     if (inLineComment) {

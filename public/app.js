@@ -958,14 +958,14 @@ function getRoomIdFromName(activeRoom){
     const directId = activeRoom?.id ?? activeRoom?.room_id ?? activeRoom?.roomId;
     if (directId) {
       const normalizedDirect = normalizeRoomKey(directId); // normalize once for lookups and room code checks
-      return ROOM_IDS[normalizedDirect] || roomCodeFromNormalized(normalizedDirect) || String(directId); // preserve non-code IDs
+      return ROOM_IDS[normalizedDirect] || roomCodeFromNormalized(normalizedDirect) || String(directId); // return original directId when unknown
     }
   }
   const roomName = typeof activeRoom === "string"
     ? activeRoom
     : (activeRoom?.name ?? activeRoom?.id ?? "");
   const normalized = normalizeRoomKey(roomName);
-  return ROOM_IDS[normalized] || normalizeRoomCode(roomName) || null;
+  return ROOM_IDS[normalized] || roomCodeFromNormalized(normalized) || null;
 }
 function getRoomMeta(activeRoom) {
   if (activeRoom && typeof activeRoom === "object") {
