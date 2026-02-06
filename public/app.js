@@ -924,7 +924,6 @@ const DICE_ROOM_ID = "diceroom";
 const SURVIVAL_ROOM_ID = "survivalsimulator";
 const DND_ROOM_ID = "dndstoryroom";
 const DND_ROOM_CODE = "R6";
-const DND_ROOM_MATCHERS = ["dndstoryroom", "DnD", "DnD Story Room"];
 const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator", "dndstoryroom"]);
 const ROOM_IDS = {
   "main": "R1",
@@ -934,34 +933,6 @@ const ROOM_IDS = {
   "survivalsimulator": "R5",
   "dndstoryroom": "R6"
 };
-let lastLoggedDndRoomCheckSignature = "";
-function normalizeDndRoomKey(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]+/g, "")
-    .replace(/[^a-z0-9]/g, "");
-}
-const DND_ROOM_MATCHER_KEYS = Array.from(new Set(
-  DND_ROOM_MATCHERS.map((name) => normalizeDndRoomKey(name))
-));
-function matchesDndRoomKey(value) {
-  return Boolean(value && DND_ROOM_MATCHER_KEYS.some((matcher) => value.includes(matcher)));
-}
-function logDndRoomCheck(payload) {
-  const signature = [
-    payload?.roomId ?? "",
-    payload?.roomName ?? "",
-    payload?.raw ?? "",
-    payload?.normalized?.id ?? "",
-    payload?.normalized?.name ?? "",
-    payload?.normalized?.raw ?? "",
-    payload?.result ? "1" : "0"
-  ].join("|");
-  if (signature === lastLoggedDndRoomCheckSignature) return;
-  lastLoggedDndRoomCheckSignature = signature;
-  console.log("[dnd] isDndRoom check", payload);
-}
 function isDiceRoom(activeRoom){
   const roomName = typeof activeRoom === "string"
     ? activeRoom
@@ -975,31 +946,10 @@ function isSurvivalRoom(activeRoom){
   return String(roomName || "").toLowerCase() === SURVIVAL_ROOM_ID;
 }
 function isDndRoom(activeRoom){
-  const isString = typeof activeRoom === "string";
-  const roomId = isString ? "" : (activeRoom?.id ?? "");
-  const roomName = isString ? "" : (activeRoom?.name ?? "");
-  const rawRoom = isString ? activeRoom : "";
-  const normalizedId = normalizeDndRoomKey(roomId);
-  const normalizedName = normalizeDndRoomKey(roomName);
-  const normalizedRaw = normalizeDndRoomKey(rawRoom);
-  // Check if room maps to DnD room code using normalized keys (prioritizes raw, then name, then id)
-  const lookupKey = normalizedRaw || normalizedName || normalizedId;
-  const mappedRoomCode = lookupKey ? ROOM_IDS[lookupKey] : null;
-  if (mappedRoomCode === DND_ROOM_CODE) {
-    return true;
-  }
-  const matchesId = matchesDndRoomKey(normalizedId);
-  const matchesName = matchesDndRoomKey(normalizedName);
-  const matchesRaw = matchesDndRoomKey(normalizedRaw);
-  const result = matchesId || matchesName || matchesRaw;
-  logDndRoomCheck({
-    roomId: roomId || null,
-    roomName: roomName || null,
-    raw: rawRoom || null,
-    normalized: { id: normalizedId, name: normalizedName, raw: normalizedRaw },
-    result
-  });
-  return result;
+  const roomName = typeof activeRoom === "string"
+    ? activeRoom
+    : (activeRoom?.name ?? activeRoom?.id ?? "");
+  return String(roomName || "").toLowerCase() === DND_ROOM_ID;
 }
 function displayRoomName(room){
   if (isDiceRoom(room)) return "Dice Room";
@@ -1009,12 +959,11 @@ function displayRoomName(room){
 }
 
 // Helper function to get room ID (e.g., "R6") from room name
-// Uses normalizeDndRoomKey since ROOM_IDS keys are normalized the same way
 function getRoomIdFromName(activeRoom){
   const roomName = typeof activeRoom === "string"
     ? activeRoom
     : (activeRoom?.name ?? activeRoom?.id ?? "");
-  const normalized = normalizeDndRoomKey(roomName);
+  const normalized = String(roomName || "").toLowerCase();
   return ROOM_IDS[normalized] || null;
 }
 
@@ -2743,7 +2692,7 @@ let survivalState = {
 let survivalAutoRunTimer = null;
 let survivalAutoRunning = false;
 
-// DnD Story Room state
+// DnD state
 let dndState = {
   session: null,
   characters: [],
@@ -2757,7 +2706,7 @@ let dndModalTab = "characters";
 let dndUiListenersAttached = false;
 let dndUiEnabled = false;
 function enableDndUI() {
-  // Show the DnD button in the input bar when in DnD Story Room
+  // Show the DnD button in the input bar when in DnD room
   if (dndNewOpenBtn) {
     dndNewOpenBtn.hidden = false;
     dndNewOpenBtn.setAttribute("aria-hidden", "false");
@@ -2821,7 +2770,7 @@ function enableDndUI() {
   }
 }
 function disableDndUI() {
-  // Hide the DnD button when leaving DnD Story Room
+  // Hide the DnD button when leaving DnD room
   if (dndNewOpenBtn) {
     dndNewOpenBtn.hidden = true;
     dndNewOpenBtn.setAttribute("aria-hidden", "true");
@@ -3978,7 +3927,7 @@ const survivalRosterList = document.getElementById("survivalRosterList");
 const survivalLogModalList = document.getElementById("survivalLogModalList");
 const survivalLogLoadBtn = document.getElementById("survivalLogLoadBtn");
 
-// DnD Story Room elements
+// DnD elements
 const dndOpenBtn = document.getElementById("dndOpenBtn"); // Deprecated
 const dndNewOpenBtn = document.getElementById("dndNewOpenBtn"); // New button
 const dndComposerBtn = document.getElementById("dndComposerBtn");
@@ -4839,7 +4788,7 @@ async function loadOlderSurvivalLog() {
 }
 
 // ============================================
-// DND STORY ROOM MODAL FUNCTIONS
+// DND MODAL FUNCTIONS
 // ============================================
 
 const DND_MODAL_ANIM_MS = 120;
@@ -21514,7 +21463,7 @@ initAppealsDurationSelect();
     renderSurvivalArena();
   });
 
-  // DnD Story Room socket events
+  // DnD socket events
   socket.on("dnd:sessionCreated", (payload = {}) => {
     if (!isDndRoom(currentRoom)) return;
     if (payload.session) {
@@ -21832,6 +21781,7 @@ socket.on("mod:case_event", (payload = {}) => {
       const kind = meta && typeof meta === "object" ? String(meta.kind || "") : "";
       if (kind === "dice" && room !== "diceroom") return;
       if (kind === "survival" && room !== "survivalsimulator") return;
+      if (kind === "dnd" && room !== "dndstoryroom") return;
     } catch(_){ }
 
     // Global system messages should ONLY render when explicitly marked.
@@ -21954,7 +21904,11 @@ socket.on("mod:case_event", (payload = {}) => {
       return;
     }
 
+    // Animation: 1.44 seconds total (12 ticks at 70ms = 840ms + 600ms display = 1440ms)
     let t = 0;
+    const ANIMATION_TICKS = 12;
+    const TICK_INTERVAL_MS = 70;
+    const RESULT_DISPLAY_MS = 600;
     const iv = setInterval(()=>{
       if (v === "d6") {
         diceDisplayEl.textContent = faces[Math.floor(Math.random()*6)];
@@ -21966,16 +21920,16 @@ socket.on("mod:case_event", (payload = {}) => {
         diceDisplayEl.textContent = String(1 + Math.floor(Math.random()*100));
       }
       t += 1;
-      if (t >= 11){
+      if (t >= ANIMATION_TICKS){
         clearInterval(iv);
         diceDisplayEl.textContent = finalDisplay;
         setTimeout(()=>{
           diceOverlay.style.display="none";
           restoreDiceOverlayLift();
-        }, 420);
+        }, RESULT_DISPLAY_MS);
         if (won || dg >= 500) popConfetti();
       }
-    }, 80);
+    }, TICK_INTERVAL_MS);
   }
 
   function popConfetti(){

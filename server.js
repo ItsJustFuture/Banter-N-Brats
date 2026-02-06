@@ -53,7 +53,7 @@ const CORE_ROOM_NAMES = new Set(CORE_ROOMS.map((room) => room.name));
 const SURVIVAL_SEASON_COOLDOWN_MS = 2 * 60 * 1000;
 const SURVIVAL_ADVANCE_COOLDOWN_MS = 2000;
 
-// DnD Story Room constants
+// DnD constants
 const DND_ROOM_ID = "dndstoryroom";
 const DND_ROOM_DB_ID = 2; // Will be created dynamically if needed
 const DND_SESSION_COOLDOWN_MS = 2 * 60 * 1000;
@@ -84,7 +84,7 @@ const SURVIVAL_AUTOFILL_POOL = {
 const survivalSeasonCooldownByRoom = new Map();
 const survivalAdvanceCooldownBySeason = new Map();
 
-// DnD Story Room in-memory maps
+// DnD in-memory maps
 const dndSessionCooldownByRoom = new Map();
 const dndAdvanceCooldownBySession = new Map();
 const dndLobbyByRoom = new Map(); // roomDbId -> Set<userId>
@@ -253,7 +253,7 @@ const { SURVIVAL_EVENT_TEMPLATES, SURVIVAL_ITEM_POOL } = require("./survival-eve
 const statePersistence = require("./state-persistence");
 const validators = require("./validators");
 
-// DnD Story Room modules
+// DnD modules
 const dndCharacterSystem = require("./dnd/character-system");
 const dndEventTemplates = require("./dnd/event-templates");
 const dndEventResolution = require("./dnd/event-resolution");
