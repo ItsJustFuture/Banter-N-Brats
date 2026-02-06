@@ -16075,10 +16075,6 @@ function doJoin(room, status) {
           replyToId: r.reply_to_id || null,
           replyToUser: r.reply_to_user || "",
           replyToText: r.reply_to_text || "",
-              attachmentUrl: r.attachment_url || null,
-              attachmentMime: r.attachment_mime || null,
-              attachmentType: r.attachment_type || null,
-              attachmentSize: r.attachment_size || null,
         };
       });
 
