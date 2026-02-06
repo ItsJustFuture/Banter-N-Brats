@@ -1,7 +1,7 @@
 "use strict";
 
 // ===================================
-// DND STORY ROOM - EVENT TEMPLATES
+// DND ROOM - EVENT TEMPLATES
 // ===================================
 // Reuses Survival Simulator's event resolution pattern
 // But with D20-based checks and narrative depth

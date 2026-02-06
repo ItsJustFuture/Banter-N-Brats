@@ -94,12 +94,22 @@ async function migrateLegacyPasswords() {
 
 async function seedDefaultRooms() {
   const now = Date.now();
-  const seedRooms = ["main", "nsfw", "music", "diceroom", "survivalsimulator"];
+  const seedRooms = [
+    { name: "main", roomId: "R1" },
+    { name: "nsfw", roomId: "R3" },
+    { name: "music", roomId: "R2" },
+    { name: "diceroom", roomId: "R4" },
+    { name: "survivalsimulator", roomId: "R5" },
+    { name: "dnd", roomId: "R6", description: "DnD room" },
+  ];
   // Discovery: core room seeding runs in SQLite during migrations for room structure persistence.
   const existing = await all(`SELECT name FROM rooms LIMIT 1`);
   if (existing && existing.length) return;
   for (const r of seedRooms) {
-    await run(`INSERT OR IGNORE INTO rooms (name, created_by, created_at) VALUES (?, NULL, ?)`, [r, now]);
+    await run(
+      `INSERT OR IGNORE INTO rooms (name, created_by, created_at, room_id, description) VALUES (?, NULL, ?, ?, ?)`,
+      [r.name, now, r.roomId ?? null, r.description ?? null]
+    );
   }
 }
 
@@ -219,6 +229,8 @@ async function runSqliteMigrations() {
 
   // Discovery: room hierarchy lives in room_master_categories/room_categories + rooms columns (sort order + category).
   await ensureColumns("rooms", [
+    ["room_id", "room_id TEXT"],
+    ["description", "description TEXT"],
     ["slowmode_seconds", "slowmode_seconds INTEGER NOT NULL DEFAULT 0"],
     ["is_locked", "is_locked INTEGER NOT NULL DEFAULT 0"],
     ["pinned_message_ids", "pinned_message_ids TEXT"],

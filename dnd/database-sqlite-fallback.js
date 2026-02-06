@@ -1,7 +1,7 @@
 "use strict";
 
 // ===================================
-// DND STORY ROOM - SQLITE FALLBACK
+// DND ROOM - SQLITE FALLBACK
 // ===================================
 // SQLite fallback for when PostgreSQL is unavailable
 

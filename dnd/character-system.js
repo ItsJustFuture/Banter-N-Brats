@@ -1,7 +1,7 @@
 "use strict";
 
 // ===================================
-// DND STORY ROOM - CHARACTER SYSTEM
+// DND ROOM - CHARACTER SYSTEM
 // ===================================
 // CORE attribute system (NOT SPECIAL)
 // - MIGHT: physical force, endurance, raw damage

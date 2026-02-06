@@ -47,17 +47,30 @@ const CORE_ROOMS = [
   { name: "nsfw", sortOrder: 2, roomId: "R3" },
   { name: "diceroom", sortOrder: 3, roomId: "R4" },
   { name: "survivalsimulator", sortOrder: 4, roomId: "R5" },
-  { name: "dnd", sortOrder: 5, roomId: "R6" },
+  { name: "dnd", sortOrder: 5, roomId: "R6", description: "DnD room" },
 ];
-const CORE_ROOM_NAMES = new Set(CORE_ROOMS.map((room) => room.name));
+const CORE_ROOM_NAMES = new Set(CORE_ROOMS.map((room) => room.name.toLowerCase()));
+const LEGACY_DND_ROOM_KEYS = new Set(["dndstoryroom", "dndstory"]);
+function normalizeRoomKey(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, "");
+}
+const CORE_ROOM_CODES = new Map(CORE_ROOMS.map((room) => [normalizeRoomKey(room.name), room.roomId]));
 const SURVIVAL_SEASON_COOLDOWN_MS = 2 * 60 * 1000;
 const SURVIVAL_ADVANCE_COOLDOWN_MS = 2000;
 
 // DnD constants
 const DND_ROOM_ID = "dnd";
+const DND_ROOM_CODE = "R6";
 const DND_ROOM_DB_ID = 2; // Will be created dynamically if needed
 const DND_SESSION_COOLDOWN_MS = 2 * 60 * 1000;
 const DND_ADVANCE_COOLDOWN_MS = 2000;
+
+function resolveRoomCode(roomName) {
+  const normalized = normalizeRoomKey(roomName);
+  if (!normalized) return null;
+  if (LEGACY_DND_ROOM_KEYS.has(normalized)) return DND_ROOM_CODE;
+  return CORE_ROOM_CODES.get(normalized) || null;
+}
 
 const CHESS_DEFAULT_ELO = 1200;
 const CHESS_MIN_PLIES_RATED = 6;
@@ -392,6 +405,8 @@ for (const dir of [UPLOADS_DIR, AVATARS_DIR]) {
       type: "system",
       text: String(text ?? ""),
     };
+    const roomId = resolveRoomCode(payload.room);
+    if (roomId) payload.roomId = roomId;
     const resolvedScope = String(scope || (payload.room === "__global__" ? "global" : (payload.room ? "room" : "")));
     if (resolvedScope) payload.scope = resolvedScope;
     if (meta && typeof meta === "object") payload.meta = meta;
@@ -589,6 +604,8 @@ const pgInitPromise = PG_ENABLED ? (async () => {
         name TEXT PRIMARY KEY,
         created_by INTEGER,
         created_at BIGINT NOT NULL,
+        room_id TEXT,
+        description TEXT,
         slowmode_seconds INTEGER NOT NULL DEFAULT 0,
         is_locked INTEGER NOT NULL DEFAULT 0,
         pinned_message_ids TEXT,
@@ -621,6 +638,8 @@ const pgInitPromise = PG_ENABLED ? (async () => {
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS events_enabled INTEGER NOT NULL DEFAULT 1`,
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS archived INTEGER NOT NULL DEFAULT 0`,
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS is_system INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS room_id TEXT`,
+      `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS description TEXT`,
     ];
     for (const q of roomCols) {
       try { await pgPool.query(q); } catch (_) {}
@@ -6292,7 +6311,7 @@ async function buildRoomStructure() {
       `SELECT id, master_id, name, sort_order FROM room_categories ORDER BY sort_order ASC, id ASC`
     );
     const roomsRes = await pgPool.query(
-      `SELECT name, category_id, room_sort_order, slowmode_seconds, is_locked, maintenance_mode, vip_only, staff_only, min_level, events_enabled, archived,
+      `SELECT name, room_id, description, category_id, room_sort_order, slowmode_seconds, is_locked, maintenance_mode, vip_only, staff_only, min_level, events_enabled, archived,
               created_by, created_by_user_id, is_user_room, is_system
          FROM rooms
         ORDER BY room_sort_order ASC, name ASC`
@@ -6301,9 +6320,54 @@ async function buildRoomStructure() {
     return {
       masters: mastersRes.rows || [],
       categories: categoriesRes.rows || [],
-      rooms: (rooms || []).map((r) => ({
-        id: r.name,
+      rooms: (rooms || []).map((r) => {
+        const roomId = r.room_id || resolveRoomCode(r.name);
+        return {
+          id: roomId || r.name,
+          room_id: roomId || null,
+          name: r.name,
+          description: r.description ?? null,
+          category_id: r.category_id,
+          room_sort_order: Number(r.room_sort_order || 0),
+          slowmode_seconds: Number(r.slowmode_seconds || 0),
+          is_locked: Number(r.is_locked || 0),
+          maintenance_mode: Number(r.maintenance_mode || 0),
+          vip_only: Number(r.vip_only || 0),
+          staff_only: Number(r.staff_only || 0),
+          min_level: Number(r.min_level || 0),
+          events_enabled: Number(r.events_enabled ?? 1),
+          archived: Number(r.archived || 0),
+          created_by: r.created_by ?? null,
+          created_by_user_id: r.created_by_user_id ?? null,
+          is_user_room: Number(r.is_user_room || 0),
+          is_system: Number(r.is_system || 0),
+        };
+      }),
+    };
+  }
+
+  const masters = await dbAllAsync(
+    `SELECT id, name, sort_order FROM room_master_categories ORDER BY sort_order ASC, id ASC`
+  );
+  const categories = await dbAllAsync(
+    `SELECT id, master_id, name, sort_order FROM room_categories ORDER BY sort_order ASC, id ASC`
+  );
+  const rooms = await dbAllAsync(
+    `SELECT name, room_id, description, category_id, room_sort_order, slowmode_seconds, is_locked, maintenance_mode, vip_only, staff_only, min_level, events_enabled, archived,
+            created_by, created_by_user_id, is_user_room, is_system
+       FROM rooms
+      ORDER BY room_sort_order ASC, name ASC`
+  );
+  return {
+    masters,
+    categories,
+    rooms: (rooms || []).map((r) => {
+      const roomId = r.room_id || resolveRoomCode(r.name);
+      return {
+        id: roomId || r.name,
+        room_id: roomId || null,
         name: r.name,
+        description: r.description ?? null,
         category_id: r.category_id,
         room_sort_order: Number(r.room_sort_order || 0),
         slowmode_seconds: Number(r.slowmode_seconds || 0),
@@ -6318,43 +6382,8 @@ async function buildRoomStructure() {
         created_by_user_id: r.created_by_user_id ?? null,
         is_user_room: Number(r.is_user_room || 0),
         is_system: Number(r.is_system || 0),
-      })),
-    };
-  }
-
-  const masters = await dbAllAsync(
-    `SELECT id, name, sort_order FROM room_master_categories ORDER BY sort_order ASC, id ASC`
-  );
-  const categories = await dbAllAsync(
-    `SELECT id, master_id, name, sort_order FROM room_categories ORDER BY sort_order ASC, id ASC`
-  );
-  const rooms = await dbAllAsync(
-    `SELECT name, category_id, room_sort_order, slowmode_seconds, is_locked, maintenance_mode, vip_only, staff_only, min_level, events_enabled, archived,
-            created_by, created_by_user_id, is_user_room, is_system
-       FROM rooms
-      ORDER BY room_sort_order ASC, name ASC`
-  );
-  return {
-    masters,
-    categories,
-    rooms: (rooms || []).map((r) => ({
-      id: r.name,
-      name: r.name,
-      category_id: r.category_id,
-      room_sort_order: Number(r.room_sort_order || 0),
-      slowmode_seconds: Number(r.slowmode_seconds || 0),
-      is_locked: Number(r.is_locked || 0),
-      maintenance_mode: Number(r.maintenance_mode || 0),
-      vip_only: Number(r.vip_only || 0),
-      staff_only: Number(r.staff_only || 0),
-      min_level: Number(r.min_level || 0),
-      events_enabled: Number(r.events_enabled ?? 1),
-      archived: Number(r.archived || 0),
-      created_by: r.created_by ?? null,
-      created_by_user_id: r.created_by_user_id ?? null,
-      is_user_room: Number(r.is_user_room || 0),
-      is_system: Number(r.is_system || 0),
-    })),
+      };
+    }),
   };
 }
 
@@ -6483,14 +6512,26 @@ async function resolveSiteUncategorizedCategoryId() {
 async function ensureCoreRoomsExist() {
   const now = Date.now();
   const categoryId = await resolveSiteUncategorizedCategoryId();
+  const legacyKeys = Array.from(LEGACY_DND_ROOM_KEYS);
+  if (legacyKeys.length) {
+    try {
+      const placeholders = legacyKeys.map(() => "?").join(",");
+      await dbRunAsync(
+        `DELETE FROM rooms WHERE lower(replace(replace(replace(name, ' ', ''), '-', ''), '_', '')) IN (${placeholders})`,
+        legacyKeys
+      );
+    } catch (e) {
+      console.warn("[rooms] legacy DnD room cleanup failed:", e?.message || e);
+    }
+  }
   for (const room of CORE_ROOMS) {
     const existing = await dbGetAsync(`SELECT name, category_id FROM rooms WHERE name = ?`, [room.name]).catch(() => null);
     if (!existing) {
       await dbRunAsync(
         `INSERT OR IGNORE INTO rooms
-          (name, created_by, created_at, category_id, room_sort_order, is_user_room, vip_only, staff_only, min_level, is_locked, maintenance_mode, events_enabled, slowmode_seconds, archived, is_system)
-         VALUES (?, NULL, ?, ?, ?, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1)`,
-        [room.name, now, categoryId, room.sortOrder ?? 0]
+          (name, created_by, created_at, category_id, room_sort_order, is_user_room, vip_only, staff_only, min_level, is_locked, maintenance_mode, events_enabled, slowmode_seconds, archived, is_system, room_id, description)
+         VALUES (?, NULL, ?, ?, ?, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, ?, ?)`,
+        [room.name, now, categoryId, room.sortOrder ?? 0, room.roomId ?? null, room.description ?? null]
       );
     } else {
       await dbRunAsync(
@@ -6498,14 +6539,26 @@ async function ensureCoreRoomsExist() {
             SET category_id = COALESCE(category_id, ?),
                 room_sort_order = COALESCE(room_sort_order, ?),
                 archived = 0,
-                is_system = 1
+                is_system = 1,
+                room_id = COALESCE(room_id, ?),
+                description = COALESCE(description, ?)
           WHERE name = ?`,
-        [categoryId, room.sortOrder ?? 0, room.name]
+        [categoryId, room.sortOrder ?? 0, room.roomId ?? null, room.description ?? null, room.name]
       ).catch(() => {});
     }
   }
 
   if (!PG_READY) return;
+  if (legacyKeys.length) {
+    try {
+      await pgPool.query(
+        `DELETE FROM rooms WHERE replace(replace(replace(lower(name), ' ', ''), '-', ''), '_', '') = ANY($1::text[])`,
+        [legacyKeys]
+      );
+    } catch (e) {
+      console.warn("[rooms] legacy DnD room cleanup (pg) failed:", e?.message || e);
+    }
+  }
   const pgCategoryId = await (async () => {
     try {
       const { rows } = await pgPool.query(
@@ -6527,10 +6580,10 @@ async function ensureCoreRoomsExist() {
       if (!existing) {
         await pgPool.query(
           `INSERT INTO rooms
-            (name, created_by, created_at, category_id, room_sort_order, is_user_room, vip_only, staff_only, min_level, is_locked, maintenance_mode, events_enabled, slowmode_seconds, archived, is_system)
-           VALUES ($1, NULL, $2, $3, $4, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1)
+            (name, created_by, created_at, category_id, room_sort_order, is_user_room, vip_only, staff_only, min_level, is_locked, maintenance_mode, events_enabled, slowmode_seconds, archived, is_system, room_id, description)
+           VALUES ($1, NULL, $2, $3, $4, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, $5, $6)
            ON CONFLICT (name) DO NOTHING`,
-          [room.name, now, pgCategoryId, room.sortOrder ?? 0]
+          [room.name, now, pgCategoryId, room.sortOrder ?? 0, room.roomId ?? null, room.description ?? null]
         );
       } else {
         await pgPool.query(
@@ -6538,9 +6591,11 @@ async function ensureCoreRoomsExist() {
               SET category_id = COALESCE(category_id, $1),
                   room_sort_order = COALESCE(room_sort_order, $2),
                   archived = 0,
-                  is_system = 1
-            WHERE name = $3`,
-          [pgCategoryId, room.sortOrder ?? 0, room.name]
+                  is_system = 1,
+                  room_id = COALESCE(room_id, $3),
+                  description = COALESCE(description, $4)
+            WHERE name = $5`,
+          [pgCategoryId, room.sortOrder ?? 0, room.roomId ?? null, room.description ?? null, room.name]
         );
       }
     } catch (e) {
@@ -10516,7 +10571,7 @@ app.post("/api/survival/seasons/:id/end", survivalLimiter, requireCoOwner, expre
 });
 
 // ============================================
-// DND STORY ROOM API ENDPOINTS
+// DND ROOM API ENDPOINTS
 // ============================================
 
 // Get lobby participants
@@ -15999,27 +16054,33 @@ function doJoin(room, status) {
     [room, legacyRoom],
     (_e, rows) => {
       // Query newest-first, then reverse so clients render oldest -> newest.
-      const baseHistory = (rows || []).reverse().map((r) => ({
-        messageId: r.id,
-        room: r.room,
-        user: r.username,
-        role: r.role,
-        avatar: r.avatar || "",
-        text: (r.text || ""),
-        tone: r.tone || "",
-        ts: r.ts,
-        attachmentUrl: r.attachment_url || "",
-        attachmentType: r.attachment_type || "",
-        attachmentMime: r.attachment_mime || "",
-        attachmentSize: r.attachment_size || 0,
-        replyToId: r.reply_to_id || null,
-        replyToUser: r.reply_to_user || "",
-        replyToText: r.reply_to_text || "",
-            attachmentUrl: r.attachment_url || null,
-            attachmentMime: r.attachment_mime || null,
-            attachmentType: r.attachment_type || null,
-            attachmentSize: r.attachment_size || null,
-      }));
+      const baseHistory = (rows || []).reverse().map((r) => {
+        const roomName = String(r.room || "");
+        const cleanRoom = roomName.startsWith("#") ? roomName.slice(1) : roomName;
+        const roomId = resolveRoomCode(cleanRoom);
+        return {
+          messageId: r.id,
+          room: r.room,
+          roomId: roomId || null,
+          user: r.username,
+          role: r.role,
+          avatar: r.avatar || "",
+          text: (r.text || ""),
+          tone: r.tone || "",
+          ts: r.ts,
+          attachmentUrl: r.attachment_url || "",
+          attachmentType: r.attachment_type || "",
+          attachmentMime: r.attachment_mime || "",
+          attachmentSize: r.attachment_size || 0,
+          replyToId: r.reply_to_id || null,
+          replyToUser: r.reply_to_user || "",
+          replyToText: r.reply_to_text || "",
+              attachmentUrl: r.attachment_url || null,
+              attachmentMime: r.attachment_mime || null,
+              attachmentType: r.attachment_type || null,
+              attachmentSize: r.attachment_size || null,
+        };
+      });
 
       const usernames = baseHistory.map((m) => m.user).filter(Boolean);
       buildAuthorsFxMap(usernames, (authorsFx) => {
@@ -17105,9 +17166,11 @@ if (!room) {
                 function () {
                   awardMessageXp(socket.user.id, socket.user.role, room).catch((e) => console.warn("[xp][msg]", e?.message || e));
                   awardMessageGold(socket.user.id);
+                  const roomId = resolveRoomCode(room);
                   const msg = {
                     messageId: this.lastID,
                     room,
+                    roomId: roomId || null,
                     user: socket.user.username,
                     role: socket.user.role,
                     avatar: socket.user.avatar || "",

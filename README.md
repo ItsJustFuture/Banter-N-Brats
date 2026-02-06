@@ -54,9 +54,11 @@ The project includes verification scripts to validate implementation correctness
 # Verify DnD button visibility logic
 node scripts/verify-dnd-button-visibility.js
 
+# Verify DnD room R6 scoping + button wiring
+node scripts/test-dnd-room-r6.js
+
 # Run all tests
 npm run test:dnd
 npm run test:survival
 npm run test:smoke
 ```
-

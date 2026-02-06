@@ -1,7 +1,7 @@
 "use strict";
 
 // ===================================
-// DND STORY ROOM - DATABASE HELPERS
+// DND ROOM - DATABASE HELPERS
 // ===================================
 // Follows the same pattern as Survival Simulator's DB functions
 

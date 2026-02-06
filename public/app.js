@@ -931,40 +931,66 @@ const ROOM_IDS = {
   "nsfw": "R3",
   "diceroom": "R4",
   "survivalsimulator": "R5",
-  "dnd": "R6"
+  "dnd": "R6",
+  "dndstoryroom": "R6",
+  "dndstory": "R6"
 };
+function normalizeRoomKey(value) {
+  return String(value || "").toLowerCase().replace(/\s+/g, "");
+}
+function normalizeDndRoomKey(value) {
+  return normalizeRoomKey(value);
+}
+const DND_ROOM_MATCHERS = ["dnd", "DnD", "dndstoryroom", "dndstory"];
+const DND_ROOM_MATCHER_KEYS = DND_ROOM_MATCHERS.map((key) => normalizeDndRoomKey(key));
+function matchesDndRoomKey(value) {
+  const normalized = normalizeDndRoomKey(value);
+  return DND_ROOM_MATCHER_KEYS.includes(normalized);
+}
+function getRoomIdFromName(activeRoom){
+  if (activeRoom && typeof activeRoom === "object") {
+    const directId = activeRoom?.id ?? activeRoom?.room_id ?? activeRoom?.roomId;
+    if (directId) return String(directId);
+  }
+  const roomName = typeof activeRoom === "string"
+    ? activeRoom
+    : (activeRoom?.name ?? activeRoom?.id ?? "");
+  const normalized = normalizeRoomKey(roomName);
+  return ROOM_IDS[normalized] || null;
+}
+function getRoomMeta(activeRoom) {
+  if (activeRoom && typeof activeRoom === "object") {
+    const resolvedId = activeRoom?.id ?? activeRoom?.room_id ?? activeRoom?.roomId ?? getRoomIdFromName(activeRoom);
+    return { ...activeRoom, id: resolvedId ?? activeRoom?.id ?? null, name: activeRoom?.name ?? "" };
+  }
+  const name = String(activeRoom || "");
+  return { id: getRoomIdFromName(name), name };
+}
 function isDiceRoom(activeRoom){
   const roomName = typeof activeRoom === "string"
     ? activeRoom
     : (activeRoom?.name ?? activeRoom?.id ?? "");
-  return String(roomName || "").toLowerCase() === DICE_ROOM_ID;
+  return normalizeRoomKey(roomName) === DICE_ROOM_ID;
 }
 function isSurvivalRoom(activeRoom){
   const roomName = typeof activeRoom === "string"
     ? activeRoom
     : (activeRoom?.name ?? activeRoom?.id ?? "");
-  return String(roomName || "").toLowerCase() === SURVIVAL_ROOM_ID;
+  return normalizeRoomKey(roomName) === SURVIVAL_ROOM_ID;
 }
 function isDndRoom(activeRoom){
-  const roomName = typeof activeRoom === "string"
+  const room = getRoomMeta(activeRoom);
+  if (room?.id) return String(room.id) === DND_ROOM_CODE;
+  const rawName = typeof activeRoom === "string"
     ? activeRoom
-    : (activeRoom?.name ?? activeRoom?.id ?? "");
-  return String(roomName || "").toLowerCase() === DND_ROOM_ID;
+    : (activeRoom?.name ?? activeRoom?.id ?? room?.name ?? "");
+  return matchesDndRoomKey(rawName);
 }
 function displayRoomName(room){
   if (isDiceRoom(room)) return "Dice Room";
   if (isSurvivalRoom(room)) return "Survival Simulator";
   if (isDndRoom(room)) return "DnD";
   return room;
-}
-
-// Helper function to get room ID (e.g., "R6") from room name
-function getRoomIdFromName(activeRoom){
-  const roomName = typeof activeRoom === "string"
-    ? activeRoom
-    : (activeRoom?.name ?? activeRoom?.id ?? "");
-  const normalized = String(roomName || "").toLowerCase();
-  return ROOM_IDS[normalized] || null;
 }
 
 let lastUsers = [];
@@ -15050,7 +15076,7 @@ function renderRoomManageRoomsList(){
   const isOwner = roleRank(me?.role || "User") >= roleRank("Owner");
   for(const room of rooms){
     const isArchived = Number(room?.archived || 0) === 1;
-    const isCore = CORE_ROOMS.has(String(room?.name || ""));
+    const isCore = CORE_ROOMS.has(normalizeRoomKey(room?.name || ""));
     const isProtected = isCore && !isOwner;
     const row = document.createElement("div");
     row.className = "roomManageRow";
@@ -21770,6 +21796,10 @@ socket.on("mod:case_event", (payload = {}) => {
     const room = (String(rawRoom || "").startsWith("#")) ? String(rawRoom || "").slice(1) : String(rawRoom || "");
     const meta = (payload && typeof payload === "object") ? (payload.meta || null) : null;
     const scope = (payload && typeof payload === "object") ? String(payload.scope || "") : "";
+    const resolvedRoomId = (payload && typeof payload === "object" && payload.roomId)
+      ? String(payload.roomId)
+      : getRoomIdFromName(room);
+    const currentRoomId = getRoomIdFromName(currentRoom);
 
     if (IS_DEV && !room && !scope) {
       console.warn("[system] Missing roomId or scope", payload);
@@ -21779,9 +21809,17 @@ socket.on("mod:case_event", (payload = {}) => {
     // If a server-side misroute happens, this prevents "bleed" into other rooms.
     try {
       const kind = meta && typeof meta === "object" ? String(meta.kind || "") : "";
-      if (kind === "dice" && room !== "diceroom") return;
-      if (kind === "survival" && room !== "survivalsimulator") return;
-      if (kind === "dnd" && room !== DND_ROOM_ID) return;
+      const diceRoomId = getRoomIdFromName(DICE_ROOM_ID);
+      const survivalRoomId = getRoomIdFromName(SURVIVAL_ROOM_ID);
+      if (kind === "dice") {
+        if (resolvedRoomId ? resolvedRoomId !== diceRoomId : normalizeRoomKey(room) !== DICE_ROOM_ID) return;
+      }
+      if (kind === "survival") {
+        if (resolvedRoomId ? resolvedRoomId !== survivalRoomId : normalizeRoomKey(room) !== SURVIVAL_ROOM_ID) return;
+      }
+      if (kind === "dnd") {
+        if (resolvedRoomId ? resolvedRoomId !== DND_ROOM_CODE : !matchesDndRoomKey(room)) return;
+      }
     } catch(_){ }
 
     // Global system messages should ONLY render when explicitly marked.
@@ -21793,7 +21831,8 @@ socket.on("mod:case_event", (payload = {}) => {
       return;
     }
     if (!room) return;
-    if (room !== currentRoom) return;
+    if (resolvedRoomId && currentRoomId && resolvedRoomId !== currentRoomId) return;
+    if (!resolvedRoomId && room !== currentRoom) return;
 
     addSystem(text, { className: isDiceResultSystemMessage(text) ? "diceResult" : "" });
   });
@@ -22081,9 +22120,13 @@ socket.on("mod:case_event", (payload = {}) => {
     // This protects against any accidental server-side room bleed.
     const cur = String(currentRoom || "main");
     const legacyCur = `#${cur}`;
+    const currentRoomId = getRoomIdFromName(cur);
     (messages||[]).forEach(m=>{
       const mr = String(m?.room || "");
-      if (mr && mr !== cur && mr !== legacyCur) return;
+      const cleanRoom = mr.startsWith("#") ? mr.slice(1) : mr;
+      const msgRoomId = m?.roomId ? String(m.roomId) : getRoomIdFromName(cleanRoom);
+      if (msgRoomId && currentRoomId && msgRoomId !== currentRoomId) return;
+      if (!msgRoomId && mr && mr !== cur && mr !== legacyCur) return;
       safeAddMessage(m);
     });
     applySearch();
@@ -22093,7 +22136,11 @@ socket.on("mod:case_event", (payload = {}) => {
     const cur = String(currentRoom || "main");
     const legacyCur = `#${cur}`;
     const mr = String(m?.room || "");
-    if (mr && mr !== cur && mr !== legacyCur) return;
+    const cleanRoom = mr.startsWith("#") ? mr.slice(1) : mr;
+    const currentRoomId = getRoomIdFromName(cur);
+    const msgRoomId = m?.roomId ? String(m.roomId) : getRoomIdFromName(cleanRoom);
+    if (msgRoomId && currentRoomId && msgRoomId !== currentRoomId) return;
+    if (!msgRoomId && mr && mr !== cur && mr !== legacyCur) return;
 
     if (!isInitialized) {
       // Check buffer size limit
