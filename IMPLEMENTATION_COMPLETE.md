@@ -2,7 +2,7 @@
 
 ## Overview
 
-Successfully implemented comprehensive enhancements to the DnD Story Room game, adding 26 new diverse events and full integration with the site's couple system.
+Successfully implemented comprehensive enhancements to the DnD game, adding 26 new diverse events and full integration with the site's couple system.
 
 ## What Was Delivered
 

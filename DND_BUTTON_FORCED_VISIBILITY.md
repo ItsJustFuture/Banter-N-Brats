@@ -1,7 +1,7 @@
 # DnD Button Forced Visibility Implementation
 
 ## Overview
-This document describes the implementation of forced visibility for the DnD Story Room modal button, ensuring it is always visible in the UI regardless of room detection or conditional logic.
+This document describes the implementation of forced visibility for the DnD modal button, ensuring it is always visible in the UI regardless of room detection or conditional logic.
 
 ## Problem Statement
 Previously, the DnD button visibility depended on room detection logic, which could cause the button to be hidden or not render properly. The requirements were:

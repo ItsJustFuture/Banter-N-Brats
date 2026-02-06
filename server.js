@@ -47,14 +47,14 @@ const CORE_ROOMS = [
   { name: "nsfw", sortOrder: 2, roomId: "R3" },
   { name: "diceroom", sortOrder: 3, roomId: "R4" },
   { name: "survivalsimulator", sortOrder: 4, roomId: "R5" },
-  { name: "dndstoryroom", sortOrder: 5, roomId: "R6" },
+  { name: "dnd", sortOrder: 5, roomId: "R6" },
 ];
 const CORE_ROOM_NAMES = new Set(CORE_ROOMS.map((room) => room.name));
 const SURVIVAL_SEASON_COOLDOWN_MS = 2 * 60 * 1000;
 const SURVIVAL_ADVANCE_COOLDOWN_MS = 2000;
 
 // DnD constants
-const DND_ROOM_ID = "dndstoryroom";
+const DND_ROOM_ID = "dnd";
 const DND_ROOM_DB_ID = 2; // Will be created dynamically if needed
 const DND_SESSION_COOLDOWN_MS = 2 * 60 * 1000;
 const DND_ADVANCE_COOLDOWN_MS = 2000;

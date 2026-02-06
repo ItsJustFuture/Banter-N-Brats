@@ -20,7 +20,7 @@ const hasButtonRef = buttonRefPattern.test(appJsContent);
 console.log(`✓ Button element reference: ${hasButtonRef ? 'FOUND' : 'NOT FOUND'}`);
 
 // Check 2: Verify DND_ROOM_ID constant exists
-const roomIdPattern = /const\s+DND_ROOM_ID\s*=\s*["']dndstoryroom["']/;
+const roomIdPattern = /const\s+DND_ROOM_ID\s*=\s*["']dnd["']/;
 const hasRoomId = roomIdPattern.test(appJsContent);
 console.log(`✓ DND_ROOM_ID constant: ${hasRoomId ? 'FOUND' : 'NOT FOUND'}`);
 
@@ -75,8 +75,8 @@ console.log(`Result: ${passedChecks}/${totalChecks} checks passed`);
 if (passedChecks === totalChecks) {
   console.log('✅ All DnD button visibility logic is properly implemented!');
   console.log('\nThe button should:');
-  console.log('  - Be hidden when NOT in dndstoryroom');
-  console.log('  - Be visible when IN dndstoryroom');
+  console.log('  - Be hidden when NOT in dnd');
+  console.log('  - Be visible when IN dnd');
   console.log('  - Update dynamically when switching rooms');
   process.exit(0);
 } else {

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 "use strict";
 
-// Test DnD Story Room functionality
+// Test DnD functionality
 const dndCharacterSystem = require("../dnd/character-system");
 const dndEventTemplates = require("../dnd/event-templates");
 const dndEventResolution = require("../dnd/event-resolution");
 
-console.log("🧪 Testing DnD Story Room Modules\n");
+console.log("🧪 Testing DnD Modules\n");
 
 // Test 1: Character validation
 console.log("✅ Test 1: Character Attribute Validation");
@@ -101,4 +101,4 @@ const narrative = dndEventResolution.formatNarrative("{CHAR1} and {CHAR2} explor
 console.log(`  Formatted: "${narrative}"`);
 console.log(`  Contains character names: ${narrative.includes("Alice") && narrative.includes("Bob") ? "✓ PASS" : "✗ FAIL"}`);
 
-console.log("\n🎉 All DnD Story Room module tests completed!\n");
+console.log("\n🎉 All DnD module tests completed!\n");

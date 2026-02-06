@@ -1,5 +1,5 @@
 /**
- * Test script to verify DnD button appears in topbar when in dndstoryroom
+ * Test script to verify DnD button appears in topbar when in dnd
  * 
  * This test verifies:
  * 1. Button exists in the HTML topbar structure
@@ -178,18 +178,18 @@ if (passedChecks === totalChecks) {
   console.log('  ✓ Button is hidden by default (hidden attribute)');
   console.log('  ✓ enableDndUI() shows the button');
   console.log('  ✓ disableDndUI() hides the button');
-  console.log('  ✓ setActiveRoom() shows button when entering dndstoryroom');
-  console.log('  ✓ setActiveRoom() hides button when leaving dndstoryroom');
+  console.log('  ✓ setActiveRoom() shows button when entering dnd');
+  console.log('  ✓ setActiveRoom() hides button when leaving dnd');
   console.log('  ✓ Socket connect checks current room and shows button if needed');
   console.log('  ✓ Click listener opens DnD modal');
   console.log('  ✓ CSS styling applied');
   console.log('\n🎯 Expected User Experience:');
   console.log('  1. User starts in main room - button is hidden');
-  console.log('  2. User clicks "DnD Story Room" in channel list');
+  console.log('  2. User clicks "DnD" in channel list');
   console.log('  3. Button appears in topbar (right side, next to other action buttons)');
   console.log('  4. User clicks button - DnD modal opens');
   console.log('  5. User switches to different room - button disappears');
-  console.log('  6. User returns to DnD Story Room - button reappears');
+  console.log('  6. User returns to DnD - button reappears');
   process.exit(0);
 } else {
   console.log('\n❌ Some checks failed');

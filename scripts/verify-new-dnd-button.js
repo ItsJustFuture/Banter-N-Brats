@@ -53,7 +53,7 @@ const hasDeprecatedComment = jsDeprecatedComment.test(appJsContent);
 console.log(`✓ Old button marked deprecated in JS: ${hasDeprecatedComment ? 'YES' : 'NO'}`);
 
 // Check 7: Verify DND_ROOM_ID constant still exists
-const roomIdPattern = /const\s+DND_ROOM_ID\s*=\s*["']dndstoryroom["']/;
+const roomIdPattern = /const\s+DND_ROOM_ID\s*=\s*["']dnd["']/;
 const hasRoomId = roomIdPattern.test(appJsContent);
 console.log(`✓ DND_ROOM_ID constant: ${hasRoomId ? 'FOUND' : 'NOT FOUND'}`);
 
@@ -120,8 +120,8 @@ if (passedChecks === totalChecks) {
   console.log('  ✓ Visibility toggles in setActiveRoom and renderDndPanel');
   console.log('  ✓ Click event listener attached');
   console.log('\n🎯 Expected Behavior:');
-  console.log('  - New button hidden when NOT in "dndstoryroom"');
-  console.log('  - New button visible when IN "dndstoryroom"');
+  console.log('  - New button hidden when NOT in "dnd"');
+  console.log('  - New button visible when IN "dnd"');
   console.log('  - Updates dynamically when switching rooms');
   console.log('  - Opens DnD modal when clicked');
   process.exit(0);

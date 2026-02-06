@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 "use strict";
 
-// Test DnD Story Room Gameplay Features
+// Test DnD Gameplay Features
 // Tests for summonMonster, attribute modifications, and check modifiers
 const dndEventResolution = require("../dnd/event-resolution");
 
-console.log("🧪 Testing DnD Story Room Gameplay Features\n");
+console.log("🧪 Testing DnD Gameplay Features\n");
 
 let testsPassed = 0;
 let testsFailed = 0;
