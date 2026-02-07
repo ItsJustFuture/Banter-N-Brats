@@ -2752,8 +2752,8 @@ function enableDndUI() {
   }
   if (!dndUiListenersAttached) {
     dndUiListenersAttached = true;
-    dndOpenBtn?.addEventListener("click", openDndModal); // Deprecated button (backwards compatibility)
-    dndNewOpenBtn?.addEventListener("click", openDndModal); // New button
+    dndOpenBtn?.addEventListener("click", openDndModal); // Top bar button
+    dndNewOpenBtn?.addEventListener("click", openDndModal); // Input bar button
     dndComposerBtn?.addEventListener("click", openDndModal);
     dndModalClose?.addEventListener("click", closeDndModal);
     dndModal?.addEventListener("click", (e) => {
@@ -3960,7 +3960,7 @@ const survivalLogLoadBtn = document.getElementById("survivalLogLoadBtn");
 
 // DnD elements
 const dndOpenBtn = document.getElementById("dndOpenBtn"); // Top bar button
-const dndNewOpenBtn = document.getElementById("dndNewOpenBtn"); // New button
+const dndNewOpenBtn = document.getElementById("dndNewOpenBtn"); // Input bar button
 const dndComposerBtn = document.getElementById("dndComposerBtn");
 const dndModal = document.getElementById("dndModal");
 const dndModalClose = document.getElementById("dndModalClose");

@@ -141,8 +141,8 @@ if (!socketConnectMatch) {
 
 // Check 8: CSS styling exists
 console.log('\n✓ Check 8: CSS styling for button');
-const hasButtonCSS = /\.dndOpenBtn\s*\{/.test(stylesContent);
-const buttonCSSBlock = stylesContent.match(/\.dndOpenBtn\s*\{[\s\S]*?\}/);
+const hasButtonCSS = /\.dndOpenBtn[^{]*\{/.test(stylesContent);
+const buttonCSSBlock = stylesContent.match(/\.dndOpenBtn[^{]*\{[\s\S]*?\}/);
 const hasDisplayStyle = buttonCSSBlock ? /display\s*:\s*inline-flex/.test(buttonCSSBlock[0]) : false;
 const hasMarginLeft = buttonCSSBlock ? /margin-left\s*:\s*8px/.test(buttonCSSBlock[0]) : false;
 const hasGap = buttonCSSBlock ? /gap\s*:\s*6px/.test(buttonCSSBlock[0]) : false;
