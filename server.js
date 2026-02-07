@@ -117,11 +117,13 @@ function isDnDRoom(room) {
   if (typeof room === "object") {
     const directId = room?.id ?? room?.room_id ?? room?.roomId;
     if (directId && String(directId).toUpperCase() === DND_ROOM_CODE) return true;
+    // Requirement: any room name containing "dnd" counts as a DnD-capable room.
     const rawName = room?.name ?? room?.id ?? "";
     return String(rawName).toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
   }
   const rawName = String(room || "");
   if (rawName.toUpperCase() === DND_ROOM_CODE) return true;
+  // Requirement: any room name containing "dnd" counts as a DnD-capable room.
   return rawName.toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
 }
 

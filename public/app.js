@@ -983,11 +983,13 @@ function isDnDRoom(activeRoom){
   if (typeof activeRoom === "object") {
     const directId = activeRoom?.id ?? activeRoom?.room_id ?? activeRoom?.roomId;
     if (directId && String(directId).toUpperCase() === DND_ROOM_CODE) return true;
+    // Requirement: any room name containing "dnd" counts as a DnD-capable room.
     const rawName = activeRoom?.name ?? activeRoom?.id ?? "";
     return String(rawName).toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
   }
   const rawName = String(activeRoom || "");
   if (rawName.toUpperCase() === DND_ROOM_CODE) return true;
+  // Requirement: any room name containing "dnd" counts as a DnD-capable room.
   return rawName.toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
 }
 function displayRoomName(room){
