@@ -9010,17 +9010,45 @@ const DAILY_CHALLENGE_IDS = {
   attachments: "attachments_2",
   dmReactions: "dm_reacts_2",
   edits: "edits_1",
+  sendMessage: "send_msg_1",
+  reactOnce: "react_1",
+  visitRoom: "visit_room_1",
+  replyOnce: "reply_1",
+  sendTenMessages: "send_msgs_10",
+  reactFiveTimes: "react_5",
+  visitThreeRooms: "visit_rooms_3",
+  sendFiveDMs: "send_dms_5",
 };
-const DAILY_CHALLENGE_POOL = [
-  { id: DAILY_CHALLENGE_IDS.roomMessages, label: "Send 5 room messages", type: "room_messages", goal: 5, rewardXp: 30, rewardGold: 25 },
-  { id: DAILY_CHALLENGE_IDS.reactions, label: "React 3 times", type: "reactions", goal: 3, rewardXp: 25, rewardGold: 20 },
-  { id: DAILY_CHALLENGE_IDS.uniqueRooms, label: "Visit 2 different rooms", type: "unique_rooms", goal: 2, rewardXp: 25, rewardGold: 15 },
-  { id: DAILY_CHALLENGE_IDS.dmMessages, label: "Send 3 DM messages", type: "dm_messages", goal: 3, rewardXp: 30, rewardGold: 20 },
-  { id: DAILY_CHALLENGE_IDS.replies, label: "Reply to 2 messages", type: "replies", goal: 2, rewardXp: 20, rewardGold: 15 },
-  { id: DAILY_CHALLENGE_IDS.attachments, label: "Share 2 attachments", type: "attachments", goal: 2, rewardXp: 25, rewardGold: 20 },
-  { id: DAILY_CHALLENGE_IDS.dmReactions, label: "React in DMs 2 times", type: "dm_reactions", goal: 2, rewardXp: 20, rewardGold: 15 },
-  { id: DAILY_CHALLENGE_IDS.edits, label: "Edit a message once", type: "edits", goal: 1, rewardXp: 15, rewardGold: 10 },
+
+// Easy challenges: 20 XP, 50 gold - simple, quick tasks
+const EASY_CHALLENGES = [
+  { id: DAILY_CHALLENGE_IDS.sendMessage, label: "Send 1 message", type: "room_messages", goal: 1, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
+  { id: DAILY_CHALLENGE_IDS.reactOnce, label: "React to a message", type: "reactions", goal: 1, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
+  { id: DAILY_CHALLENGE_IDS.visitRoom, label: "Visit a room", type: "unique_rooms", goal: 1, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
+  { id: DAILY_CHALLENGE_IDS.replyOnce, label: "Reply to a message", type: "replies", goal: 1, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
+  { id: DAILY_CHALLENGE_IDS.reactions, label: "React 3 times", type: "reactions", goal: 3, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
+  { id: DAILY_CHALLENGE_IDS.replies, label: "Reply to 2 messages", type: "replies", goal: 2, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
+  { id: DAILY_CHALLENGE_IDS.edits, label: "Edit a message", type: "edits", goal: 1, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
+  { id: DAILY_CHALLENGE_IDS.dmReactions, label: "React in a DM", type: "dm_reactions", goal: 1, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
 ];
+
+// Moderate challenges: 30 XP, 75 gold - require more engagement
+const MODERATE_CHALLENGES = [
+  { id: DAILY_CHALLENGE_IDS.roomMessages, label: "Send 5 messages", type: "room_messages", goal: 5, rewardXp: 30, rewardGold: 75, difficulty: "moderate" },
+  { id: DAILY_CHALLENGE_IDS.uniqueRooms, label: "Visit 2 different rooms", type: "unique_rooms", goal: 2, rewardXp: 30, rewardGold: 75, difficulty: "moderate" },
+  { id: DAILY_CHALLENGE_IDS.dmMessages, label: "Send 3 DM messages", type: "dm_messages", goal: 3, rewardXp: 30, rewardGold: 75, difficulty: "moderate" },
+  { id: DAILY_CHALLENGE_IDS.attachments, label: "Share 2 attachments", type: "attachments", goal: 2, rewardXp: 30, rewardGold: 75, difficulty: "moderate" },
+  { id: DAILY_CHALLENGE_IDS.reactFiveTimes, label: "React 5 times", type: "reactions", goal: 5, rewardXp: 30, rewardGold: 75, difficulty: "moderate" },
+];
+
+// Hard challenges: 50 XP, 100 gold - require significant participation
+const HARD_CHALLENGES = [
+  { id: DAILY_CHALLENGE_IDS.sendTenMessages, label: "Send 10 messages", type: "room_messages", goal: 10, rewardXp: 50, rewardGold: 100, difficulty: "hard" },
+  { id: DAILY_CHALLENGE_IDS.visitThreeRooms, label: "Visit 3 different rooms", type: "unique_rooms", goal: 3, rewardXp: 50, rewardGold: 100, difficulty: "hard" },
+  { id: DAILY_CHALLENGE_IDS.sendFiveDMs, label: "Send 5 DM messages", type: "dm_messages", goal: 5, rewardXp: 50, rewardGold: 100, difficulty: "hard" },
+];
+
+const DAILY_CHALLENGE_POOL = [...EASY_CHALLENGES, ...MODERATE_CHALLENGES, ...HARD_CHALLENGES];
 
 function dailyChallengeSeed(dayKey) {
   let seed = 0;
@@ -9032,15 +9060,31 @@ function dailyChallengeSeed(dayKey) {
 }
 
 function pickDailyChallenges(dayKey = dayKeyNow()) {
-  const pool = DAILY_CHALLENGE_POOL.slice();
   let seed = dailyChallengeSeed(dayKey);
-  // LCG constants from Numerical Recipes for deterministic shuffle ordering.
-  for (let i = pool.length - 1; i > 0; i -= 1) {
-    seed = (seed * 1664525 + 1013904223) >>> 0;
-    const j = seed % (i + 1);
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+  
+  // Helper function to shuffle an array with the seed
+  function shuffleArray(arr) {
+    const shuffled = arr.slice();
+    for (let i = shuffled.length - 1; i > 0; i -= 1) {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      const j = seed % (i + 1);
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
   }
-  return pool.slice(0, MAX_DAILY_CHALLENGES);
+  
+  // Pick 3 easy, 1 moderate, 1 hard
+  const easyPool = shuffleArray(EASY_CHALLENGES);
+  const moderatePool = shuffleArray(MODERATE_CHALLENGES);
+  const hardPool = shuffleArray(HARD_CHALLENGES);
+  
+  const selected = [
+    ...easyPool.slice(0, 3),    // 3 easy challenges
+    ...moderatePool.slice(0, 1), // 1 moderate challenge
+    ...hardPool.slice(0, 1),     // 1 hard challenge
+  ];
+  
+  return selected;
 }
 
 async function loadDailyProgress(userId, dayKey) {
