@@ -12881,6 +12881,10 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   font-style: italic;
 }
 
+.dndCharMeta {
+  margin-top: 4px;
+}
+
 .dndCharHp.low {
   color: var(--danger-color, #d00);
 }
@@ -12974,6 +12978,30 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.dndCharacterBasics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.dndCharacterBasics label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9em;
+}
+
+.dndCharacterBasics input,
+.dndCharacterBasics select,
+.dndCharacterBasics textarea {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 4px;
+  background: var(--input-bg, #1a1a1a);
+  color: var(--text-color, #fff);
 }
 
 .dndAttributesGrid {

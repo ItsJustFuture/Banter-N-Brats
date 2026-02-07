@@ -615,8 +615,8 @@
 <p><strong>How to Play:</strong></p>
 <ul>
 <li>Join the lobby when a session is in "lobby" status</li>
-<li>Create your character with attributes (28 points total), skills (3-6), and perks (max 3)</li>
-<li>Co-owners can start the session when ready</li>
+<li>Create your character with a name, race, gender, background, attributes (28 points total), skills (3-6), and perks (max 3)</li>
+<li>Moderators and above can start the session when ready</li>
 <li>Events are resolved with D20 rolls + attribute modifiers</li>
 <li>Survive as many rounds as possible!</li>
 </ul>
@@ -635,6 +635,50 @@
 </div>
 </div>
 <div class="dndCharacterForm">
+<div class="dndCharacterBasics">
+  <label>Character Name
+    <input id="dndCharName" maxlength="40" placeholder="Your hero" type="text"/>
+  </label>
+  <label>Race
+    <select id="dndCharRace">
+      <option value="">Select race...</option>
+      <option>Human</option>
+      <option>Elf</option>
+      <option>Dwarf</option>
+      <option>Halfling</option>
+      <option>Orc</option>
+      <option>Dragonborn</option>
+      <option>Tiefling</option>
+      <option>Gnome</option>
+    </select>
+  </label>
+  <label>Gender
+    <select id="dndCharGender">
+      <option value="">Select gender...</option>
+      <option>Female</option>
+      <option>Male</option>
+      <option>Non-binary</option>
+      <option>Agender</option>
+      <option>Other</option>
+      <option>Prefer not to say</option>
+    </select>
+  </label>
+  <label>Background
+    <select id="dndCharBackground">
+      <option value="">Select background...</option>
+      <option>Acolyte</option>
+      <option>Charlatan</option>
+      <option>Criminal</option>
+      <option>Entertainer</option>
+      <option>Folk Hero</option>
+      <option>Noble</option>
+      <option>Outlander</option>
+      <option>Sage</option>
+      <option>Soldier</option>
+      <option>Urchin</option>
+    </select>
+  </label>
+</div>
 <div class="dndAttributesGrid" id="dndAttributesGrid">
 <label>💪 Might <input type="number" id="attr_might" min="1" max="7" value="3"/></label>
 <label>🎯 Finesse <input type="number" id="attr_finesse" min="1" max="7" value="3"/></label>
