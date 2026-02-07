@@ -7622,8 +7622,9 @@ function requireCoOwner(req, res, next) {
 
 function requireDndHost(req, res, next) {
   if (!req.session?.user?.id) return res.status(401).send("Not logged in");
-  if (requireMinRole(req.session.user.role, "Moderator")) return next();
-  return res.status(403).send("Forbidden");
+  const hasAccess = requireMinRole(req.session.user.role, "Moderator");
+  if (!hasAccess) return res.status(403).send("Forbidden");
+  return next();
 }
 
 
@@ -11237,7 +11238,11 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
       return cleaned.slice(0, maxLen);
     };
     const user = req.session.user;
-    const displayName = normalizeMeta(req.body?.name, 40) || user.username;
+    const nameInput = normalizeMeta(req.body?.name, 40);
+    if (req.body?.name && !nameInput) {
+      return res.status(400).json({ message: "Invalid character name" });
+    }
+    const displayName = nameInput || user.username;
     const race = normalizeMeta(req.body?.race, 32);
     const gender = normalizeMeta(req.body?.gender, 32);
     const background = normalizeMeta(req.body?.background, 40);

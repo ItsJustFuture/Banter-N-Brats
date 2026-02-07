@@ -5412,7 +5412,7 @@ function openDndCharacterCreator() {
   dndCharacterPanel.hidden = false;
 
   const existingChar = dndState.myCharacter;
-  if (dndCharName) dndCharName.value = existingChar?.display_name || me?.username || "";
+  if (dndCharName) dndCharName.value = existingChar?.display_name ?? me?.username ?? "";
   if (dndCharRace) dndCharRace.value = existingChar?.race || "";
   if (dndCharGender) dndCharGender.value = existingChar?.gender || "";
   if (dndCharBackground) dndCharBackground.value = existingChar?.background || "";
