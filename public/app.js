@@ -2737,14 +2737,14 @@ let dndModalTab = "characters";
 let dndUiListenersAttached = false;
 let dndUiEnabled = false;
 function enableDndUI() {
-  // Show the DnD button in the input bar when in DnD room
-  if (dndNewOpenBtn) {
+  // Show the Adventure buttons (top bar + input bar) when in the DnD room
+  if (dndNewOpenBtn) { // input bar
     dndNewOpenBtn.hidden = false;
     dndNewOpenBtn.setAttribute("aria-hidden", "false");
   }
-  if (dndOpenBtn) {
-    dndOpenBtn.hidden = true;
-    dndOpenBtn.setAttribute("aria-hidden", "true");
+  if (dndOpenBtn) { // top bar
+    dndOpenBtn.hidden = false;
+    dndOpenBtn.setAttribute("aria-hidden", "false");
   }
   if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) {
     dndComposerBtn.hidden = false;
@@ -2752,8 +2752,8 @@ function enableDndUI() {
   }
   if (!dndUiListenersAttached) {
     dndUiListenersAttached = true;
-    dndOpenBtn?.addEventListener("click", openDndModal); // Deprecated button (backwards compatibility)
-    dndNewOpenBtn?.addEventListener("click", openDndModal); // New button
+    dndOpenBtn?.addEventListener("click", openDndModal); // Top bar button
+    dndNewOpenBtn?.addEventListener("click", openDndModal); // Input bar button
     dndComposerBtn?.addEventListener("click", openDndModal);
     dndModalClose?.addEventListener("click", closeDndModal);
     dndModal?.addEventListener("click", (e) => {
@@ -2801,7 +2801,7 @@ function enableDndUI() {
   }
 }
 function disableDndUI() {
-  // Hide the DnD button when leaving DnD room
+  // Hide the Adventure buttons (top bar + input bar) when leaving DnD room
   if (dndNewOpenBtn) {
     dndNewOpenBtn.hidden = true;
     dndNewOpenBtn.setAttribute("aria-hidden", "true");
@@ -3959,8 +3959,8 @@ const survivalLogModalList = document.getElementById("survivalLogModalList");
 const survivalLogLoadBtn = document.getElementById("survivalLogLoadBtn");
 
 // DnD elements
-const dndOpenBtn = document.getElementById("dndOpenBtn"); // Deprecated
-const dndNewOpenBtn = document.getElementById("dndNewOpenBtn"); // New button
+const dndOpenBtn = document.getElementById("dndOpenBtn"); // Top bar Adventure button
+const dndNewOpenBtn = document.getElementById("dndNewOpenBtn"); // Input bar button
 const dndComposerBtn = document.getElementById("dndComposerBtn");
 const dndModal = document.getElementById("dndModal");
 const dndModalClose = document.getElementById("dndModalClose");
@@ -4009,7 +4009,6 @@ const dndInfoAlive = document.getElementById("dndInfoAlive");
 const dndInfoCreated = document.getElementById("dndInfoCreated");
 
 // DnD button initialization - will be shown/hidden based on room
-// Button is now in the input bar, similar to dndComposerBtn
 if (IS_DEV && dndNewOpenBtn) {
   console.log("[DnD Button] Initialized - visibility controlled by room detection");
 }
@@ -6992,7 +6991,7 @@ function applyFeatureFlags(){
 }
 
 const STATUS_ALIASES = {
-  "Do Not Disturb": "DnD",
+  "DnD": "Do Not Disturb",
   "Listening to Music": "Music",
   "Looking to Chat": "Chatting",
   "Invisible": "Lurking",
@@ -7013,7 +7012,7 @@ function statusDotColor(status){
     case "Online": return "var(--ok)";
     case "Away": return "var(--warn)";
     case "Busy": return "var(--danger)";
-    case "DnD": return "var(--danger)";
+    case "Do Not Disturb": return "var(--danger)";
     case "Idle": return "var(--gray)";
     case "Lurking": return "var(--gray)";
     default: return "var(--accent)";
@@ -7151,7 +7150,7 @@ function presenceFlags(username, explicitStatus){
   const u = (lastUsers || []).find((user) => normKey(user?.name) === key || normKey(user?.username) === key);
   const status = normalizeStatusLabel(explicitStatus || u?.status || "Online", "Online");
   const isIdle = status === "Idle" || status === "Away" || status === "Lurking";
-  const isDnd = status === "Busy" || status === "DnD";
+  const isDnd = status === "Busy" || status === "Do Not Disturb";
   const isTyping = key && typingUsers.has(key);
   const isActiveDm = key && activeDmUsers.has(key);
   const isOnline = !isIdle && !isDnd;
@@ -19400,18 +19399,18 @@ function fillProfileSheetHeader(p, isSelf){
 
 function updateProfilePresenceDot(statusLabel){
   if (!profilePresenceDot) return;
-  const raw = String(statusLabel || "").toLowerCase();
+  const raw = normalizeStatusLabel(statusLabel, "").toLowerCase();
   let status = "offline";
-  if (raw.includes("online")) status = "online";
-  else if (raw.includes("away")) status = "away";
-  else if (raw.includes("busy")) status = "busy";
-  else if (raw.includes("dnd")) status = "dnd";
-  else if (raw.includes("idle")) status = "idle";
-  else if (raw.includes("gaming")) status = "gaming";
-  else if (raw.includes("music")) status = "music";
-  else if (raw.includes("working")) status = "working";
-  else if (raw.includes("chatting")) status = "chatting";
-  else if (raw.includes("lurking")) status = "lurking";
+  if (raw === "online") status = "online";
+  else if (raw === "away") status = "away";
+  else if (raw === "busy") status = "busy";
+  else if (raw === "do not disturb" || raw === "dnd") status = "dnd";
+  else if (raw === "idle") status = "idle";
+  else if (raw === "gaming") status = "gaming";
+  else if (raw === "music") status = "music";
+  else if (raw === "working") status = "working";
+  else if (raw === "chatting") status = "chatting";
+  else if (raw === "lurking") status = "lurking";
   profilePresenceDot.dataset.status = status;
   profilePresenceDot.title = statusLabel || "Offline";
   profilePresenceDot.style.display = "inline-flex";

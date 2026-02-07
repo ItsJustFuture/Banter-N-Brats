@@ -2835,7 +2835,7 @@ function roleRank(role) {
   return idx === -1 ? 1 : idx;
 }
 const STATUS_ALIASES = {
-  "Do Not Disturb": "DnD",
+  "DnD": "Do Not Disturb",
   "Listening to Music": "Music",
   "Looking to Chat": "Chatting",
   "Invisible": "Lurking",

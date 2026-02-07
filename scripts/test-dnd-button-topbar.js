@@ -35,7 +35,7 @@ if (!topbarMatch) {
   checks.push(false);
 } else {
   const topbarHtml = topbarMatch[0];
-  const hasButton = /id=["']dndNewOpenBtn["']/.test(topbarHtml);
+  const hasButton = /id=["']dndOpenBtn["']/.test(topbarHtml);
   console.log(`  ${hasButton ? '✅' : '❌'} Button found in topbar: ${hasButton}`);
   checks.push(hasButton);
 }
@@ -48,7 +48,7 @@ if (!topActionsMatch) {
   checks.push(false);
 } else {
   const topActionsHtml = topActionsMatch[0];
-  const hasButtonInActions = /id=["']dndNewOpenBtn["']/.test(topActionsHtml);
+  const hasButtonInActions = /id=["']dndOpenBtn["']/.test(topActionsHtml);
   console.log(`  ${hasButtonInActions ? '✅' : '❌'} Button in topActions: ${hasButtonInActions}`);
   checks.push(hasButtonInActions);
 }
@@ -61,7 +61,7 @@ if (!enableDndUIMatch) {
   checks.push(false);
 } else {
   const functionBody = enableDndUIMatch[0];
-  const showsButton = /dndNewOpenBtn.*\.hidden\s*=\s*false/.test(functionBody);
+  const showsButton = /dndOpenBtn.*\.hidden\s*=\s*false/.test(functionBody);
   console.log(`  ${showsButton ? '✅' : '❌'} Sets button.hidden = false: ${showsButton}`);
   checks.push(showsButton);
 }
@@ -74,7 +74,7 @@ if (!disableDndUIMatch) {
   checks.push(false);
 } else {
   const functionBody = disableDndUIMatch[0];
-  const hidesButton = /dndNewOpenBtn.*\.hidden\s*=\s*true/.test(functionBody);
+  const hidesButton = /dndOpenBtn.*\.hidden\s*=\s*true/.test(functionBody);
   console.log(`  ${hidesButton ? '✅' : '❌'} Sets button.hidden = true: ${hidesButton}`);
   checks.push(hidesButton);
 }
@@ -110,7 +110,7 @@ if (!enableDndUICheck6) {
   checks.push(false);
 } else {
   const functionBody = enableDndUICheck6[0];
-  const hasClickListener = /dndNewOpenBtn\?\.addEventListener\s*\(\s*["']click["'][\s\S]*?openDndModal/.test(functionBody);
+  const hasClickListener = /dndOpenBtn\?\.addEventListener\s*\(\s*["']click["'][\s\S]*?openDndModal/.test(functionBody);
   console.log(`  ${hasClickListener ? '✅' : '❌'} Click listener attached: ${hasClickListener}`);
   console.log(`  ${hasOpenDndModalFunction ? '✅' : '❌'} openDndModal function exists: ${hasOpenDndModalFunction}`);
   checks.push(hasClickListener && hasOpenDndModalFunction);
@@ -141,14 +141,14 @@ if (!socketConnectMatch) {
 
 // Check 8: CSS styling exists
 console.log('\n✓ Check 8: CSS styling for button');
-const hasButtonCSS = /\.dndNewOpenBtn\s*\{/.test(stylesContent);
-const buttonCSSBlock = stylesContent.match(/\.dndNewOpenBtn\s*\{[\s\S]*?\}/);
+const hasButtonCSS = /\.dndOpenBtn\s*\{/.test(stylesContent);
+const buttonCSSBlock = stylesContent.match(/\.dndOpenBtn\s*\{[\s\S]*?\}/);
 const hasDisplayStyle = buttonCSSBlock ? /display\s*:\s*inline-flex/.test(buttonCSSBlock[0]) : false;
 const hasMarginLeft = buttonCSSBlock ? /margin-left\s*:\s*8px/.test(buttonCSSBlock[0]) : false;
 const hasGap = buttonCSSBlock ? /gap\s*:\s*6px/.test(buttonCSSBlock[0]) : false;
 const hasAlignItems = buttonCSSBlock ? /align-items\s*:\s*center/.test(buttonCSSBlock[0]) : false;
 
-const labelCSSBlock = stylesContent.match(/\.dndNewOpenLabel\s*\{[\s\S]*?\}/);
+const labelCSSBlock = stylesContent.match(/\.dndOpenLabel\s*,\s*\.dndNewOpenLabel\s*\{[\s\S]*?\}/);
 const hasFontWeight = labelCSSBlock ? /font-weight\s*:\s*800/.test(labelCSSBlock[0]) : false;
 const hasLetterSpacing = labelCSSBlock ? /letter-spacing\s*:\s*0\.02em/.test(labelCSSBlock[0]) : false;
 const hasFontSize = labelCSSBlock ? /font-size\s*:\s*12px/.test(labelCSSBlock[0]) : false;

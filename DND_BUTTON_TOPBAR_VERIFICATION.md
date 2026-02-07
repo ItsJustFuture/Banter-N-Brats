@@ -8,8 +8,8 @@ The DnD modal button **already appears in the topbar when in dnd**. This documen
 
 The DnD button implementation consists of:
 
-1. **HTML Button Element** (`public/index.html` line 347)
-2. **CSS Styling** (`public/styles.css` lines 12574-12590)
+1. **HTML Button Element** (`public/index.html` line 329)
+2. **CSS Styling** (`public/styles.css` lines 12732-12755)
 3. **JavaScript Control Logic** (`public/app.js`)
 4. **Comprehensive Test Coverage** (`scripts/test-dnd-button-topbar.js`)
 
@@ -17,7 +17,7 @@ The DnD button implementation consists of:
 
 ## 1. HTML Structure
 
-### Location: `public/index.html` line 347
+### Location: `public/index.html` line 329
 
 The button is located in the topbar, within the `topActions` section:
 
@@ -25,13 +25,13 @@ The button is located in the topbar, within the `topActions` section:
 <div class="topbar">
   <div class="row topActions" style="align-items:center; gap:10px;">
     <!-- Other buttons: search, DMs, notifications, chess -->
-    <button aria-label="Open DnD" 
-            class="btn secondary small dndNewOpenBtn" 
+    <button aria-label="Open Adventure" 
+            class="btn secondary small dndOpenBtn" 
             hidden 
-            id="dndNewOpenBtn" 
-            title="Open DnD" 
+            id="dndOpenBtn" 
+            title="Open Adventure" 
             type="button">
-      📖 <span class="dndNewOpenLabel">DnD</span>
+      📖 <span class="dndOpenLabel">Adventure</span>
     </button>
   </div>
 </div>
@@ -40,18 +40,17 @@ The button is located in the topbar, within the `topActions` section:
 **Key Points:**
 - Button starts with `hidden` attribute (invisible by default)
 - Uses semantic ARIA label for accessibility
-- Includes book emoji (📖) and "DnD" text
+- Includes book emoji (📖) and "Adventure" text
 - Located alongside other action buttons (DMs, notifications, etc.)
 
 ---
 
 ## 2. CSS Styling
 
-### Location: `public/styles.css` lines 12574-12592
+### Location: `public/styles.css` lines 12732-12755
 
 ```css
-.dndOpenBtn,
-.dndNewOpenBtn {
+.dndOpenBtn {
   margin-left: 8px;
   display: inline-flex;
   gap: 6px;
@@ -63,8 +62,7 @@ The button is located in the topbar, within the `topActions` section:
   display: none !important;
 }
 
-.dndOpenLabel,
-.dndNewOpenLabel {
+.dndOpenLabel {
   font-weight: 800;
   letter-spacing: 0.02em;
   font-size: 12px;
@@ -81,10 +79,10 @@ The button is located in the topbar, within the `topActions` section:
 ## 3. JavaScript Control Logic
 
 ### 3.1 Element Reference
-**Location:** `public/app.js` line 3931
+**Location:** `public/app.js` line 3962
 
 ```javascript
-const dndNewOpenBtn = document.getElementById("dndNewOpenBtn"); // New button
+const dndOpenBtn = document.getElementById("dndOpenBtn"); // Top bar button
 ```
 
 ### 3.2 Show/Hide Functions
@@ -92,18 +90,16 @@ const dndNewOpenBtn = document.getElementById("dndNewOpenBtn"); // New button
 
 ```javascript
 function enableDndUI() {
-  if (dndNewOpenBtn) dndNewOpenBtn.hidden = false;  // Shows button
-  if (dndOpenBtn) dndOpenBtn.hidden = true;          // Hides old button
+  if (dndOpenBtn) dndOpenBtn.hidden = false;  // Shows button
   // ... event listeners ...
   if (!dndUiListenersAttached) {
     dndUiListenersAttached = true;
-    dndNewOpenBtn?.addEventListener("click", openDndModal); // Attach click handler
+    dndOpenBtn?.addEventListener("click", openDndModal); // Attach click handler
   }
 }
 
 function disableDndUI() {
-  if (dndNewOpenBtn) dndNewOpenBtn.hidden = true;   // Hides button
-  if (dndOpenBtn) dndOpenBtn.hidden = true;
+  if (dndOpenBtn) dndOpenBtn.hidden = true;   // Hides button
   // ... cleanup ...
 }
 ```
@@ -243,7 +239,7 @@ node scripts/test-dnd-button-topbar.js
 This implementation was previously completed and merged from the branch `copilot/fix-dnd-room-button-visibility`.
 
 The commit that merged this work includes:
-- Implementation of the new DnD button (`dndNewOpenBtn`)
+- Implementation of the Adventure button (`dndOpenBtn`)
 - Visibility control functions (`enableDndUI` / `disableDndUI`)
 - Room-based button toggling in `setActiveRoom()`
 - Comprehensive documentation and tests
