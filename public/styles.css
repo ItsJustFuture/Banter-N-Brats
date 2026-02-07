@@ -1897,7 +1897,7 @@ body.auth-pending #authLoading{
   margin:16px 0;
 }
 
-.loginForm label{
+.loginForm .field label{
   color: rgba(0, 255, 100, 0.9);
   text-shadow: 0 0 5px rgba(0, 255, 100, 0.5);
 }
