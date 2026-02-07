@@ -40,6 +40,7 @@ Both buttons are only visible when you're in the DnD (`dnd`).
 **Create/Edit Character**:
 - Click "Create/Edit Character" button to open character creator
 - Only available during lobby phase
+- Set a character name, race, gender, and background
 - Allocate 28 points across 7 attributes (1-7 each)
 - Select 3-6 skills from 16 available options
 - Choose up to 3 perks from 9 available options
@@ -143,7 +144,7 @@ Result: Success! (+20 HP)
 
 **Purpose**: Manage session lifecycle and view detailed information
 
-**Session Management** (Co-owners only):
+**Session Management** (Moderators+ only):
 - 🎲 **New Session**: Create a new adventure
 - ▶️ **Start Session**: Begin the adventure (lobby → active)
 - ⏭️ **Advance Event**: Trigger next event round

@@ -63,6 +63,9 @@ async function ensureTables() {
         user_id INTEGER NOT NULL,
         display_name TEXT NOT NULL,
         avatar_url TEXT,
+        race TEXT,
+        gender TEXT,
+        background TEXT,
         might INTEGER NOT NULL DEFAULT 3,
         finesse INTEGER NOT NULL DEFAULT 3,
         wit INTEGER NOT NULL DEFAULT 3,
@@ -80,6 +83,10 @@ async function ensureTables() {
         UNIQUE(session_id, user_id)
       )
     `);
+
+    await run("ALTER TABLE dnd_characters ADD COLUMN race TEXT").catch(() => {});
+    await run("ALTER TABLE dnd_characters ADD COLUMN gender TEXT").catch(() => {});
+    await run("ALTER TABLE dnd_characters ADD COLUMN background TEXT").catch(() => {});
     
     await run(`
       CREATE TABLE IF NOT EXISTS dnd_events (
@@ -177,6 +184,9 @@ async function createDndCharacter(params) {
     userId,
     displayName,
     avatarUrl,
+    race,
+    gender,
+    background,
     attributes,
     skills,
     perks,
@@ -188,12 +198,12 @@ async function createDndCharacter(params) {
   
   const result = await run(
     `INSERT INTO dnd_characters 
-     (session_id, user_id, display_name, avatar_url, 
+     (session_id, user_id, display_name, avatar_url, race, gender, background,
       might, finesse, wit, instinct, presence, resolve, chaos,
       skills_json, perks_json, hp, max_hp, alive, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      sessionId, userId, displayName, avatarUrl,
+      sessionId, userId, displayName, avatarUrl, race, gender, background,
       attributes.might, attributes.finesse, attributes.wit,
       attributes.instinct, attributes.presence, attributes.resolve, attributes.chaos,
       JSON.stringify(skills), JSON.stringify(perks),

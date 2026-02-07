@@ -7620,6 +7620,12 @@ function requireCoOwner(req, res, next) {
   next();
 }
 
+function requireDndHost(req, res, next) {
+  if (!req.session?.user?.id) return res.status(401).send("Not logged in");
+  if (!requireMinRole(req.session.user.role, "Moderator")) return res.status(403).send("Forbidden");
+  next();
+}
+
 
 
 function requireAdminPlus(req, res, next) {
@@ -11172,7 +11178,7 @@ app.get("/api/dnd-story/current", requireLogin, async (_req, res) => {
 });
 
 // Create new session
-app.post("/api/dnd-story/sessions", dndLimiter, requireCoOwner, express.json({ limit: "32kb" }), async (req, res) => {
+app.post("/api/dnd-story/sessions", dndLimiter, requireDndHost, express.json({ limit: "32kb" }), async (req, res) => {
   const now = Date.now();
   const lastStart = dndSessionCooldownByRoom.get(DND_ROOM_DB_ID) || 0;
   if (now - lastStart < DND_SESSION_COOLDOWN_MS) {
@@ -11225,6 +11231,17 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
       return res.status(400).json({ message: "Cannot create/update character after lobby phase" });
     }
     
+    const normalizeMeta = (value, maxLen) => {
+      const cleaned = sanitizeDisplayName(value || "").trim();
+      if (!cleaned) return null;
+      return cleaned.slice(0, maxLen);
+    };
+    const user = req.session.user;
+    const displayName = normalizeMeta(req.body?.name || user.username, 40) || user.username;
+    const race = normalizeMeta(req.body?.race, 32);
+    const gender = normalizeMeta(req.body?.gender, 32);
+    const background = normalizeMeta(req.body?.background, 40);
+
     // Validate attributes
     const attributes = req.body?.attributes || {};
     const attrValidation = dndCharacterSystem.validateAttributes(attributes);
@@ -11262,6 +11279,10 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
     if (existing) {
       // Update existing character
       character = await dndDb.updateDndCharacter(pgPool, existing.id, {
+        display_name: displayName,
+        race,
+        gender,
+        background,
         attributes: finalAttributes,
         skills,
         perks,
@@ -11270,12 +11291,14 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
       });
     } else {
       // Create new character
-      const user = req.session.user;
       character = await dndDb.createDndCharacter(pgPool, {
         sessionId,
         userId,
-        displayName: user.username,
+        displayName,
         avatarUrl: user.avatar || null,
+        race,
+        gender,
+        background,
         attributes: finalAttributes,
         skills,
         perks,
@@ -11288,7 +11311,6 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
     
     // Send system message for character creation/update
     const action = existing ? "updated" : "created";
-    const user = req.session.user;
     emitRoomSystem(DND_ROOM_ID, `🎲 ${user.username} ${action} their character!`, { kind: "dnd" });
     
     return res.json({ ok: true, character });
@@ -11299,7 +11321,7 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
 });
 
 // Start session (transition from lobby to active)
-app.post("/api/dnd-story/sessions/:id/start", dndLimiter, requireCoOwner, express.json({ limit: "8kb" }), async (req, res) => {
+app.post("/api/dnd-story/sessions/:id/start", dndLimiter, requireDndHost, express.json({ limit: "8kb" }), async (req, res) => {
   try {
     const sessionId = Number(req.params.id);
     const session = await dndDb.getDndSession(pgPool, sessionId);
@@ -11334,7 +11356,7 @@ app.post("/api/dnd-story/sessions/:id/start", dndLimiter, requireCoOwner, expres
 });
 
 // Advance session (generate and resolve next event)
-app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, express.json({ limit: "16kb" }), async (req, res) => {
+app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireDndHost, express.json({ limit: "16kb" }), async (req, res) => {
   const sessionId = Number(req.params.id);
   const now = Date.now();
   
@@ -11559,7 +11581,7 @@ app.post("/api/dnd-story/sessions/:id/advance", dndLimiter, requireCoOwner, expr
 });
 
 // End session
-app.post("/api/dnd-story/sessions/:id/end", dndLimiter, requireCoOwner, express.json({ limit: "8kb" }), async (req, res) => {
+app.post("/api/dnd-story/sessions/:id/end", dndLimiter, requireDndHost, express.json({ limit: "8kb" }), async (req, res) => {
   try {
     const sessionId = Number(req.params.id);
     const session = await dndDb.getDndSession(pgPool, sessionId);

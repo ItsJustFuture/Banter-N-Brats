@@ -3988,6 +3988,10 @@ const dndLobbyCountDisplay = document.getElementById("dndLobbyCountDisplay");
 const dndLobbyUsersList = document.getElementById("dndLobbyUsersList");
 const dndCharacterPanel = document.getElementById("dndCharacterPanel");
 const dndCharacterClose = document.getElementById("dndCharacterClose");
+const dndCharName = document.getElementById("dndCharName");
+const dndCharRace = document.getElementById("dndCharRace");
+const dndCharGender = document.getElementById("dndCharGender");
+const dndCharBackground = document.getElementById("dndCharBackground");
 const dndPointsRemaining = document.getElementById("dndPointsRemaining");
 const dndSkillsList = document.getElementById("dndSkillsList");
 const dndPerksList = document.getElementById("dndPerksList");
@@ -4975,6 +4979,10 @@ function renderDndCharacters() {
     }
     const statusClass = char.alive ? "alive" : "dead";
     const statusIcon = char.alive ? "💚" : "💀";
+    const metaParts = [char.race, char.gender, char.background].filter(Boolean);
+    const metaLine = metaParts.length
+      ? `<div class="dndCharMeta small muted">${metaParts.map(escapeHtml).join(" • ")}</div>`
+      : "";
     
     // Format HP bar percentage
     const hpPercent = char.max_hp > 0 ? (char.hp / char.max_hp) * 100 : 0;
@@ -4999,6 +5007,7 @@ function renderDndCharacters() {
           ${skills.length > 0 ? "📚 " + skills.slice(0, 3).map(escapeHtml).join(", ") + (skills.length > 3 ? "..." : "") : "No skills"}
         </div>
         ${perks.length > 0 ? `<div class="dndCharPerks small muted">⭐ ${perks.slice(0, 2).map(escapeHtml).join(", ")}${perks.length > 2 ? "..." : ""}</div>` : ""}
+        ${metaLine}
       </div>
     `;
   }).join("");
@@ -5184,17 +5193,21 @@ function renderDndControls() {
   }
 }
 
+function dndCanHostSession() {
+  return roleRank(me?.role || "User") >= roleRank("Moderator");
+}
+
 function updateDndControls() {
   const session = dndState.session;
   const isActive = session && session.status === "active";
   const isLobby = session && session.status === "lobby";
   const hasSession = !!session;
-  const isCoOwner = me?.role && ["Owner", "Co-owner"].includes(me.role);
+  const canHost = dndCanHostSession();
   
-  if (dndNewSessionBtn) dndNewSessionBtn.disabled = hasSession && session.status !== "completed";
-  if (dndStartSessionBtn) dndStartSessionBtn.disabled = !isLobby || !isCoOwner;
-  if (dndAdvanceBtn) dndAdvanceBtn.disabled = !isActive || !isCoOwner;
-  if (dndEndBtn) dndEndBtn.disabled = !hasSession || session.status === "completed" || !isCoOwner;
+  if (dndNewSessionBtn) dndNewSessionBtn.disabled = !canHost || (hasSession && session.status !== "completed");
+  if (dndStartSessionBtn) dndStartSessionBtn.disabled = !isLobby || !canHost;
+  if (dndAdvanceBtn) dndAdvanceBtn.disabled = !isActive || !canHost;
+  if (dndEndBtn) dndEndBtn.disabled = !hasSession || session.status === "completed" || !canHost;
   if (dndCreateCharBtn) dndCreateCharBtn.disabled = !isLobby;
   
   // Update lobby toggle button (in Lobby tab)
@@ -5224,10 +5237,17 @@ function applyDndPayload(payload) {
     // No active session: clear related state.
     dndState.characters = [];
     dndState.events = [];
+    dndState.myCharacter = null;
   } else {
     // Active session: update related state when provided.
     if (payload.characters !== undefined) dndState.characters = payload.characters;
     if (payload.events !== undefined) dndState.events = payload.events;
+  }
+  if (dndState.session) {
+    const myId = Number(me?.id);
+    dndState.myCharacter = myId
+      ? (dndState.characters || []).find((char) => Number(char.user_id) === myId) || null
+      : null;
   }
   renderDndPanel();
 }
@@ -5393,6 +5413,13 @@ async function dndSpectatorInfluence(influenceType) {
 function openDndCharacterCreator() {
   if (!dndCharacterPanel) return;
   dndCharacterPanel.hidden = false;
+
+  const existingChar = dndState.myCharacter
+    || (dndState.characters || []).find((char) => Number(char.user_id) === Number(me?.id));
+  if (dndCharName) dndCharName.value = existingChar?.display_name || me?.username || "";
+  if (dndCharRace) dndCharRace.value = existingChar?.race || "";
+  if (dndCharGender) dndCharGender.value = existingChar?.gender || "";
+  if (dndCharBackground) dndCharBackground.value = existingChar?.background || "";
   
   // Populate skills list
   if (dndSkillsList) {
@@ -5483,6 +5510,11 @@ async function saveDndCharacter() {
       return;
     }
     
+    const name = (dndCharName?.value || "").trim() || me?.username || "";
+    const race = (dndCharRace?.value || "").trim();
+    const gender = (dndCharGender?.value || "").trim();
+    const background = (dndCharBackground?.value || "").trim();
+
     // Get attributes
     const attributes = {
       might: parseInt(document.getElementById('attr_might')?.value) || 3,
@@ -5527,6 +5559,10 @@ async function saveDndCharacter() {
       credentials: "include",
       body: JSON.stringify({
         sessionId: dndState.session.id,
+        name,
+        race,
+        gender,
+        background,
         attributes,
         skills,
         perks
