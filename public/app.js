@@ -987,7 +987,7 @@ function isDnDRoom(activeRoom){
     const rawName = activeRoom?.name ?? activeRoom?.id ?? "";
     return String(rawName).toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
   }
-  const rawName = String(activeRoom || "");
+  const rawName = String(activeRoom);
   if (rawName.toUpperCase() === DND_ROOM_CODE) return true;
   // Requirement: any room name containing "dnd" counts as a DnD-capable room.
   return rawName.toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
