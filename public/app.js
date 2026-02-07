@@ -7817,26 +7817,28 @@ commandPopupClose?.addEventListener("click", ()=>{ commandPopupDismissed=true; h
 
 function handleCommandResponse(payload){
   if(commandPopupDismissed) commandPopupDismissed=false;
-  const originalResponse = payload;
-  let modifiedResponse = originalResponse;
-  if(originalResponse?.type === "dnd" && originalResponse?.ok) {
+  let responseToDisplay = payload;
+  if(payload?.type === "dnd" && payload?.ok) {
     if (typeof openDndModal === "function") {
       openDndModal();
     } else {
-      modifiedResponse = { ...originalResponse, ok: false, message: "Adventure panel unavailable." };
+      responseToDisplay = { ...payload, ok: false, message: "Adventure panel unavailable." };
     }
-    if (!modifiedResponse?.message) return;
+    if (!responseToDisplay?.message) {
+      // Modal opened successfully; no popup needed.
+      return;
+    }
   }
-  if(modifiedResponse?.type === "help" && Array.isArray(modifiedResponse.commands)){
-    const roleLabel = modifiedResponse.role || me?.role || "";
-    const items = modifiedResponse.commands.map(cmd=>{
+  if(responseToDisplay?.type === "help" && Array.isArray(responseToDisplay.commands)){
+    const roleLabel = responseToDisplay.role || me?.role || "";
+    const items = responseToDisplay.commands.map(cmd=>{
       return `<div class="commandHelpItem"><div class="name">/${escapeHtml(cmd.name)}</div><div class="small">${escapeHtml(cmd.description||"")}</div><div class="usage">${escapeHtml(cmd.usage||"")}</div><div class="small">Example: ${escapeHtml(cmd.example||"")}</div></div>`;
     }).join("");
     showCommandPopup(`Commands you can use (Role: ${roleLabel})`, `<div class="commandHelpList">${items}</div>`);
     return;
   }
-  const msg = escapeHtml(modifiedResponse?.message || "No response");
-  const title = modifiedResponse?.ok ? "Command" : "Command error";
+  const msg = escapeHtml(responseToDisplay?.message || "No response");
+  const title = responseToDisplay?.ok ? "Command" : "Command error";
   showCommandPopup(title, msg);
 }
 
