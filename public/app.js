@@ -3959,7 +3959,7 @@ const survivalLogModalList = document.getElementById("survivalLogModalList");
 const survivalLogLoadBtn = document.getElementById("survivalLogLoadBtn");
 
 // DnD elements
-const dndOpenBtn = document.getElementById("dndOpenBtn"); // Top bar button
+const dndOpenBtn = document.getElementById("dndOpenBtn"); // Top bar Adventure button
 const dndNewOpenBtn = document.getElementById("dndNewOpenBtn"); // Input bar button
 const dndComposerBtn = document.getElementById("dndComposerBtn");
 const dndModal = document.getElementById("dndModal");
