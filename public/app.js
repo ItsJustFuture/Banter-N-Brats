@@ -5411,8 +5411,7 @@ function openDndCharacterCreator() {
   if (!dndCharacterPanel) return;
   dndCharacterPanel.hidden = false;
 
-  const existingChar = dndState.myCharacter
-    || (dndState.characters || []).find((char) => Number(char.user_id) === Number(me?.id));
+  const existingChar = dndState.myCharacter;
   if (dndCharName) dndCharName.value = existingChar?.display_name || me?.username || "";
   if (dndCharRace) dndCharRace.value = existingChar?.race || "";
   if (dndCharGender) dndCharGender.value = existingChar?.gender || "";

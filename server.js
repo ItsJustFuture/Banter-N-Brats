@@ -7622,8 +7622,8 @@ function requireCoOwner(req, res, next) {
 
 function requireDndHost(req, res, next) {
   if (!req.session?.user?.id) return res.status(401).send("Not logged in");
-  if (!requireMinRole(req.session.user.role, "Moderator")) return res.status(403).send("Forbidden");
-  next();
+  if (requireMinRole(req.session.user.role, "Moderator")) return next();
+  return res.status(403).send("Forbidden");
 }
 
 
