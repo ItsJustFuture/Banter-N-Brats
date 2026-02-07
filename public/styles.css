@@ -1744,6 +1744,27 @@ body.auth-pending #authLoading{
               radial-gradient(900px 520px at 85% 10%, rgba(80,220,255,0.18), transparent 55%),
               radial-gradient(1000px 720px at 50% 90%, rgba(255,120,190,0.16), transparent 65%),
               linear-gradient(180deg, rgba(6,6,12,0.88), rgba(6,6,12,0.96));
+  transition: opacity 0.3s ease-out;
+  opacity: 1;
+}
+
+#loginView.fade-out{
+  opacity: 0;
+}
+
+#chatView.fade-in{
+  animation: fadeInChat 0.5s ease-in;
+}
+
+@keyframes fadeInChat {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 #passwordUpgradeView{
@@ -1805,99 +1826,95 @@ body.auth-pending #authLoading{
 }
 
 .loginShell{
-  width:min(1040px, 100%);
-  display:grid;
-  grid-template-columns: 1.1fr minmax(0, 420px);
-  gap:24px;
+  width:100%;
+  max-width:380px;
+  display:flex;
   align-items:center;
+  justify-content:center;
   position:relative;
   z-index:1;
 }
 
-.loginBrand{
-  padding:12px 6px;
-}
-
-.loginBadge{
-  font-size:12px;
-  text-transform:uppercase;
-  letter-spacing:0.2em;
-  color: color-mix(in oklab, var(--muted) 75%, #fff);
-}
-
 .loginLogo{
-  margin:8px 0 8px;
+  margin:0 0 24px;
   font-weight:800;
-  font-size: clamp(28px, 4.5vw, 46px);
+  font-size:32px;
   line-height:1.05;
-  text-shadow: 0 12px 30px rgba(0,0,0,0.4);
+  text-align:center;
+  color: #fff;
+  text-shadow: 
+    0 0 10px rgba(0, 255, 100, 0.8),
+    0 0 20px rgba(0, 255, 100, 0.6),
+    0 0 30px rgba(0, 255, 100, 0.4),
+    0 0 40px rgba(0, 255, 100, 0.2);
+  animation: neonPulse 2s ease-in-out infinite;
+}
+
+@keyframes neonPulse {
+  0%, 100% {
+    text-shadow: 
+      0 0 10px rgba(0, 255, 100, 0.8),
+      0 0 20px rgba(0, 255, 100, 0.6),
+      0 0 30px rgba(0, 255, 100, 0.4),
+      0 0 40px rgba(0, 255, 100, 0.2);
+  }
+  50% {
+    text-shadow: 
+      0 0 15px rgba(0, 255, 100, 1),
+      0 0 30px rgba(0, 255, 100, 0.8),
+      0 0 45px rgba(0, 255, 100, 0.6),
+      0 0 60px rgba(0, 255, 100, 0.4);
+  }
 }
 
 .loginLogo .amp{
-  opacity:0.9;
-  filter: drop-shadow(0 0 16px rgba(190,120,255,0.3));
-}
-
-.loginTag{
-  margin:0 0 14px;
-  color: var(--muted);
-  font-size:15px;
-}
-
-.loginFeatures{
-  list-style:none;
-  padding:0;
-  margin:0;
-  display:grid;
-  gap:10px;
-  color: color-mix(in oklab, var(--text) 80%, #fff);
-  font-size:14px;
-}
-
-.loginFeatures li{
-  padding-left:22px;
-  position:relative;
-}
-
-.loginFeatures li::before{
-  content:"•";
-  position:absolute;
-  left:0;
-  color: rgba(170,200,255,0.9);
+  opacity:1;
 }
 
 .loginCard{
   width:100%;
-  background: color-mix(in oklab, var(--panel) 90%, rgba(0,0,0,0.35));
-  border:1px solid color-mix(in oklab, var(--line) 80%, rgba(255,255,255,0.1));
-  border-radius:20px;
-  padding:24px;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+  background: rgba(10, 20, 15, 0.95);
+  border:2px solid rgba(0, 255, 100, 0.5);
+  border-radius:16px;
+  padding:32px 24px 24px;
+  box-shadow: 
+    0 0 20px rgba(0, 255, 100, 0.3),
+    0 0 40px rgba(0, 255, 100, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(12px);
+  transition: all 0.3s ease;
 }
 
-.loginHeader h2{
-  margin:0 0 6px;
-  font-size:22px;
-}
-
-.loginHeader p{
-  margin:0 0 12px;
-  color:var(--muted);
-  font-size:13px;
+.loginCard:hover {
+  border-color: rgba(0, 255, 100, 0.7);
+  box-shadow: 
+    0 0 30px rgba(0, 255, 100, 0.4),
+    0 0 60px rgba(0, 255, 100, 0.3),
+    0 8px 32px rgba(0, 0, 0, 0.6);
 }
 
 .loginForm .field{
-  margin:12px 0;
+  margin:16px 0;
+}
+
+.loginForm label{
+  color: rgba(0, 255, 100, 0.9);
+  text-shadow: 0 0 5px rgba(0, 255, 100, 0.5);
 }
 
 .loginForm input{
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(0, 255, 100, 0.3);
+  color: #fff;
 }
 
 .loginForm input:focus-visible{
-  border-color: rgba(140,180,255,0.8);
-  box-shadow: 0 0 0 3px rgba(120,160,255,0.25);
+  border-color: rgba(0, 255, 100, 0.8);
+  box-shadow: 
+    0 0 0 3px rgba(0, 255, 100, 0.2),
+    0 0 10px rgba(0, 255, 100, 0.3);
+  outline: none;
 }
 
 .loginValidation{
@@ -1907,43 +1924,35 @@ body.auth-pending #authLoading{
 }
 
 .loginActions{
-  margin-top:12px;
+  margin-top:16px;
 }
 
 .loginActions .btn{
   flex:1;
   min-width:140px;
+  background: rgba(0, 255, 100, 0.1);
+  border-color: rgba(0, 255, 100, 0.5);
+  color: rgba(0, 255, 100, 0.95);
+  text-shadow: 0 0 5px rgba(0, 255, 100, 0.5);
+  transition: all 0.3s ease;
 }
 
-.loginHint{
-  margin-top:12px;
-}
-
-.loginFooter{
-  margin-top:16px;
-  text-align:center;
-}
-
-@media (max-width: 860px){
-  .loginShell{
-    grid-template-columns: 1fr;
-  }
-  .loginBrand{
-    text-align:center;
-  }
-  .loginFeatures{
-    max-width:520px;
-    margin:0 auto;
-    text-align:left;
-  }
+.loginActions .btn:hover {
+  background: rgba(0, 255, 100, 0.2);
+  border-color: rgba(0, 255, 100, 0.8);
+  box-shadow: 0 0 15px rgba(0, 255, 100, 0.4);
 }
 
 @media (max-width: 540px){
   .loginCard{
-    padding:20px;
+    padding:24px 20px 20px;
   }
   .loginActions{
     flex-direction:column;
+  }
+  .loginLogo{
+    font-size:28px;
+    margin-bottom:20px;
   }
 }
 

@@ -17609,13 +17609,20 @@ function setView(mode){
   if(!loginView || !chatView) return;
   document.body.classList.remove("auth-pending");
   if(mode === "login"){
+    loginView.classList.remove("fade-out");
     loginView.hidden = false;
     chatView.hidden = true;
     if(restrictedView) restrictedView.hidden = true;
     if(passwordUpgradeView) passwordUpgradeView.hidden = true;
   }else if(mode === "chat"){
-    loginView.hidden = true;
-    chatView.hidden = false;
+    // Add fade-out animation to login view
+    loginView.classList.add("fade-out");
+    setTimeout(() => {
+      loginView.hidden = true;
+      chatView.hidden = false;
+      chatView.classList.add("fade-in");
+      setTimeout(() => chatView.classList.remove("fade-in"), 500);
+    }, 300);
     if(restrictedView) restrictedView.hidden = true;
     if(passwordUpgradeView) passwordUpgradeView.hidden = true;
   }else if(mode === "restricted"){
