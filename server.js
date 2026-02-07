@@ -11237,7 +11237,7 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
       return cleaned.slice(0, maxLen);
     };
     const user = req.session.user;
-    const displayName = normalizeMeta(req.body?.name || user.username, 40) || user.username;
+    const displayName = normalizeMeta(req.body?.name, 40) || user.username;
     const race = normalizeMeta(req.body?.race, 32);
     const gender = normalizeMeta(req.body?.gender, 32);
     const background = normalizeMeta(req.body?.background, 40);

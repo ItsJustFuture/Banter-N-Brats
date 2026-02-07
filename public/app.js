@@ -5237,18 +5237,15 @@ function applyDndPayload(payload) {
     // No active session: clear related state.
     dndState.characters = [];
     dndState.events = [];
-    dndState.myCharacter = null;
   } else {
     // Active session: update related state when provided.
     if (payload.characters !== undefined) dndState.characters = payload.characters;
     if (payload.events !== undefined) dndState.events = payload.events;
   }
-  if (dndState.session) {
-    const myId = Number(me?.id);
-    dndState.myCharacter = myId
-      ? (dndState.characters || []).find((char) => Number(char.user_id) === myId) || null
-      : null;
-  }
+  const myId = Number(me?.id);
+  dndState.myCharacter = dndState.session && myId
+    ? (dndState.characters || []).find((char) => Number(char.user_id) === myId) || null
+    : null;
   renderDndPanel();
 }
 
