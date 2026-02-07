@@ -7819,7 +7819,11 @@ function handleCommandResponse(payload){
   if(commandPopupDismissed) commandPopupDismissed=false;
   if(payload?.type === "dnd") {
     if (payload?.ok) {
-      if (typeof openDndModal === "function") {
+      const canOpen = typeof openDndModal === "function"
+        && typeof isDndRoom === "function"
+        && dndModal
+        && isDndRoom(currentRoom);
+      if (canOpen) {
         openDndModal();
         return;
       }
