@@ -17592,6 +17592,10 @@ let authUserState = null;
 let authHandlersBound = false;
 let passwordUpgradeHandlersBound = false;
 
+// Animation timing constants (must match CSS values in styles.css)
+const FADE_OUT_DURATION_MS = 300; // matches #loginView transition duration in styles.css
+const FADE_IN_DURATION_MS = 500;  // matches #chatView.fade-in animation duration in styles.css
+
 function getAuthUser(){
   return authUserState;
 }
@@ -17621,8 +17625,8 @@ function setView(mode){
       loginView.hidden = true;
       chatView.hidden = false;
       chatView.classList.add("fade-in");
-      setTimeout(() => chatView.classList.remove("fade-in"), 500);
-    }, 300);
+      setTimeout(() => chatView.classList.remove("fade-in"), FADE_IN_DURATION_MS);
+    }, FADE_OUT_DURATION_MS);
     if(restrictedView) restrictedView.hidden = true;
     if(passwordUpgradeView) passwordUpgradeView.hidden = true;
   }else if(mode === "restricted"){
