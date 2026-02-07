@@ -4547,7 +4547,7 @@ const commandRegistry = {
     example: "/dnd",
     handler: async ({ room }) => {
       const normalizedRoom = normalizeRoomKey(room);
-      const isDndRoom = resolveRoomCode(normalizedRoom) === DND_ROOM_CODE || normalizedRoom === normalizeRoomKey(DND_ROOM_CODE);
+      const isDndRoom = resolveRoomCode(normalizedRoom) === DND_ROOM_CODE;
       if (!isDndRoom) {
         return { ok: false, message: "Adventure is only available in the DnD room." };
       }
