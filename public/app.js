@@ -7817,13 +7817,19 @@ commandPopupClose?.addEventListener("click", ()=>{ commandPopupDismissed=true; h
 
 function handleCommandResponse(payload){
   if(commandPopupDismissed) commandPopupDismissed=false;
-  if(payload?.type === "dnd" && payload?.ok) {
-    if (typeof openDndModal === "function") {
-      openDndModal();
+  if(payload?.type === "dnd") {
+    if (payload?.ok) {
+      if (typeof openDndModal === "function") {
+        openDndModal();
+        return;
+      }
+      showCommandPopup("Command error", "Adventure panel unavailable.");
       return;
     }
-    showCommandPopup("Command error", "Adventure panel unavailable.");
-    return;
+    if (payload?.ok === false) {
+      showCommandPopup("Command error", escapeHtml(payload?.message || "Adventure command failed."));
+      return;
+    }
   }
   if(payload?.type === "help" && Array.isArray(payload.commands)){
     const roleLabel = payload.role || me?.role || "";
