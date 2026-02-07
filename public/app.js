@@ -15729,7 +15729,7 @@ function updateDailyCountdown(){
   const nextReset = getNextUtcMidnight(now);
   dailyCountdown.textContent = `Resets in ${formatCountdown(nextReset - now)} (UTC)`;
   const todayKey = getUtcDayKey(now);
-  if(dailyCountdownRefreshKey && todayKey !== dailyCountdownRefreshKey){
+  if(todayKey !== dailyCountdownRefreshKey){
     dailyCountdownRefreshKey = todayKey;
     dailyLoadedForKey = null;
     ensureDailyLoaded();
@@ -15738,6 +15738,7 @@ function updateDailyCountdown(){
 
 function startDailyCountdown(){
   if(!dailyCountdown) return;
+  dailyCountdownRefreshKey = dailyCountdownRefreshKey || getUtcDayKey();
   updateDailyCountdown();
   if(dailyCountdownTimer) return;
   dailyCountdownTimer = setInterval(updateDailyCountdown, 1000);
@@ -15772,9 +15773,10 @@ function renderDaily(data){
     const claimed = !!c.claimed;
     const item = document.createElement("div");
     item.className = "dailyItem";
-    const goal = Math.max(1, Number(c.goal || 0));
-    const prog = Math.min(Number(c.progress||0), goal);
-    const pct = Math.min(100, Math.round((prog / goal) * 100));
+    const goal = Math.max(0, Number(c.goal || 0));
+    const progressValue = Number(c.progress||0);
+    const prog = goal > 0 ? Math.min(progressValue, goal) : progressValue;
+    const pct = goal > 0 ? Math.min(100, Math.round((prog / goal) * 100)) : 0;
     item.innerHTML = `
       <div class="dailyLeft">
         <div class="title">${escapeHtml(c.label || c.id)}</div>
