@@ -7624,7 +7624,7 @@ function requireDndHost(req, res, next) {
   if (!req.session?.user?.id) return res.status(401).send("Not logged in");
   const hasAccess = requireMinRole(req.session.user.role, "Moderator");
   if (!hasAccess) return res.status(403).send("Forbidden");
-  return next();
+  next();
 }
 
 
