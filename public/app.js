@@ -7817,25 +7817,26 @@ commandPopupClose?.addEventListener("click", ()=>{ commandPopupDismissed=true; h
 
 function handleCommandResponse(payload){
   if(commandPopupDismissed) commandPopupDismissed=false;
-  let response = payload;
-  if(response?.type === "dnd" && response?.ok) {
+  const originalResponse = payload;
+  let modifiedResponse = originalResponse;
+  if(originalResponse?.type === "dnd" && originalResponse?.ok) {
     if (typeof openDndModal === "function") {
       openDndModal();
     } else {
-      response = { ...response, ok: false, message: "Adventure panel unavailable." };
+      modifiedResponse = { ...originalResponse, ok: false, message: "Adventure panel unavailable." };
     }
-    if (!response?.message) return;
+    if (!modifiedResponse?.message) return;
   }
-  if(response?.type === "help" && Array.isArray(response.commands)){
-    const roleLabel = payload.role || me?.role || "";
-    const items = response.commands.map(cmd=>{
+  if(modifiedResponse?.type === "help" && Array.isArray(modifiedResponse.commands)){
+    const roleLabel = modifiedResponse.role || me?.role || "";
+    const items = modifiedResponse.commands.map(cmd=>{
       return `<div class="commandHelpItem"><div class="name">/${escapeHtml(cmd.name)}</div><div class="small">${escapeHtml(cmd.description||"")}</div><div class="usage">${escapeHtml(cmd.usage||"")}</div><div class="small">Example: ${escapeHtml(cmd.example||"")}</div></div>`;
     }).join("");
     showCommandPopup(`Commands you can use (Role: ${roleLabel})`, `<div class="commandHelpList">${items}</div>`);
     return;
   }
-  const msg = escapeHtml(response?.message || "No response");
-  const title = response?.ok ? "Command" : "Command error";
+  const msg = escapeHtml(modifiedResponse?.message || "No response");
+  const title = modifiedResponse?.ok ? "Command" : "Command error";
   showCommandPopup(title, msg);
 }
 
