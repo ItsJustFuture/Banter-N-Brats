@@ -3561,6 +3561,7 @@ const dailyList = document.getElementById("dailyList");
 const dailyReloadBtn = document.getElementById("dailyReloadBtn");
 dailyReloadBtn?.addEventListener("click", ensureDailyLoaded);
 const dailyMsg = document.getElementById("dailyMsg");
+const dailyCountdown = document.getElementById("dailyCountdown");
 
 const faqMsg = document.getElementById("faqMsg");
 const faqAskBtn = document.getElementById("faqAskBtn");
@@ -15697,9 +15698,54 @@ function ensureFaqLoaded(force = false){
 }
 
 let dailyLoadedForKey = null;
+let dailyCountdownRefreshKey = null;
+let dailyCountdownTimer = null;
+
+function getUtcDayKey(ts = Date.now()){
+  const d = new Date(ts);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const da = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${da}`;
+}
+
+function getNextUtcMidnight(ts = Date.now()){
+  const d = new Date(ts);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1, 0, 0, 0, 0);
+}
+
+function formatDailyCountdown(ms){
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const hours = String(Math.floor(total / 3600)).padStart(2, "0");
+  const minutes = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const seconds = String(total % 60).padStart(2, "0");
+  return `${hours}:${minutes}:${seconds}`;
+}
+
+function updateDailyCountdown(){
+  if(!dailyCountdown) return;
+  const now = Date.now();
+  const nextReset = getNextUtcMidnight(now);
+  dailyCountdown.textContent = `Resets in ${formatDailyCountdown(nextReset - now)} (UTC)`;
+  const todayKey = getUtcDayKey(now);
+  if(todayKey !== dailyCountdownRefreshKey){
+    dailyCountdownRefreshKey = todayKey;
+    dailyLoadedForKey = null;
+    ensureDailyLoaded();
+  }
+}
+
+function startDailyCountdown(){
+  if(!dailyCountdown) return;
+  dailyCountdownRefreshKey = dailyCountdownRefreshKey || getUtcDayKey();
+  updateDailyCountdown();
+  if(dailyCountdownTimer) return;
+  dailyCountdownTimer = setInterval(updateDailyCountdown, 1000);
+}
 
 async function ensureDailyLoaded(){
   if(!getFeatureFlag("dailyChallenges", true)) return;
+  startDailyCountdown();
   try{
     const r = await fetch("/api/challenges/today");
     const j = await r.json();
@@ -15709,6 +15755,7 @@ async function ensureDailyLoaded(){
       return;
     }
     dailyLoadedForKey = j.dayKey;
+    dailyCountdownRefreshKey = j.dayKey;
     renderDaily(j);
   }catch(e){
     if(dailyMsg) dailyMsg.textContent = "Failed to load daily challenges.";
@@ -15725,11 +15772,21 @@ function renderDaily(data){
     const claimed = !!c.claimed;
     const item = document.createElement("div");
     item.className = "dailyItem";
-    const prog = Math.min(Number(c.progress||0), Number(c.goal||0));
+    const rawGoal = Number(c.goal ?? 0);
+    const rawProgress = Number(c.progress ?? 0);
+    const goal = Number.isFinite(rawGoal) && rawGoal > 0 ? rawGoal : 0;
+    const progressValue = Number.isFinite(rawProgress) && rawProgress >= 0 ? rawProgress : 0;
+    const prog = goal > 0 ? Math.min(progressValue, goal) : progressValue;
+    const safeProg = Number.isFinite(prog) && prog >= 0 ? prog : 0;
+    const pct = goal > 0 && safeProg >= 0 ? Math.min(100, Math.max(0, Math.round((safeProg / goal) * 100))) : 0;
+    const safePct = Number.isFinite(pct) && pct >= 0 ? pct : 0;
     item.innerHTML = `
       <div class="dailyLeft">
         <div class="title">${escapeHtml(c.label || c.id)}</div>
-        <div class="small muted">${prog}/${c.goal} • Reward: ${c.rewardXp||0} XP + ${c.rewardGold||0} gold</div>
+        <div class="small muted">${safeProg}/${c.goal} • Reward: ${c.rewardXp||0} XP + ${c.rewardGold||0} gold</div>
+        <div class="dailyProgress" role="progressbar" aria-valuenow="${safeProg}" aria-valuemin="0" aria-valuemax="${goal}">
+          <div class="dailyProgressFill ${done ? "done" : ""}" style="width:${safePct}%"></div>
+        </div>
       </div>
       <div class="dailyRight">
         <span class="badge ${done ? "done" : ""}">${done ? "Complete" : "In progress"}</span>

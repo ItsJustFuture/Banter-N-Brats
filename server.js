@@ -8987,15 +8987,47 @@ function dayKeyNow() {
   return `${y}-${m}-${da}`;
 }
 
+const MAX_DAILY_CHALLENGES = 5;
+const DAILY_CHALLENGE_IDS = {
+  roomMessages: "room_msgs_5",
+  reactions: "react_3",
+  uniqueRooms: "rooms_2",
+  dmMessages: "dm_msgs_3",
+  replies: "replies_2",
+  attachments: "attachments_2",
+  dmReactions: "dm_reacts_2",
+  edits: "edits_1",
+};
 const DAILY_CHALLENGE_POOL = [
-  { id: "room_msgs_5", label: "Send 5 room messages", type: "room_messages", goal: 5, rewardXp: 30, rewardGold: 25 },
-  { id: "react_3", label: "React 3 times", type: "reactions", goal: 3, rewardXp: 25, rewardGold: 20 },
-  { id: "rooms_2", label: "Visit 2 different rooms", type: "unique_rooms", goal: 2, rewardXp: 25, rewardGold: 15 },
+  { id: DAILY_CHALLENGE_IDS.roomMessages, label: "Send 5 room messages", type: "room_messages", goal: 5, rewardXp: 30, rewardGold: 25 },
+  { id: DAILY_CHALLENGE_IDS.reactions, label: "React 3 times", type: "reactions", goal: 3, rewardXp: 25, rewardGold: 20 },
+  { id: DAILY_CHALLENGE_IDS.uniqueRooms, label: "Visit 2 different rooms", type: "unique_rooms", goal: 2, rewardXp: 25, rewardGold: 15 },
+  { id: DAILY_CHALLENGE_IDS.dmMessages, label: "Send 3 DM messages", type: "dm_messages", goal: 3, rewardXp: 30, rewardGold: 20 },
+  { id: DAILY_CHALLENGE_IDS.replies, label: "Reply to 2 messages", type: "replies", goal: 2, rewardXp: 20, rewardGold: 15 },
+  { id: DAILY_CHALLENGE_IDS.attachments, label: "Share 2 attachments", type: "attachments", goal: 2, rewardXp: 25, rewardGold: 20 },
+  { id: DAILY_CHALLENGE_IDS.dmReactions, label: "React in DMs 2 times", type: "dm_reactions", goal: 2, rewardXp: 20, rewardGold: 15 },
+  { id: DAILY_CHALLENGE_IDS.edits, label: "Edit a message once", type: "edits", goal: 1, rewardXp: 15, rewardGold: 10 },
 ];
 
-function pickDailyChallenges() {
-  // deterministic order for now (stable + simple)
-  return DAILY_CHALLENGE_POOL.slice(0, 3);
+function dailyChallengeSeed(dayKey) {
+  let seed = 0;
+  const source = String(dayKey || "");
+  for (let i = 0; i < source.length; i += 1) {
+    seed = (seed * 31 + source.charCodeAt(i)) >>> 0;
+  }
+  return seed;
+}
+
+function pickDailyChallenges(dayKey = dayKeyNow()) {
+  const pool = DAILY_CHALLENGE_POOL.slice();
+  let seed = dailyChallengeSeed(dayKey);
+  // LCG constants from Numerical Recipes for deterministic shuffle ordering.
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    const j = seed % (i + 1);
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, MAX_DAILY_CHALLENGES);
 }
 
 async function loadDailyProgress(userId, dayKey) {
@@ -9046,29 +9078,37 @@ async function saveDailyProgress(userId, dayKey, progress, claimed, pg) {
 async function bumpDailyProgress(userId, dayKey, challengeId, delta, pgHint = null) {
   const d = Math.max(0, Math.floor(Number(delta) || 0));
   if (!userId || !challengeId || !d) return;
-  try {
-    const prog = await loadDailyProgress(userId, dayKey);
-    const progress = prog.progress || {};
-    const claimed = prog.claimed || {};
-    progress[challengeId] = Math.max(0, Math.floor(Number(progress[challengeId] || 0) + d));
-    await saveDailyProgress(userId, dayKey, progress, claimed, prog.pg);
-  } catch {}
+  const prog = await loadDailyProgress(userId, dayKey);
+  const progress = prog.progress || {};
+  const claimed = prog.claimed || {};
+  progress[challengeId] = Math.max(0, Math.floor(Number(progress[challengeId] || 0) + d));
+  await saveDailyProgress(userId, dayKey, progress, claimed, prog.pg);
+}
+
+function safeBumpDailyProgress(userId, dayKey, challengeId, delta) {
+  bumpDailyProgress(userId, dayKey, challengeId, delta).catch((err) => {
+    if (IS_DEV_MODE) console.warn("[daily] progress update failed", err?.message || err);
+  });
 }
 
 async function bumpDailyUniqueRoom(userId, dayKey, roomName, pgHint = null) {
   if (!userId || !roomName) return;
   const key = "__rooms";
-  try {
-    const prog = await loadDailyProgress(userId, dayKey);
-    const progress = prog.progress || {};
-    const claimed = prog.claimed || {};
-    const arr = Array.isArray(progress[key]) ? progress[key] : [];
-    if (!arr.includes(roomName)) arr.push(roomName);
-    progress[key] = arr.slice(0, 25);
-    // mirror into rooms_2 challenge progress as count
-    progress["rooms_2"] = arr.length;
-    await saveDailyProgress(userId, dayKey, progress, claimed, prog.pg);
-  } catch {}
+  const prog = await loadDailyProgress(userId, dayKey);
+  const progress = prog.progress || {};
+  const claimed = prog.claimed || {};
+  const arr = Array.isArray(progress[key]) ? progress[key] : [];
+  if (!arr.includes(roomName)) arr.push(roomName);
+  progress[key] = arr;
+  // mirror into unique rooms challenge progress as count
+  progress[DAILY_CHALLENGE_IDS.uniqueRooms] = arr.length;
+  await saveDailyProgress(userId, dayKey, progress, claimed, prog.pg);
+}
+
+function safeBumpDailyUniqueRoom(userId, dayKey, roomName) {
+  bumpDailyUniqueRoom(userId, dayKey, roomName).catch((err) => {
+    if (IS_DEV_MODE) console.warn("[daily] unique room update failed", err?.message || err);
+  });
 }
 
 async function creditGold(userId, amount, reason = "reward") {
@@ -9107,7 +9147,7 @@ app.get("/api/challenges/today", requireLogin, async (req, res) => {
   try {
     const userId = req.session.user.id;
     const dk = dayKeyNow();
-    const picked = pickDailyChallenges();
+    const picked = pickDailyChallenges(dk);
     const prog = await loadDailyProgress(userId, dk);
     const progress = prog.progress || {};
     const claimed = prog.claimed || {};
@@ -9132,7 +9172,7 @@ app.post("/api/challenges/claim", strictLimiter, requireLogin, express.json({ li
     const userId = req.session.user.id;
     const dk = dayKeyNow();
     const id = String(req.body?.id || "");
-    const picked = pickDailyChallenges();
+    const picked = pickDailyChallenges(dk);
     const challenge = picked.find((c) => c.id === id);
     if (!challenge) return res.status(400).json({ ok: false, error: "unknown_challenge" });
 
@@ -16460,7 +16500,7 @@ function doJoin(room, status) {
     if (prev && prev.room && prev.room !== room && now - (prev.ts || 0) < 15_000) bumpHeat(uid, 2);
     lastRoomHopByUserId.set(uid, { room, ts: now });
     // daily challenge: unique rooms
-    bumpDailyUniqueRoom(uid, dayKeyNow(), String(room));
+    safeBumpDailyUniqueRoom(uid, dayKeyNow(), String(room));
   } catch {}
 
 
@@ -16933,6 +16973,9 @@ if (!room) {
               replyToUser: replyUser || "",
               replyToText: replyText || "",
             };
+            safeBumpDailyProgress(socket.user.id, dayKeyNow(), DAILY_CHALLENGE_IDS.dmMessages, 1);
+            if (Number.isInteger(replyPk)) safeBumpDailyProgress(socket.user.id, dayKeyNow(), DAILY_CHALLENGE_IDS.replies, 1);
+            if (attUrl) safeBumpDailyProgress(socket.user.id, dayKeyNow(), DAILY_CHALLENGE_IDS.attachments, 1);
               db.run(
                 `UPDATE dm_threads SET last_message_id=?, last_message_at=? WHERE id=?`,
                 [this.lastID, ts, tid]
@@ -16986,6 +17029,7 @@ if (!room) {
             `UPDATE dm_messages SET text = ?, edited_at = ? WHERE id = ?`,
             [body, now, mid],
             () => {
+              safeBumpDailyProgress(socket.user.id, dayKeyNow(), DAILY_CHALLENGE_IDS.edits, 1);
               io.to(`dm:${tid}`).emit("dm message edited", {
                 threadId: tid,
                 messageId: mid,
@@ -17009,6 +17053,7 @@ if (!room) {
 
     loadThreadForUser(tid, socket.user.id, (err, thread) => {
       if (err || !thread) return;
+      safeBumpDailyProgress(socket.user.id, dayKeyNow(), DAILY_CHALLENGE_IDS.dmReactions, 1);
 
       db.run(
         `INSERT INTO dm_reactions (thread_id, message_id, username, emoji)
@@ -17772,7 +17817,9 @@ if (!room) {
                     chatFx: mergeChatFxWithCustomization(socket.user.chatFx, socket.user.customization, socket.user.textStyle),
                   };
                   // Daily challenges + smart mentions
-                  try { bumpDailyProgress(socket.user.id, dayKeyNow(), "room_msgs_5", 1); } catch {}
+                  safeBumpDailyProgress(socket.user.id, dayKeyNow(), DAILY_CHALLENGE_IDS.roomMessages, 1);
+                  if (Number.isInteger(replyPk)) safeBumpDailyProgress(socket.user.id, dayKeyNow(), DAILY_CHALLENGE_IDS.replies, 1);
+                  if (attachmentUrl) safeBumpDailyProgress(socket.user.id, dayKeyNow(), DAILY_CHALLENGE_IDS.attachments, 1);
                   try {
                     emitSmartMentionPings({
                       room,
@@ -17830,6 +17877,7 @@ if (!room) {
           `UPDATE messages SET text = ?, edited_at = ? WHERE id = ?`,
           [body, now, mid],
           () => {
+            safeBumpDailyProgress(socket.user.id, dayKeyNow(), DAILY_CHALLENGE_IDS.edits, 1);
             io.to(String(row.room)).emit("message edited", {
               messageId: mid,
               text: body,
@@ -17856,7 +17904,7 @@ if (!room) {
       const last = lastReactionByUserId.get(uid) || 0;
       if (now - last < 800) bumpHeat(uid, 1);
       if (now - last >= 800) {
-        bumpDailyProgress(uid, dayKeyNow(), "react_3", 1);
+        safeBumpDailyProgress(uid, dayKeyNow(), DAILY_CHALLENGE_IDS.reactions, 1);
         lastReactionByUserId.set(uid, now);
       }
     } catch {}
