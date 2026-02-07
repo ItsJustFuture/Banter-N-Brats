@@ -2737,7 +2737,7 @@ let dndModalTab = "characters";
 let dndUiListenersAttached = false;
 let dndUiEnabled = false;
 function enableDndUI() {
-  // Show the Adventure buttons when in the DnD room
+  // Show the Adventure buttons (top bar + input bar) when in the DnD room
   if (dndNewOpenBtn) {
     dndNewOpenBtn.hidden = false;
     dndNewOpenBtn.setAttribute("aria-hidden", "false");
