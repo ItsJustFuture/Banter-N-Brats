@@ -7817,6 +7817,10 @@ commandPopupClose?.addEventListener("click", ()=>{ commandPopupDismissed=true; h
 
 function handleCommandResponse(payload){
   if(commandPopupDismissed) commandPopupDismissed=false;
+  if(payload?.type === "dnd" && payload?.ok) {
+    if (typeof openDndModal === "function") openDndModal();
+    if (!payload?.message) return;
+  }
   if(payload.type === "help" && Array.isArray(payload.commands)){
     const roleLabel = payload.role || me?.role || "";
     const items = payload.commands.map(cmd=>{
