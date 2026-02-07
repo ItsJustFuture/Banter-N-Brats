@@ -8,8 +8,8 @@ The DnD modal button **already appears in the topbar when in dnd**. This documen
 
 The DnD button implementation consists of:
 
-1. **HTML Button Element** (`public/index.html` line 347)
-2. **CSS Styling** (`public/styles.css` lines 12574-12590)
+1. **HTML Button Element** (`public/index.html` line 329)
+2. **CSS Styling** (`public/styles.css` lines 12732-12755)
 3. **JavaScript Control Logic** (`public/app.js`)
 4. **Comprehensive Test Coverage** (`scripts/test-dnd-button-topbar.js`)
 
@@ -17,7 +17,7 @@ The DnD button implementation consists of:
 
 ## 1. HTML Structure
 
-### Location: `public/index.html` line 347
+### Location: `public/index.html` line 329
 
 The button is located in the topbar, within the `topActions` section:
 
@@ -47,7 +47,7 @@ The button is located in the topbar, within the `topActions` section:
 
 ## 2. CSS Styling
 
-### Location: `public/styles.css` lines 12574-12592
+### Location: `public/styles.css` lines 12732-12755
 
 ```css
 .dndOpenBtn {
@@ -79,7 +79,7 @@ The button is located in the topbar, within the `topActions` section:
 ## 3. JavaScript Control Logic
 
 ### 3.1 Element Reference
-**Location:** `public/app.js` line 3931
+**Location:** `public/app.js` line 3962
 
 ```javascript
 const dndOpenBtn = document.getElementById("dndOpenBtn"); // Top bar button

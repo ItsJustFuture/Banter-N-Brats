@@ -19399,18 +19399,18 @@ function fillProfileSheetHeader(p, isSelf){
 
 function updateProfilePresenceDot(statusLabel){
   if (!profilePresenceDot) return;
-  const raw = String(statusLabel || "").toLowerCase();
+  const raw = normalizeStatusLabel(statusLabel, "").toLowerCase();
   let status = "offline";
-  if (raw.includes("online")) status = "online";
-  else if (raw.includes("away")) status = "away";
-  else if (raw.includes("busy")) status = "busy";
-  else if (raw.includes("dnd")) status = "dnd";
-  else if (raw.includes("idle")) status = "idle";
-  else if (raw.includes("gaming")) status = "gaming";
-  else if (raw.includes("music")) status = "music";
-  else if (raw.includes("working")) status = "working";
-  else if (raw.includes("chatting")) status = "chatting";
-  else if (raw.includes("lurking")) status = "lurking";
+  if (raw === "online") status = "online";
+  else if (raw === "away") status = "away";
+  else if (raw === "busy") status = "busy";
+  else if (raw === "do not disturb" || raw === "dnd") status = "dnd";
+  else if (raw === "idle") status = "idle";
+  else if (raw === "gaming") status = "gaming";
+  else if (raw === "music") status = "music";
+  else if (raw === "working") status = "working";
+  else if (raw === "chatting") status = "chatting";
+  else if (raw === "lurking") status = "lurking";
   profilePresenceDot.dataset.status = status;
   profilePresenceDot.title = statusLabel || "Offline";
   profilePresenceDot.style.display = "inline-flex";
