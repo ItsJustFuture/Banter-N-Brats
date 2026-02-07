@@ -7817,24 +7817,24 @@ commandPopupClose?.addEventListener("click", ()=>{ commandPopupDismissed=true; h
 
 function handleCommandResponse(payload){
   if(commandPopupDismissed) commandPopupDismissed=false;
-  let processedResponse = payload;
   if(payload?.type === "dnd" && payload?.ok) {
     if (typeof openDndModal === "function") {
       openDndModal();
       return;
     }
-    processedResponse = { ...payload, ok: false, message: "Adventure panel unavailable." };
+    showCommandPopup("Command error", "Adventure panel unavailable.");
+    return;
   }
-  if(processedResponse?.type === "help" && Array.isArray(processedResponse.commands)){
-    const roleLabel = processedResponse.role || me?.role || "";
-    const items = processedResponse.commands.map(cmd=>{
+  if(payload?.type === "help" && Array.isArray(payload.commands)){
+    const roleLabel = payload.role || me?.role || "";
+    const items = payload.commands.map(cmd=>{
       return `<div class="commandHelpItem"><div class="name">/${escapeHtml(cmd.name)}</div><div class="small">${escapeHtml(cmd.description||"")}</div><div class="usage">${escapeHtml(cmd.usage||"")}</div><div class="small">Example: ${escapeHtml(cmd.example||"")}</div></div>`;
     }).join("");
     showCommandPopup(`Commands you can use (Role: ${roleLabel})`, `<div class="commandHelpList">${items}</div>`);
     return;
   }
-  const msg = escapeHtml(processedResponse?.message || "No response");
-  const title = processedResponse?.ok ? "Command" : "Command error";
+  const msg = escapeHtml(payload?.message || "No response");
+  const title = payload?.ok ? "Command" : "Command error";
   showCommandPopup(title, msg);
 }
 
