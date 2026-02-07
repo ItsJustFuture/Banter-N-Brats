@@ -7875,11 +7875,7 @@ function handleCommandResponse(payload){
   if(commandPopupDismissed) commandPopupDismissed=false;
   if(payload?.type === "dnd") {
     if (payload?.ok) {
-      if (typeof openDnDModal === "function") {
-        openDnDModal("command");
-        return;
-      }
-      showCommandPopup("Command error", "Adventure panel unavailable.");
+      openDnDModal("command");
       return;
     }
     showCommandPopup("Command error", escapeHtml(payload?.message || "Adventure command failed."));
