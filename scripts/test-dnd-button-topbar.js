@@ -141,14 +141,14 @@ if (!socketConnectMatch) {
 
 // Check 8: CSS styling exists
 console.log('\n✓ Check 8: CSS styling for button');
-const hasButtonCSS = /\.dndOpenBtn[^{]*\{/.test(stylesContent);
-const buttonCSSBlock = stylesContent.match(/\.dndOpenBtn[^{]*\{[\s\S]*?\}/);
+const hasButtonCSS = /\.dndOpenBtn\s*\{/.test(stylesContent);
+const buttonCSSBlock = stylesContent.match(/\.dndOpenBtn\s*\{[\s\S]*?\}/);
 const hasDisplayStyle = buttonCSSBlock ? /display\s*:\s*inline-flex/.test(buttonCSSBlock[0]) : false;
 const hasMarginLeft = buttonCSSBlock ? /margin-left\s*:\s*8px/.test(buttonCSSBlock[0]) : false;
 const hasGap = buttonCSSBlock ? /gap\s*:\s*6px/.test(buttonCSSBlock[0]) : false;
 const hasAlignItems = buttonCSSBlock ? /align-items\s*:\s*center/.test(buttonCSSBlock[0]) : false;
 
-const labelCSSBlock = stylesContent.match(/\.dndOpenLabel[^{]*\{[\s\S]*?\}/);
+const labelCSSBlock = stylesContent.match(/(?:\.dndOpenLabel\s*,\s*\.dndNewOpenLabel|\.dndNewOpenLabel\s*,\s*\.dndOpenLabel)\s*\{[\s\S]*?\}/);
 const hasFontWeight = labelCSSBlock ? /font-weight\s*:\s*800/.test(labelCSSBlock[0]) : false;
 const hasLetterSpacing = labelCSSBlock ? /letter-spacing\s*:\s*0\.02em/.test(labelCSSBlock[0]) : false;
 const hasFontSize = labelCSSBlock ? /font-size\s*:\s*12px/.test(labelCSSBlock[0]) : false;

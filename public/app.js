@@ -2738,11 +2738,11 @@ let dndUiListenersAttached = false;
 let dndUiEnabled = false;
 function enableDndUI() {
   // Show the Adventure buttons (top bar + input bar) when in the DnD room
-  if (dndNewOpenBtn) {
+  if (dndNewOpenBtn) { // input bar
     dndNewOpenBtn.hidden = false;
     dndNewOpenBtn.setAttribute("aria-hidden", "false");
   }
-  if (dndOpenBtn) {
+  if (dndOpenBtn) { // top bar
     dndOpenBtn.hidden = false;
     dndOpenBtn.setAttribute("aria-hidden", "false");
   }
