@@ -7013,7 +7013,6 @@ function statusDotColor(status){
     case "Away": return "var(--warn)";
     case "Busy": return "var(--danger)";
     case "Do Not Disturb": return "var(--danger)";
-    case "DnD": return "var(--danger)";
     case "Idle": return "var(--gray)";
     case "Lurking": return "var(--gray)";
     default: return "var(--accent)";
@@ -7151,7 +7150,7 @@ function presenceFlags(username, explicitStatus){
   const u = (lastUsers || []).find((user) => normKey(user?.name) === key || normKey(user?.username) === key);
   const status = normalizeStatusLabel(explicitStatus || u?.status || "Online", "Online");
   const isIdle = status === "Idle" || status === "Away" || status === "Lurking";
-  const isDnd = status === "Busy" || status === "Do Not Disturb" || status === "DnD";
+  const isDnd = status === "Busy" || status === "Do Not Disturb";
   const isTyping = key && typingUsers.has(key);
   const isActiveDm = key && activeDmUsers.has(key);
   const isOnline = !isIdle && !isDnd;
