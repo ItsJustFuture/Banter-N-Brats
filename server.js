@@ -114,7 +114,7 @@ function resolveRoomCode(roomName) {
 
 function isDnDRoom(room) {
   if (!room) return false;
-  if (room && typeof room === "object") {
+  if (typeof room === "object") {
     const directId = room?.id ?? room?.room_id ?? room?.roomId;
     if (directId && String(directId).toUpperCase() === DND_ROOM_CODE) return true;
     const rawName = room?.name ?? room?.id ?? "";
@@ -3066,11 +3066,11 @@ function parseCommand(text) {
   if (!raw.startsWith("/")) return null;
   const trimmed = raw.slice(1);
   const spaceIdx = trimmed.search(/\s/);
-  const name = (spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)).trim();
-  if (!name) return null;
+  const rawName = (spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)).trim();
+  if (!rawName) return null;
   const rawArgs = spaceIdx === -1 ? "" : trimmed.slice(spaceIdx + 1).trim();
   const args = rawArgs ? parseQuotedArgs(rawArgs) : [];
-  return { name, args, rawArgs };
+  return { name: rawName.toLowerCase(), rawName, args, rawArgs };
 }
 
 const slowmodeTracker = new Map(); // key `${room}:${userId}` -> last ts
@@ -5228,7 +5228,7 @@ async function executeCommand(socket, rawText, room) {
   const actorRole = godmodeUsers.has(actor.id)
     ? "Owner"
     : (socket.user?.role || socket.request?.session?.user?.role || "User");
-  const rawName = parsed.name;
+  const rawName = parsed.rawName || parsed.name;
   const normalizedName = String(rawName || "").toLowerCase();
   const canonicalName = COMMAND_ALIASES[rawName] || COMMAND_ALIASES[normalizedName] || normalizedName;
   const meta = commandRegistry[canonicalName];

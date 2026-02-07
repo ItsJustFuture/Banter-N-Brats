@@ -979,7 +979,7 @@ function isSurvivalRoom(activeRoom){
 }
 function isDnDRoom(activeRoom){
   if (!activeRoom) return false;
-  if (activeRoom && typeof activeRoom === "object") {
+  if (typeof activeRoom === "object") {
     const directId = activeRoom?.id ?? activeRoom?.room_id ?? activeRoom?.roomId;
     if (directId && String(directId).toUpperCase() === DND_ROOM_CODE) return true;
     const rawName = activeRoom?.name ?? activeRoom?.id ?? "";
@@ -2750,9 +2750,9 @@ function enableDndUI() {
   }
   if (!dndUiListenersAttached) {
     dndUiListenersAttached = true;
-    dndOpenBtn?.addEventListener("click", () => openDnDModal("button")); // Top bar button
-    dndNewOpenBtn?.addEventListener("click", () => openDnDModal("button")); // Input bar button
-    dndComposerBtn?.addEventListener("click", () => openDnDModal("button"));
+    dndOpenBtn?.addEventListener("click", () => openDnDModal(DND_MODAL_TRIGGER_BUTTON)); // Top bar button
+    dndNewOpenBtn?.addEventListener("click", () => openDnDModal(DND_MODAL_TRIGGER_BUTTON)); // Input bar button
+    dndComposerBtn?.addEventListener("click", () => openDnDModal(DND_MODAL_TRIGGER_BUTTON));
     dndModalClose?.addEventListener("click", closeDndModal);
     dndModal?.addEventListener("click", (e) => {
       if (e.target === dndModal) closeDndModal();
@@ -4825,6 +4825,7 @@ async function loadOlderSurvivalLog() {
 // ============================================
 
 const DND_MODAL_ANIM_MS = 120;
+const DND_MODAL_TRIGGER_BUTTON = "button";
 
 function setDndModalTab(tab){
   const validTabs = ["characters", "events", "worldstate", "lobby", "spectate", "controls"];
