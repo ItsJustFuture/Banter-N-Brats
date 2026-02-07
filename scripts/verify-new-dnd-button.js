@@ -57,10 +57,10 @@ const roomIdPattern = /const\s+DND_ROOM_ID\s*=\s*["']dnd["']/;
 const hasRoomId = roomIdPattern.test(appJsContent);
 console.log(`✓ DND_ROOM_ID constant: ${hasRoomId ? 'FOUND' : 'NOT FOUND'}`);
 
-// Check 8: Verify isDndRoom function exists
-const isDndRoomPattern = /function\s+isDndRoom\s*\(/;
-const hasIsDndRoomFn = isDndRoomPattern.test(appJsContent);
-console.log(`✓ isDndRoom function: ${hasIsDndRoomFn ? 'FOUND' : 'NOT FOUND'}`);
+// Check 8: Verify isDnDRoom function exists
+const isDnDRoomPattern = /function\s+isDnDRoom\s*\(/;
+const hasIsDndRoomFn = isDnDRoomPattern.test(appJsContent);
+console.log(`✓ isDnDRoom function: ${hasIsDndRoomFn ? 'FOUND' : 'NOT FOUND'}`);
 
 // Check 9: Verify new button visibility toggle in setActiveRoom
 const newTogglePattern = /function\s+setActiveRoom[\s\S]*?enableDndUI\s*\([\s\S]*?disableDndUI\s*\(/;
@@ -83,7 +83,7 @@ const hasSetActiveRoom = setActiveRoomPattern.test(appJsContent);
 console.log(`✓ setActiveRoom function: ${hasSetActiveRoom ? 'FOUND' : 'NOT FOUND'}`);
 
 // Check 13: Verify nowDndRoom variable assignment
-const nowDndRoomPattern = /const\s+nowDndRoom\s*=\s*isDndRoom\s*\(\s*room\s*\)/;
+const nowDndRoomPattern = /const\s+nowDndRoom\s*=\s*isDnDRoom\s*\(\s*room\s*\)/;
 const hasNowDndRoom = nowDndRoomPattern.test(appJsContent);
 console.log(`✓ nowDndRoom variable assignment: ${hasNowDndRoom ? 'FOUND' : 'NOT FOUND'}`);
 
@@ -135,7 +135,7 @@ if (passedChecks === totalChecks) {
   if (!hasJsButtonRef) console.log('  - JavaScript reference missing');
   if (!hasDeprecatedComment) console.log('  - Old button not marked as deprecated');
   if (!hasRoomId) console.log('  - DND_ROOM_ID constant missing');
-  if (!hasIsDndRoomFn) console.log('  - isDndRoom function missing');
+  if (!hasIsDndRoomFn) console.log('  - isDnDRoom function missing');
   if (!hasNewToggleLogic) console.log('  - Visibility toggle logic missing in setActiveRoom');
   if (!hasNewClickListener) console.log('  - Click event listener missing');
   if (!hasRenderDndToggle) console.log('  - Visibility toggle missing in renderDndPanel');

@@ -61,6 +61,7 @@ const SURVIVAL_ADVANCE_COOLDOWN_MS = 2000;
 // DnD constants
 const DND_ROOM_ID = "dnd";
 const DND_ROOM_CODE = "R6";
+const DND_ROOM_NAME_FRAGMENT = "dnd";
 const DND_ROOM_DB_ID = 2; // Will be created dynamically if needed
 const DND_SESSION_COOLDOWN_MS = 2 * 60 * 1000;
 const DND_ADVANCE_COOLDOWN_MS = 2000;
@@ -109,6 +110,21 @@ function resolveRoomCode(roomName) {
   if (!normalized) return null;
   if (LEGACY_DND_ROOM_KEYS.has(normalized)) return DND_ROOM_CODE;
   return CORE_ROOM_CODES.get(normalized) || null;
+}
+
+function isDnDRoom(room) {
+  if (!room) return false;
+  if (typeof room === "object") {
+    const directId = room?.id ?? room?.room_id ?? room?.roomId;
+    if (directId && String(directId).toUpperCase() === DND_ROOM_CODE) return true;
+    // Requirement: any room name containing "dnd" counts as a DnD-capable room.
+    const rawName = room?.name ?? room?.id ?? "";
+    return String(rawName).toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
+  }
+  const rawName = String(room || "");
+  if (rawName.toUpperCase() === DND_ROOM_CODE) return true;
+  // Requirement: any room name containing "dnd" counts as a DnD-capable room.
+  return rawName.toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
 }
 
 const CHESS_DEFAULT_ELO = 1200;
@@ -3052,11 +3068,11 @@ function parseCommand(text) {
   if (!raw.startsWith("/")) return null;
   const trimmed = raw.slice(1);
   const spaceIdx = trimmed.search(/\s/);
-  const name = (spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)).trim();
-  if (!name) return null;
+  const originalCommandName = (spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)).trim();
+  if (!originalCommandName) return null;
   const rawArgs = spaceIdx === -1 ? "" : trimmed.slice(spaceIdx + 1).trim();
   const args = rawArgs ? parseQuotedArgs(rawArgs) : [];
-  return { name: name.toLowerCase(), args, rawArgs };
+  return { name: originalCommandName.toLowerCase(), rawName: originalCommandName, args, rawArgs };
 }
 
 const slowmodeTracker = new Map(); // key `${room}:${userId}` -> last ts
@@ -4520,6 +4536,11 @@ async function handleTicTacToeCommand({ args, room, socket }) {
   return { ok: true, message: "Tic Tac Toe challenge sent!" };
 }
 
+// Explicit command aliases (keep minimal by requirement).
+const COMMAND_ALIASES = {
+  DnD: "dnd",
+};
+
 const commandRegistry = {
   help: {
     minRole: "User",
@@ -4546,11 +4567,10 @@ const commandRegistry = {
     usage: "/dnd",
     example: "/dnd",
     handler: async ({ room }) => {
-      const isDndRoom = resolveRoomCode(room) === DND_ROOM_CODE;
-      if (!isDndRoom) {
-        return { ok: false, type: "dnd", message: "Adventure is only available in the DnD room." };
+      if (!isDnDRoom(room)) {
+        return { ok: false, type: "dnd", message: "DnD is only available in DnD rooms." };
       }
-      return { ok: true, type: "dnd", message: "Opening Adventure..." };
+      return { ok: true, type: "dnd", message: "Opening DnD..." };
     },
   },
   ttt: {
@@ -5211,16 +5231,19 @@ async function executeCommand(socket, rawText, room) {
   const actorRole = godmodeUsers.has(actor.id)
     ? "Owner"
     : (socket.user?.role || socket.request?.session?.user?.role || "User");
-  const meta = commandRegistry[parsed.name];
+  const rawName = parsed.rawName || parsed.name;
+  const normalizedName = String(rawName || "").toLowerCase();
+  const canonicalName = COMMAND_ALIASES[rawName] || COMMAND_ALIASES[normalizedName] || normalizedName;
+  const meta = commandRegistry[canonicalName];
   if (!meta) {
     socket.emit("command response", { ok: false, message: "Unknown command" });
-    logCommandAudit({ executor: actor, commandName: parsed.name, args: parsed.args, room, success: false, error: "Unknown" });
+    logCommandAudit({ executor: actor, commandName: canonicalName, args: parsed.args, room, success: false, error: "Unknown" });
     return true;
   }
   if (!requireMinRole(actorRole, meta.minRole || "User")) {
     const msg = "Permission denied";
     socket.emit("command response", { ok: false, message: msg });
-    logCommandAudit({ executor: actor, commandName: parsed.name, args: parsed.args, room, success: false, error: msg });
+    logCommandAudit({ executor: actor, commandName: canonicalName, args: parsed.args, room, success: false, error: msg });
     return true;
   }
 
@@ -5230,10 +5253,10 @@ async function executeCommand(socket, rawText, room) {
     if (result.commands) payload.commands = result.commands;
     if (result.role) payload.role = result.role;
     socket.emit("command response", payload);
-    logCommandAudit({ executor: actor, commandName: parsed.name, args: parsed.args, room, success: !!result.ok, targets: result.targets });
+    logCommandAudit({ executor: actor, commandName: canonicalName, args: parsed.args, room, success: !!result.ok, targets: result.targets });
   } catch (err) {
     socket.emit("command response", { ok: false, message: err.message || "Command failed" });
-    logCommandAudit({ executor: actor, commandName: parsed.name, args: parsed.args, room, success: false, error: err.message });
+    logCommandAudit({ executor: actor, commandName: canonicalName, args: parsed.args, room, success: false, error: err.message });
   }
   return true;
 }

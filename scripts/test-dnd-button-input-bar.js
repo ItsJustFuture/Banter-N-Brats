@@ -178,7 +178,7 @@ if (appJS.includes('dndNewOpenBtn.style.removeProperty')) {
 
 // Test 7: Check that event listener is still attached
 console.log("\nTest 7: Verify event listener still attached");
-if (appJS.includes('dndNewOpenBtn?.addEventListener("click", openDndModal)')) {
+if (appJS.includes('dndNewOpenBtn?.addEventListener("click", openDnDModal)')) {
   pass("Event listener for dndNewOpenBtn is attached");
 } else {
   fail("Event listener for dndNewOpenBtn not found");

@@ -8,7 +8,7 @@ Previously, UI refreshes or room sync events could inadvertently hide the DnD bu
 
 ## Solution
 Added a guard at the beginning of `disableDndUI()` that:
-1. Checks if the current room is a DnD room using `isDndRoom(currentRoom)`
+1. Checks if the current room is a DnD room using `isDnDRoom(currentRoom)`
 2. Returns early without hiding the button if in a DnD room
 3. Logs when the disable action is blocked for debugging purposes
 
@@ -18,7 +18,7 @@ Added a guard at the beginning of `disableDndUI()` that:
 ```javascript
 function disableDndUI() {
   // Guard: Do not hide DnD button if we're currently in a DnD room
-  if (isDndRoom(currentRoom)) {
+  if (isDnDRoom(currentRoom)) {
     console.log("[dnd] UI disable blocked - currently in DnD room");
     return;
   }
@@ -27,7 +27,7 @@ function disableDndUI() {
 ```
 
 ### Room Detection
-The guard uses the existing `isDndRoom()` function which:
+The guard uses the existing `isDnDRoom()` function which:
 - Accepts room name or id (string or object)
 - Normalizes by lowercasing and removing spaces, dashes, and underscores
 - Uses `includes()` for matching instead of strict equality

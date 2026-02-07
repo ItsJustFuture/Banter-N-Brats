@@ -24,10 +24,10 @@ const roomIdPattern = /const\s+DND_ROOM_ID\s*=\s*["']dnd["']/;
 const hasRoomId = roomIdPattern.test(appJsContent);
 console.log(`✓ DND_ROOM_ID constant: ${hasRoomId ? 'FOUND' : 'NOT FOUND'}`);
 
-// Check 3: Verify isDndRoom function exists
-const isDndRoomPattern = /function\s+isDndRoom\s*\(/;
-const hasIsDndRoomFn = isDndRoomPattern.test(appJsContent);
-console.log(`✓ isDndRoom function: ${hasIsDndRoomFn ? 'FOUND' : 'NOT FOUND'}`);
+// Check 3: Verify isDnDRoom function exists
+const isDnDRoomPattern = /function\s+isDnDRoom\s*\(/;
+const hasIsDndRoomFn = isDnDRoomPattern.test(appJsContent);
+console.log(`✓ isDnDRoom function: ${hasIsDndRoomFn ? 'FOUND' : 'NOT FOUND'}`);
 
 // Check 4: Verify button visibility toggle in setActiveRoom
 const togglePattern = /function\s+setActiveRoom[\s\S]*?enableDndUI\s*\([\s\S]*?disableDndUI\s*\(/;
@@ -50,7 +50,7 @@ const hasClickListener = clickListenerPattern.test(appJsContent);
 console.log(`✓ DnD button click event listener: ${hasClickListener ? 'FOUND' : 'NOT FOUND'}`);
 
 // Check 8: Verify nowDndRoom variable assignment in setActiveRoom
-const nowDndRoomPattern = /const\s+nowDndRoom\s*=\s*isDndRoom\s*\(\s*room\s*\)/;
+const nowDndRoomPattern = /const\s+nowDndRoom\s*=\s*isDnDRoom\s*\(\s*room\s*\)/;
 const hasNowDndRoom = nowDndRoomPattern.test(appJsContent);
 console.log(`✓ nowDndRoom variable assignment: ${hasNowDndRoom ? 'FOUND' : 'NOT FOUND'}`);
 

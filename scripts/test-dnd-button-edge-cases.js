@@ -16,11 +16,11 @@ console.log('🧪 Testing NEW DnD button edge cases...\n');
 const appJsPath = path.join(__dirname, '../public/app.js');
 const appJsContent = fs.readFileSync(appJsPath, 'utf8');
 
-// Test 1: Verify isDndRoom handles different input types
-console.log('Test 1: isDndRoom function handles different input types');
-const isDndRoomFunctionCode = appJsContent.match(/function isDndRoom\(activeRoom\)\s*{[^}]+}/s);
-if (isDndRoomFunctionCode) {
-  const functionText = isDndRoomFunctionCode[0];
+// Test 1: Verify isDnDRoom handles different input types
+console.log('Test 1: isDnDRoom function handles different input types');
+const isDnDRoomFunctionCode = appJsContent.match(/function isDnDRoom\(activeRoom\)\s*{[^}]+}/s);
+if (isDnDRoomFunctionCode) {
+  const functionText = isDnDRoomFunctionCode[0];
   
   // Check if it handles string type
   const handlesString = /typeof activeRoom === "string"/.test(functionText);
@@ -42,7 +42,7 @@ if (isDndRoomFunctionCode) {
   const comparesDndRoomId = /DND_ROOM_ID/.test(functionText) || /DND_ROOM_MATCHER_KEYS/.test(functionText) || /matchesDndRoomKey/.test(functionText);
   console.log(`  ✓ Uses DND room matcher: ${comparesDndRoomId ? 'YES' : 'NO'}`);
 } else {
-  console.log('  ❌ isDndRoom function not found');
+  console.log('  ❌ isDnDRoom function not found');
 }
 
 // Test 2: Verify button visibility toggle is called in multiple contexts
@@ -116,11 +116,11 @@ console.log('\n' + '='.repeat(50));
 
 // Collect all critical checks
 const criticalChecks = [
-  { name: 'isDndRoom handles string type', passed: isDndRoomFunctionCode && /typeof activeRoom === "string"/.test(isDndRoomFunctionCode[0]) },
-  { name: 'isDndRoom handles object type', passed: isDndRoomFunctionCode && /activeRoom\?\.name|activeRoom\?\.id/.test(isDndRoomFunctionCode[0]) },
-  { name: 'Case-insensitive comparison', passed: isDndRoomFunctionCode && (/toLowerCase\(\)/.test(isDndRoomFunctionCode[0]) || /normalizeDndRoomKey/.test(appJsContent)) },
+  { name: 'isDnDRoom handles string type', passed: isDnDRoomFunctionCode && /typeof activeRoom === "string"/.test(isDnDRoomFunctionCode[0]) },
+  { name: 'isDnDRoom handles object type', passed: isDnDRoomFunctionCode && /activeRoom\?\.name|activeRoom\?\.id/.test(isDnDRoomFunctionCode[0]) },
+  { name: 'Case-insensitive comparison', passed: isDnDRoomFunctionCode && (/toLowerCase\(\)/.test(isDnDRoomFunctionCode[0]) || /normalizeDndRoomKey/.test(appJsContent)) },
   { name: 'Room normalization helper', passed: /normalizeDndRoomKey/.test(appJsContent) },
-  { name: 'Uses DnD room matcher', passed: isDndRoomFunctionCode && (/DND_ROOM_ID/.test(isDndRoomFunctionCode[0]) || /DND_ROOM_MATCHER_KEYS/.test(isDndRoomFunctionCode[0]) || /matchesDndRoomKey/.test(isDndRoomFunctionCode[0])) },
+  { name: 'Uses DnD room matcher', passed: isDnDRoomFunctionCode && (/DND_ROOM_ID/.test(isDnDRoomFunctionCode[0]) || /DND_ROOM_MATCHER_KEYS/.test(isDnDRoomFunctionCode[0]) || /matchesDndRoomKey/.test(isDnDRoomFunctionCode[0])) },
   { name: 'Toggle in setActiveRoom', passed: setActiveRoomToggle },
   { name: 'Toggle in renderDndPanel', passed: renderDndPanelToggle },
   { name: 'Safe navigation checks', passed: safeNavigation },

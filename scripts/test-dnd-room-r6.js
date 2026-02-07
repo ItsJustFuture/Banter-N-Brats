@@ -128,8 +128,8 @@ const checks = [
     passed: roomCodeNormalizationWorks,
   },
   {
-    name: "isDndRoom checks room.id first",
-    passed: /function\s+isDndRoom[\s\S]*room\?\.id[\s\S]*DND_ROOM_CODE/.test(appJs),
+    name: "isDnDRoom checks room.id first",
+    passed: /function\s+isDnDRoom[\s\S]*room\?\.id[\s\S]*DND_ROOM_CODE/.test(appJs),
   },
   {
     name: "Adventure button aria-label updated",
