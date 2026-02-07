@@ -2801,7 +2801,7 @@ function enableDndUI() {
   }
 }
 function disableDndUI() {
-  // Hide the Adventure buttons when leaving DnD room
+  // Hide the Adventure buttons (top bar + input bar) when leaving DnD room
   if (dndNewOpenBtn) {
     dndNewOpenBtn.hidden = true;
     dndNewOpenBtn.setAttribute("aria-hidden", "true");
