@@ -132,8 +132,8 @@ const checks = [
     passed: /function\s+isDndRoom[\s\S]*room\?\.id[\s\S]*DND_ROOM_CODE/.test(appJs),
   },
   {
-    name: "DnD button aria-label updated",
-    passed: /aria-label=["']Open DnD settings["']/.test(indexHtml),
+    name: "Adventure button aria-label updated",
+    passed: /aria-label=["']Open Adventure["']/.test(indexHtml),
   },
   {
     name: "Chat message filter uses roomId guard",

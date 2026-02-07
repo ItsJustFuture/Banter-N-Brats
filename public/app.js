@@ -2737,14 +2737,14 @@ let dndModalTab = "characters";
 let dndUiListenersAttached = false;
 let dndUiEnabled = false;
 function enableDndUI() {
-  // Show the DnD button in the input bar when in DnD room
+  // Show the Adventure buttons when in the DnD room
   if (dndNewOpenBtn) {
     dndNewOpenBtn.hidden = false;
     dndNewOpenBtn.setAttribute("aria-hidden", "false");
   }
   if (dndOpenBtn) {
-    dndOpenBtn.hidden = true;
-    dndOpenBtn.setAttribute("aria-hidden", "true");
+    dndOpenBtn.hidden = false;
+    dndOpenBtn.setAttribute("aria-hidden", "false");
   }
   if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) {
     dndComposerBtn.hidden = false;
@@ -2801,7 +2801,7 @@ function enableDndUI() {
   }
 }
 function disableDndUI() {
-  // Hide the DnD button when leaving DnD room
+  // Hide the Adventure buttons when leaving DnD room
   if (dndNewOpenBtn) {
     dndNewOpenBtn.hidden = true;
     dndNewOpenBtn.setAttribute("aria-hidden", "true");
@@ -3959,7 +3959,7 @@ const survivalLogModalList = document.getElementById("survivalLogModalList");
 const survivalLogLoadBtn = document.getElementById("survivalLogLoadBtn");
 
 // DnD elements
-const dndOpenBtn = document.getElementById("dndOpenBtn"); // Deprecated
+const dndOpenBtn = document.getElementById("dndOpenBtn"); // Top bar button
 const dndNewOpenBtn = document.getElementById("dndNewOpenBtn"); // New button
 const dndComposerBtn = document.getElementById("dndComposerBtn");
 const dndModal = document.getElementById("dndModal");
@@ -4009,7 +4009,6 @@ const dndInfoAlive = document.getElementById("dndInfoAlive");
 const dndInfoCreated = document.getElementById("dndInfoCreated");
 
 // DnD button initialization - will be shown/hidden based on room
-// Button is now in the input bar, similar to dndComposerBtn
 if (IS_DEV && dndNewOpenBtn) {
   console.log("[DnD Button] Initialized - visibility controlled by room detection");
 }
@@ -6992,7 +6991,7 @@ function applyFeatureFlags(){
 }
 
 const STATUS_ALIASES = {
-  "Do Not Disturb": "DnD",
+  "DnD": "Do Not Disturb",
   "Listening to Music": "Music",
   "Looking to Chat": "Chatting",
   "Invisible": "Lurking",
@@ -7013,6 +7012,7 @@ function statusDotColor(status){
     case "Online": return "var(--ok)";
     case "Away": return "var(--warn)";
     case "Busy": return "var(--danger)";
+    case "Do Not Disturb": return "var(--danger)";
     case "DnD": return "var(--danger)";
     case "Idle": return "var(--gray)";
     case "Lurking": return "var(--gray)";
@@ -7151,7 +7151,7 @@ function presenceFlags(username, explicitStatus){
   const u = (lastUsers || []).find((user) => normKey(user?.name) === key || normKey(user?.username) === key);
   const status = normalizeStatusLabel(explicitStatus || u?.status || "Online", "Online");
   const isIdle = status === "Idle" || status === "Away" || status === "Lurking";
-  const isDnd = status === "Busy" || status === "DnD";
+  const isDnd = status === "Busy" || status === "Do Not Disturb" || status === "DnD";
   const isTyping = key && typingUsers.has(key);
   const isActiveDm = key && activeDmUsers.has(key);
   const isOnline = !isIdle && !isDnd;
