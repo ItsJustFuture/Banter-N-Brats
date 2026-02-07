@@ -4534,6 +4534,7 @@ async function handleTicTacToeCommand({ args, room, socket }) {
   return { ok: true, message: "Tic Tac Toe challenge sent!" };
 }
 
+// Explicit command aliases (keep minimal by requirement).
 const COMMAND_ALIASES = {
   DnD: "dnd",
 };
@@ -4565,9 +4566,9 @@ const commandRegistry = {
     example: "/dnd",
     handler: async ({ room }) => {
       if (!isDnDRoom(room)) {
-        return { ok: false, type: "dnd", message: "Adventure is only available in the DnD room." };
+        return { ok: false, type: "dnd", message: "DnD is only available in DnD rooms." };
       }
-      return { ok: true, type: "dnd", message: "Opening Adventure..." };
+      return { ok: true, type: "dnd", message: "Opening DnD..." };
     },
   },
   ttt: {

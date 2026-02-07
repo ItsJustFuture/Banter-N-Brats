@@ -4848,7 +4848,7 @@ function openDnDModal(triggerSource = "button"){
   const inDndRoom = isDnDRoom(currentRoom);
   const hasPermission = roleRank(me?.role || "Guest") >= roleRank("User");
   if (!inDndRoom) {
-    const message = "Adventure is only available in DnD rooms.";
+    const message = "DnD is only available in DnD rooms.";
     console.warn("[dnd] open denied - invalid room", { triggerSource, room: currentRoom });
     if (triggerSource === "command") showCommandPopup("Command error", message);
     else toast(message);

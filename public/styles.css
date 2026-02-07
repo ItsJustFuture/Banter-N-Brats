@@ -12744,11 +12744,9 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
    ============================================ */
 
 /* DnD buttons - shared styling */
-.dndOpenBtn {
-  margin-left: 8px;
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
+.dndOpenBtn,
+.dndNewOpenBtn,
+.dndComposerBtn {
   position: relative;
   z-index: 240;
   pointer-events: auto;
@@ -12758,16 +12756,16 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
+.dndOpenBtn {
+  margin-left: 8px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
 .dndNewOpenBtn,
 .dndComposerBtn {
   margin-left: 6px;
-  position: relative;
-  z-index: 240;
-  pointer-events: auto;
-  background: #1f2937;
-  color: #f9fafb;
-  border: 1px solid #f97316;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 /* Deprecated button - kept for backwards compatibility */
