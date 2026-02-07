@@ -9028,8 +9028,8 @@ const EASY_CHALLENGES = [
   { id: DAILY_CHALLENGE_IDS.replyOnce, label: "Reply to a message", type: "replies", goal: 1, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
   { id: DAILY_CHALLENGE_IDS.reactions, label: "React 3 times", type: "reactions", goal: 3, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
   { id: DAILY_CHALLENGE_IDS.replies, label: "Reply to 2 messages", type: "replies", goal: 2, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
-  { id: DAILY_CHALLENGE_IDS.edits, label: "Edit a message", type: "edits", goal: 1, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
-  { id: DAILY_CHALLENGE_IDS.dmReactions, label: "React in a DM", type: "dm_reactions", goal: 1, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
+  { id: DAILY_CHALLENGE_IDS.edits, label: "Edit 1 message", type: "edits", goal: 1, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
+  { id: DAILY_CHALLENGE_IDS.dmReactions, label: "React in a DM 1 time", type: "dm_reactions", goal: 1, rewardXp: 20, rewardGold: 50, difficulty: "easy" },
 ];
 
 // Moderate challenges: 30 XP, 75 gold - require more engagement
