@@ -923,6 +923,7 @@ const memoryCacheByFilter = new Map();
 const DICE_ROOM_ID = "diceroom";
 const SURVIVAL_ROOM_ID = "survivalsimulator";
 const DND_ROOM_CODE = "R6";
+// DnD room detection uses the code or a name fragment match.
 const DND_ROOM_NAME_FRAGMENT = "dnd";
 const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator", "dnd"]);
 const ROOM_IDS = {

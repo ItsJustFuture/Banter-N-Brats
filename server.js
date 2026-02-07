@@ -3066,11 +3066,11 @@ function parseCommand(text) {
   if (!raw.startsWith("/")) return null;
   const trimmed = raw.slice(1);
   const spaceIdx = trimmed.search(/\s/);
-  const rawName = (spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)).trim();
-  if (!rawName) return null;
+  const originalCommandName = (spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)).trim();
+  if (!originalCommandName) return null;
   const rawArgs = spaceIdx === -1 ? "" : trimmed.slice(spaceIdx + 1).trim();
   const args = rawArgs ? parseQuotedArgs(rawArgs) : [];
-  return { name: rawName.toLowerCase(), rawName, args, rawArgs };
+  return { name: originalCommandName.toLowerCase(), rawName: originalCommandName, args, rawArgs };
 }
 
 const slowmodeTracker = new Map(); // key `${room}:${userId}` -> last ts
