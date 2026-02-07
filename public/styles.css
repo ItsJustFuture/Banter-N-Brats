@@ -1767,6 +1767,19 @@ body.auth-pending #authLoading{
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .loginLogo {
+    animation: none !important;
+  }
+
+  #loginView {
+    transition: none !important;
+  }
+
+  #chatView.fade-in {
+    animation: none !important;
+  }
+}
 #passwordUpgradeView{
   position: fixed;
   inset: 0;
