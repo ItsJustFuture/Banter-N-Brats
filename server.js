@@ -4540,6 +4540,19 @@ const commandRegistry = {
       return { ok: true, type: "help", commands, role: ROLE_DISPLAY[actorRole] || actorRole };
     },
   },
+  dnd: {
+    minRole: "User",
+    description: "Open the DnD adventure panel",
+    usage: "/dnd",
+    example: "/dnd",
+    handler: async ({ room }) => {
+      const isDndRoom = resolveRoomCode(room) === DND_ROOM_CODE;
+      if (!isDndRoom) {
+        return { ok: false, type: "dnd", message: "Adventure is only available in the DnD room." };
+      }
+      return { ok: true, type: "dnd", message: "Opening Adventure..." };
+    },
+  },
   ttt: {
     minRole: "User",
     description: "Start or manage a Tic Tac Toe game in this room",

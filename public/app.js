@@ -7817,7 +7817,23 @@ commandPopupClose?.addEventListener("click", ()=>{ commandPopupDismissed=true; h
 
 function handleCommandResponse(payload){
   if(commandPopupDismissed) commandPopupDismissed=false;
-  if(payload.type === "help" && Array.isArray(payload.commands)){
+  if(payload?.type === "dnd") {
+    if (payload?.ok) {
+      const canOpen = typeof openDndModal === "function"
+        && typeof isDndRoom === "function"
+        && dndModal
+        && isDndRoom(currentRoom);
+      if (canOpen) {
+        openDndModal();
+        return;
+      }
+      showCommandPopup("Command error", "Adventure panel unavailable.");
+      return;
+    }
+    showCommandPopup("Command error", escapeHtml(payload?.message || "Adventure command failed."));
+    return;
+  }
+  if(payload?.type === "help" && Array.isArray(payload.commands)){
     const roleLabel = payload.role || me?.role || "";
     const items = payload.commands.map(cmd=>{
       return `<div class="commandHelpItem"><div class="name">/${escapeHtml(cmd.name)}</div><div class="small">${escapeHtml(cmd.description||"")}</div><div class="usage">${escapeHtml(cmd.usage||"")}</div><div class="small">Example: ${escapeHtml(cmd.example||"")}</div></div>`;
