@@ -9078,45 +9078,37 @@ async function saveDailyProgress(userId, dayKey, progress, claimed, pg) {
 async function bumpDailyProgress(userId, dayKey, challengeId, delta, pgHint = null) {
   const d = Math.max(0, Math.floor(Number(delta) || 0));
   if (!userId || !challengeId || !d) return;
-  try {
-    const prog = await loadDailyProgress(userId, dayKey);
-    const progress = prog.progress || {};
-    const claimed = prog.claimed || {};
-    progress[challengeId] = Math.max(0, Math.floor(Number(progress[challengeId] || 0) + d));
-    await saveDailyProgress(userId, dayKey, progress, claimed, prog.pg);
-  } catch {}
+  const prog = await loadDailyProgress(userId, dayKey);
+  const progress = prog.progress || {};
+  const claimed = prog.claimed || {};
+  progress[challengeId] = Math.max(0, Math.floor(Number(progress[challengeId] || 0) + d));
+  await saveDailyProgress(userId, dayKey, progress, claimed, prog.pg);
 }
 
 function safeBumpDailyProgress(userId, dayKey, challengeId, delta) {
-  try {
-    bumpDailyProgress(userId, dayKey, challengeId, delta);
-  } catch (err) {
+  bumpDailyProgress(userId, dayKey, challengeId, delta).catch((err) => {
     if (IS_DEV_MODE) console.warn("[daily] progress update failed", err?.message || err);
-  }
+  });
 }
 
 async function bumpDailyUniqueRoom(userId, dayKey, roomName, pgHint = null) {
   if (!userId || !roomName) return;
   const key = "__rooms";
-  try {
-    const prog = await loadDailyProgress(userId, dayKey);
-    const progress = prog.progress || {};
-    const claimed = prog.claimed || {};
-    const arr = Array.isArray(progress[key]) ? progress[key] : [];
-    if (!arr.includes(roomName)) arr.push(roomName);
-    progress[key] = arr.slice(0, 25);
-    // mirror into unique rooms challenge progress as count
-    progress[DAILY_CHALLENGE_IDS.uniqueRooms] = arr.length;
-    await saveDailyProgress(userId, dayKey, progress, claimed, prog.pg);
-  } catch {}
+  const prog = await loadDailyProgress(userId, dayKey);
+  const progress = prog.progress || {};
+  const claimed = prog.claimed || {};
+  const arr = Array.isArray(progress[key]) ? progress[key] : [];
+  if (!arr.includes(roomName)) arr.push(roomName);
+  progress[key] = arr;
+  // mirror into unique rooms challenge progress as count
+  progress[DAILY_CHALLENGE_IDS.uniqueRooms] = arr.length;
+  await saveDailyProgress(userId, dayKey, progress, claimed, prog.pg);
 }
 
 function safeBumpDailyUniqueRoom(userId, dayKey, roomName) {
-  try {
-    bumpDailyUniqueRoom(userId, dayKey, roomName);
-  } catch (err) {
+  bumpDailyUniqueRoom(userId, dayKey, roomName).catch((err) => {
     if (IS_DEV_MODE) console.warn("[daily] unique room update failed", err?.message || err);
-  }
+  });
 }
 
 async function creditGold(userId, amount, reason = "reward") {

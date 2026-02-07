@@ -15715,7 +15715,7 @@ function getNextUtcMidnight(ts = Date.now()){
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1, 0, 0, 0, 0);
 }
 
-function formatCountdown(ms){
+function formatDailyCountdown(ms){
   const total = Math.max(0, Math.floor(ms / 1000));
   const hours = String(Math.floor(total / 3600)).padStart(2, "0");
   const minutes = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
@@ -15727,7 +15727,7 @@ function updateDailyCountdown(){
   if(!dailyCountdown) return;
   const now = Date.now();
   const nextReset = getNextUtcMidnight(now);
-  dailyCountdown.textContent = `Resets in ${formatCountdown(nextReset - now)} (UTC)`;
+  dailyCountdown.textContent = `Resets in ${formatDailyCountdown(nextReset - now)} (UTC)`;
   const todayKey = getUtcDayKey(now);
   if(todayKey !== dailyCountdownRefreshKey){
     dailyCountdownRefreshKey = todayKey;
@@ -15773,16 +15773,20 @@ function renderDaily(data){
     const claimed = !!c.claimed;
     const item = document.createElement("div");
     item.className = "dailyItem";
-    const goal = Math.max(0, Number(c.goal || 0));
-    const progressValue = Number(c.progress||0);
+    const rawGoal = Number(c.goal ?? 0);
+    const rawProgress = Number(c.progress ?? 0);
+    const goal = Number.isFinite(rawGoal) && rawGoal > 0 ? rawGoal : 0;
+    const progressValue = Number.isFinite(rawProgress) && rawProgress >= 0 ? rawProgress : 0;
     const prog = goal > 0 ? Math.min(progressValue, goal) : progressValue;
-    const pct = goal > 0 ? Math.min(100, Math.round((prog / goal) * 100)) : 0;
+    const safeProg = Number.isFinite(prog) && prog >= 0 ? prog : 0;
+    const pct = goal > 0 && safeProg >= 0 ? Math.min(100, Math.max(0, Math.round((safeProg / goal) * 100))) : 0;
+    const safePct = Number.isFinite(pct) && pct >= 0 ? pct : 0;
     item.innerHTML = `
       <div class="dailyLeft">
         <div class="title">${escapeHtml(c.label || c.id)}</div>
-        <div class="small muted">${prog}/${c.goal} • Reward: ${c.rewardXp||0} XP + ${c.rewardGold||0} gold</div>
-        <div class="dailyProgress" role="progressbar" aria-valuenow="${prog}" aria-valuemin="0" aria-valuemax="${goal}">
-          <div class="dailyProgressFill ${done ? "done" : ""}" style="width:${pct}%"></div>
+        <div class="small muted">${safeProg}/${c.goal} • Reward: ${c.rewardXp||0} XP + ${c.rewardGold||0} gold</div>
+        <div class="dailyProgress" role="progressbar" aria-valuenow="${safeProg}" aria-valuemin="0" aria-valuemax="${goal}">
+          <div class="dailyProgressFill ${done ? "done" : ""}" style="width:${safePct}%"></div>
         </div>
       </div>
       <div class="dailyRight">
