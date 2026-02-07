@@ -94,7 +94,8 @@ function enableDndUI() {
   // ... event listeners ...
   if (!dndUiListenersAttached) {
     dndUiListenersAttached = true;
-    dndOpenBtn?.addEventListener("click", openDnDModal); // Attach click handler
+    // Attach click handler, passing the trigger source into openDnDModal
+    dndOpenBtn?.addEventListener("click", () => openDnDModal("topbar"));
   }
 }
 
