@@ -160,7 +160,7 @@ function disableDndUI() {
   // We no longer hide the button based on room detection.
   // The button is always visible with forced styles applied on initialization.
   // 
-  // BEHAVIORAL CHANGE: Previously, this function had a guard (isDndRoom check) that prevented
+  // BEHAVIORAL CHANGE: Previously, this function had a guard (isDnDRoom check) that prevented
   // hiding the button when in DnD rooms. That guard has been removed because the button now
   // stays visible at ALL times, regardless of room state. This simplifies the logic and ensures
   // consistent button visibility across the entire application.

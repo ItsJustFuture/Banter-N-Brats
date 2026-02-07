@@ -94,7 +94,7 @@ function enableDndUI() {
   // ... event listeners ...
   if (!dndUiListenersAttached) {
     dndUiListenersAttached = true;
-    dndOpenBtn?.addEventListener("click", openDndModal); // Attach click handler
+    dndOpenBtn?.addEventListener("click", openDnDModal); // Attach click handler
   }
 }
 
@@ -111,7 +111,7 @@ function disableDndUI() {
 function setActiveRoom(room) {
   // ... room setup ...
   
-  const nowDndRoom = isDndRoom(room); // Check if entering DnD room
+  const nowDndRoom = isDnDRoom(room); // Check if entering DnD room
   
   // Control button visibility based on room
   if (nowDndRoom) {
@@ -132,7 +132,7 @@ socket.on("connect", () => {
   // ... connection setup ...
   
   joinRoom(currentRoom);
-  if (isDndRoom(currentRoom)) {
+  if (isDnDRoom(currentRoom)) {
     enableDndUI();   // Ensure button is shown if already in DnD room
   } else {
     disableDndUI();  // Ensure button is hidden if not in DnD room
@@ -146,7 +146,7 @@ socket.on("connect", () => {
 **Location:** `public/app.js` lines 961-981
 
 ```javascript
-function isDndRoom(activeRoom) {
+function isDnDRoom(activeRoom) {
   // Normalizes room name/id and checks for DnD room matchers.
   // Handles:
   // - String inputs: "dnd", "DnD", etc.
@@ -171,18 +171,18 @@ function isDndRoom(activeRoom) {
    - Clicks "DnD" in channel list
    - `joinRoom("dnd")` is called
    - `setActiveRoom("dnd")` is called
-   - `isDndRoom(room)` returns `true`
+   - `isDnDRoom(room)` returns `true`
    - `enableDndUI()` is called
    - Button becomes **visible** in topbar
 
 3. **User Clicks Button**
-   - `openDndModal()` is triggered
+   - `openDnDModal()` is triggered
    - DnD modal appears with character/event/control tabs
 
 4. **User Leaves DnD**
    - Navigates to different room (e.g., "main")
    - `setActiveRoom("main")` is called
-   - `isDndRoom(room)` returns `false`
+   - `isDnDRoom(room)` returns `false`
    - `disableDndUI()` is called
    - Button becomes **hidden** again
 

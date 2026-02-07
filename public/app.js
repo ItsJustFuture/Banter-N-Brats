@@ -922,8 +922,8 @@ let roomCollapseState = { master: {}, category: {} };
 const memoryCacheByFilter = new Map();
 const DICE_ROOM_ID = "diceroom";
 const SURVIVAL_ROOM_ID = "survivalsimulator";
-const DND_ROOM_ID = "dnd";
 const DND_ROOM_CODE = "R6";
+const DND_ROOM_NAME_FRAGMENT = "dnd";
 const CORE_ROOMS = new Set(["main", "music", "nsfw", "diceroom", "survivalsimulator", "dnd"]);
 const ROOM_IDS = {
   "main": "R1",
@@ -942,12 +942,6 @@ const ROOM_CODE_PATTERN = /^r\d+$/i;
 function roomCodeFromNormalized(normalized) {
   if (!normalized) return null;
   return ROOM_CODE_PATTERN.test(normalized) ? normalized.toUpperCase() : null;
-}
-const DND_ROOM_MATCHERS = ["dnd", "dndstoryroom", "dndstory"];
-const DND_ROOM_MATCHER_KEYS = DND_ROOM_MATCHERS.map((key) => normalizeRoomKey(key));
-function matchesDndRoomKey(value) {
-  const normalized = normalizeRoomKey(value);
-  return DND_ROOM_MATCHER_KEYS.includes(normalized);
 }
 function getRoomIdFromName(activeRoom){
   if (activeRoom && typeof activeRoom === "object") {
@@ -983,18 +977,22 @@ function isSurvivalRoom(activeRoom){
     : (activeRoom?.name ?? activeRoom?.id ?? "");
   return normalizeRoomKey(roomName) === SURVIVAL_ROOM_ID;
 }
-function isDndRoom(activeRoom){
-  const room = getRoomMeta(activeRoom);
-  if (room?.id) return String(room.id) === DND_ROOM_CODE;
-  const rawName = typeof activeRoom === "string"
-    ? activeRoom
-    : (activeRoom?.name ?? activeRoom?.id ?? room?.name ?? "");
-  return matchesDndRoomKey(rawName);
+function isDnDRoom(activeRoom){
+  if (!activeRoom) return false;
+  if (activeRoom && typeof activeRoom === "object") {
+    const directId = activeRoom?.id ?? activeRoom?.room_id ?? activeRoom?.roomId;
+    if (directId && String(directId).toUpperCase() === DND_ROOM_CODE) return true;
+    const rawName = activeRoom?.name ?? activeRoom?.id ?? "";
+    return String(rawName).toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
+  }
+  const rawName = String(activeRoom || "");
+  if (rawName.toUpperCase() === DND_ROOM_CODE) return true;
+  return rawName.toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
 }
 function displayRoomName(room){
   if (isDiceRoom(room)) return "Dice Room";
   if (isSurvivalRoom(room)) return "Survival Simulator";
-  if (isDndRoom(room)) return "DnD";
+  if (isDnDRoom(room)) return "DnD";
   return room;
 }
 
@@ -2752,9 +2750,9 @@ function enableDndUI() {
   }
   if (!dndUiListenersAttached) {
     dndUiListenersAttached = true;
-    dndOpenBtn?.addEventListener("click", openDndModal); // Top bar button
-    dndNewOpenBtn?.addEventListener("click", openDndModal); // Input bar button
-    dndComposerBtn?.addEventListener("click", openDndModal);
+    dndOpenBtn?.addEventListener("click", () => openDnDModal("button")); // Top bar button
+    dndNewOpenBtn?.addEventListener("click", () => openDnDModal("button")); // Input bar button
+    dndComposerBtn?.addEventListener("click", () => openDnDModal("button"));
     dndModalClose?.addEventListener("click", closeDndModal);
     dndModal?.addEventListener("click", (e) => {
       if (e.target === dndModal) closeDndModal();
@@ -4845,8 +4843,29 @@ function setDndModalTab(tab){
   });
 }
 
-function openDndModal(){
-  if (!dndModal || !isDndRoom(currentRoom)) return;
+function openDnDModal(triggerSource = "button"){
+  const inDndRoom = isDnDRoom(currentRoom);
+  const hasPermission = roleRank(me?.role || "Guest") >= roleRank("User");
+  if (!inDndRoom) {
+    const message = "Adventure is only available in DnD rooms.";
+    console.warn("[dnd] open denied - invalid room", { triggerSource, room: currentRoom });
+    if (triggerSource === "command") showCommandPopup("Command error", message);
+    else toast(message);
+    return false;
+  }
+  if (!hasPermission) {
+    const message = "You do not have permission to open the DnD panel.";
+    console.warn("[dnd] open denied - insufficient role", { triggerSource, role: me?.role });
+    if (triggerSource === "command") showCommandPopup("Command error", message);
+    else toast(message);
+    return false;
+  }
+  if (!dndModal) {
+    console.warn("[dnd] open denied - modal missing", { triggerSource });
+    if (triggerSource === "command") showCommandPopup("Command error", "DnD panel unavailable.");
+    else toast("DnD panel unavailable.");
+    return false;
+  }
   closeMemberMenu();
   closeMembersAdminMenu();
   closeChessModal?.();
@@ -4869,6 +4888,7 @@ function openDndModal(){
   } else {
     requestAnimationFrame(() => dndModal.classList.add("modal-visible"));
   }
+  return true;
 }
 
 function closeDndModal(){
@@ -4930,7 +4950,7 @@ function renderDndPanel() {
   // Update controls
   updateDndControls();
   
-  const inDndRoom = isDndRoom(currentRoom);
+  const inDndRoom = isDnDRoom(currentRoom);
   if (inDndRoom) {
     enableDndUI();
   } else {
@@ -7851,12 +7871,8 @@ function handleCommandResponse(payload){
   if(commandPopupDismissed) commandPopupDismissed=false;
   if(payload?.type === "dnd") {
     if (payload?.ok) {
-      const canOpen = typeof openDndModal === "function"
-        && typeof isDndRoom === "function"
-        && dndModal
-        && isDndRoom(currentRoom);
-      if (canOpen) {
-        openDndModal();
+      if (typeof openDnDModal === "function") {
+        openDnDModal("command");
         return;
       }
       showCommandPopup("Command error", "Adventure panel unavailable.");
@@ -14679,7 +14695,7 @@ function setActiveRoom(room){
   closeProfileSettingsMenu();
   const nowDiceRoom = isDiceRoom(room);
   const nowSurvivalRoom = isSurvivalRoom(room);
-  const nowDndRoom = isDndRoom(room);
+  const nowDndRoom = isDnDRoom(room);
   document.body.classList.toggle("dice-room", nowDiceRoom);
   document.body.classList.toggle("survival-room", nowSurvivalRoom);
   nowRoom.textContent = displayRoomName(room);
@@ -14882,7 +14898,7 @@ function setRoomStructure(payload, { updateCollapse = true } = {}){
     const activeTab = document.querySelector("[data-room-manage-tab].active")?.dataset?.roomManageTab;
     if(activeTab === "events") refreshRoomEventsUi();
   }
-  if (isDndRoom(currentRoom)) {
+  if (isDnDRoom(currentRoom)) {
     enableDndUI();
   } else {
     disableDndUI();
@@ -21786,7 +21802,7 @@ initAppealsDurationSelect();
 
     // Join initial room so history + realtime messages work reliably
     joinRoom(currentRoom);
-    if (isDndRoom(currentRoom)) {
+    if (isDnDRoom(currentRoom)) {
       enableDndUI();
     } else {
       disableDndUI();
@@ -21897,7 +21913,7 @@ initAppealsDurationSelect();
 
   // DnD socket events
   socket.on("dnd:sessionCreated", (payload = {}) => {
-    if (!isDndRoom(currentRoom)) return;
+    if (!isDnDRoom(currentRoom)) return;
     if (payload.session) {
       dndState.session = payload.session;
       renderDndPanel();
@@ -21905,7 +21921,7 @@ initAppealsDurationSelect();
   });
 
   socket.on("dnd:sessionStarted", (payload = {}) => {
-    if (!isDndRoom(currentRoom)) return;
+    if (!isDnDRoom(currentRoom)) return;
     if (payload.session) {
       dndState.session = payload.session;
       renderDndPanel();
@@ -21913,7 +21929,7 @@ initAppealsDurationSelect();
   });
 
   socket.on("dnd:characterUpdated", (payload = {}) => {
-    if (!isDndRoom(currentRoom)) return;
+    if (!isDnDRoom(currentRoom)) return;
     if (payload.character) {
       // Update or add character in state
       const idx = dndState.characters.findIndex(c => c.id === payload.character.id);
@@ -21927,7 +21943,7 @@ initAppealsDurationSelect();
   });
 
   socket.on("dnd:eventResolved", (payload = {}) => {
-    if (!isDndRoom(currentRoom)) return;
+    if (!isDnDRoom(currentRoom)) return;
     if (payload.event) {
       dndState.events.push(payload.event);
       renderDndEvents();
@@ -21939,7 +21955,7 @@ initAppealsDurationSelect();
   });
 
   socket.on("dnd:sessionEnded", (payload = {}) => {
-    if (!isDndRoom(currentRoom)) return;
+    if (!isDnDRoom(currentRoom)) return;
     if (dndState.session && dndState.session.id === payload.sessionId) {
       dndState.session.status = "completed";
       renderDndPanel();
@@ -21947,14 +21963,14 @@ initAppealsDurationSelect();
   });
 
   socket.on("dnd:lobby", (payload = {}) => {
-    if (!isDndRoom(currentRoom)) return;
+    if (!isDnDRoom(currentRoom)) return;
     const ids = Array.isArray(payload.user_ids) ? payload.user_ids : [];
     dndState.lobbyUserIds = ids.map((x) => Number(x)).filter((x) => x > 0);
     renderDndPanel();
   });
 
   socket.on("dnd:spectatorInfluence", (payload = {}) => {
-    if (!isDndRoom(currentRoom)) return;
+    if (!isDnDRoom(currentRoom)) return;
     // Just show a notification for now
     console.log("[dnd] Spectator influence:", payload);
   });
@@ -22224,7 +22240,8 @@ socket.on("mod:case_event", (payload = {}) => {
         if (resolvedRoomId ? resolvedRoomId !== survivalRoomId : normalizeRoomKey(room) !== SURVIVAL_ROOM_ID) return;
       }
       if (kind === "dnd") {
-        if (resolvedRoomId ? resolvedRoomId !== DND_ROOM_CODE : !matchesDndRoomKey(room)) return;
+        const dndCandidate = resolvedRoomId ? { id: resolvedRoomId } : room;
+        if (!isDnDRoom(dndCandidate)) return;
       }
     } catch(_){ }
 

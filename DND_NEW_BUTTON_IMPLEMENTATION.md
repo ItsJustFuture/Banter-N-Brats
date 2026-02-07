@@ -42,14 +42,14 @@ if (dndNewOpenBtn) dndNewOpenBtn.hidden = !nowDndRoom; // New button
 
 #### Visibility Toggle in `renderDndPanel` (Line ~4789-4790)
 ```javascript
-if (dndOpenBtn) dndOpenBtn.hidden = !isDndRoom(currentRoom); // Deprecated button
-if (dndNewOpenBtn) dndNewOpenBtn.hidden = !isDndRoom(currentRoom); // New button
+if (dndOpenBtn) dndOpenBtn.hidden = !isDnDRoom(currentRoom); // Deprecated button
+if (dndNewOpenBtn) dndNewOpenBtn.hidden = !isDnDRoom(currentRoom); // New button
 ```
 
 #### Event Listener (Line ~14179-14180)
 ```javascript
-dndOpenBtn?.addEventListener("click", openDndModal); // Deprecated button
-dndNewOpenBtn?.addEventListener("click", openDndModal); // New button
+dndOpenBtn?.addEventListener("click", openDnDModal); // Deprecated button
+dndNewOpenBtn?.addEventListener("click", openDnDModal); // New button
 ```
 
 ## Behavior

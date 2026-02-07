@@ -87,7 +87,7 @@ if (!setActiveRoomMatch) {
   checks.push(false);
 } else {
   const functionBody = setActiveRoomMatch[0];
-  const checksRoom = /const\s+nowDndRoom\s*=\s*isDndRoom\s*\(\s*room\s*\)/.test(functionBody);
+  const checksRoom = /const\s+nowDndRoom\s*=\s*isDnDRoom\s*\(\s*room\s*\)/.test(functionBody);
   // More specific pattern: look for the if block followed by enableDndUI within reasonable distance
   const ifBlockPattern = /if\s*\(\s*nowDndRoom\s*\)\s*\{[\s\S]{0,200}enableDndUI\s*\(\s*\)/;
   const elseBlockPattern = /\}\s*else\s*\{[\s\S]{0,200}disableDndUI\s*\(\s*\)/;
@@ -103,16 +103,16 @@ if (!setActiveRoomMatch) {
 console.log('\n✓ Check 6: Button click opens DnD modal');
 // Find enableDndUI function independently for this check
 const enableDndUICheck6 = appJsContent.match(/function\s+enableDndUI\s*\(\s*\)\s*\{[\s\S]*?\n\}/);
-// Verify openDndModal function exists
-const hasOpenDndModalFunction = /function\s+openDndModal\s*\(/.test(appJsContent);
+// Verify openDnDModal function exists
+const hasOpenDndModalFunction = /function\s+openDnDModal\s*\(/.test(appJsContent);
 if (!enableDndUICheck6) {
   console.log('  ❌ Could not find enableDndUI function');
   checks.push(false);
 } else {
   const functionBody = enableDndUICheck6[0];
-  const hasClickListener = /dndOpenBtn\?\.addEventListener\s*\(\s*["']click["'][\s\S]*?openDndModal/.test(functionBody);
+  const hasClickListener = /dndOpenBtn\?\.addEventListener\s*\(\s*["']click["'][\s\S]*?openDnDModal/.test(functionBody);
   console.log(`  ${hasClickListener ? '✅' : '❌'} Click listener attached: ${hasClickListener}`);
-  console.log(`  ${hasOpenDndModalFunction ? '✅' : '❌'} openDndModal function exists: ${hasOpenDndModalFunction}`);
+  console.log(`  ${hasOpenDndModalFunction ? '✅' : '❌'} openDnDModal function exists: ${hasOpenDndModalFunction}`);
   checks.push(hasClickListener && hasOpenDndModalFunction);
 }
 
@@ -130,7 +130,7 @@ if (!socketConnectMatch) {
   checks.push(false);
 } else {
   const handlerBody = socketConnectMatch[0];
-  const checksRoomOnConnect = /if\s*\(\s*isDndRoom\s*\(\s*currentRoom\s*\)\s*\)/.test(handlerBody);
+  const checksRoomOnConnect = /if\s*\(\s*isDnDRoom\s*\(\s*currentRoom\s*\)\s*\)/.test(handlerBody);
   const callsEnableOnConnect = /enableDndUI\s*\(\s*\)/.test(handlerBody);
   const callsDisableOnConnect = /disableDndUI\s*\(\s*\)/.test(handlerBody);
   console.log(`  ${checksRoomOnConnect ? '✅' : '❌'} Checks room on connect: ${checksRoomOnConnect}`);

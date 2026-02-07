@@ -2,7 +2,7 @@
  * Test script for DnD button guard functionality
  * 
  * This script verifies that:
- * 1. disableDndUI() has a guard that checks isDndRoom(currentRoom)
+ * 1. disableDndUI() has a guard that checks isDnDRoom(currentRoom)
  * 2. The guard returns early without hiding the button when in a DnD room
  * 3. The guard uses proper normalization (lowercase, removes spaces/dashes/underscores)
  * 4. The guard logs when it blocks the disable action
@@ -29,29 +29,29 @@ if (!disableDndUIMatch) {
   const functionStart = disableDndUIMatch[1];
   
   // Check if guard exists at the beginning
-  const hasGuard = /if\s*\(\s*isDndRoom\s*\(\s*currentRoom\s*\)\s*\)/.test(functionStart);
-  console.log(`  ${hasGuard ? '✅' : '❌'} Has isDndRoom(currentRoom) guard: ${hasGuard}`);
+  const hasGuard = /if\s*\(\s*isDnDRoom\s*\(\s*currentRoom\s*\)\s*\)/.test(functionStart);
+  console.log(`  ${hasGuard ? '✅' : '❌'} Has isDnDRoom(currentRoom) guard: ${hasGuard}`);
   if (!hasGuard) allChecksPassed = false;
   
   // Check if guard returns early
-  const returnsEarly = /if\s*\(\s*isDndRoom\s*\(\s*currentRoom\s*\)\s*\)\s*\{[\s\S]*?return\s*;/.test(functionStart);
+  const returnsEarly = /if\s*\(\s*isDnDRoom\s*\(\s*currentRoom\s*\)\s*\)\s*\{[\s\S]*?return\s*;/.test(functionStart);
   console.log(`  ${returnsEarly ? '✅' : '❌'} Guard returns early: ${returnsEarly}`);
   if (!returnsEarly) allChecksPassed = false;
   
   // Check if guard logs when blocking
-  const logsBlock = /if\s*\(\s*isDndRoom\s*\(\s*currentRoom\s*\)\s*\)\s*\{[\s\S]*?console\.log[\s\S]*?return\s*;/.test(functionStart);
+  const logsBlock = /if\s*\(\s*isDnDRoom\s*\(\s*currentRoom\s*\)\s*\)\s*\{[\s\S]*?console\.log[\s\S]*?return\s*;/.test(functionStart);
   console.log(`  ${logsBlock ? '✅' : '❌'} Logs when blocking disable: ${logsBlock}`);
   if (!logsBlock) allChecksPassed = false;
 }
 
-// Test 2: Verify isDndRoom uses proper normalization
-console.log('\nTest 2: isDndRoom() normalization implementation');
-const isDndRoomMatch = appJsContent.match(/function\s+isDndRoom\s*\(\s*activeRoom\s*\)\s*\{([\s\S]*?)\n\}/);
-if (!isDndRoomMatch) {
-  console.log('  ❌ Could not find isDndRoom function');
+// Test 2: Verify isDnDRoom uses proper normalization
+console.log('\nTest 2: isDnDRoom() normalization implementation');
+const isDnDRoomMatch = appJsContent.match(/function\s+isDnDRoom\s*\(\s*activeRoom\s*\)\s*\{([\s\S]*?)\n\}/);
+if (!isDnDRoomMatch) {
+  console.log('  ❌ Could not find isDnDRoom function');
   allChecksPassed = false;
 } else {
-  const functionBody = isDndRoomMatch[1];
+  const functionBody = isDnDRoomMatch[1];
   
   // Check if it uses normalizeDndRoomKey
   const usesNormalizer = /normalizeDndRoomKey/.test(functionBody);
@@ -147,10 +147,10 @@ console.log('\n' + '='.repeat(60));
 if (allChecksPassed) {
   console.log('✅ All guard functionality checks passed!');
   console.log('\n📊 Verified Implementation:');
-  console.log('  ✓ disableDndUI() checks isDndRoom(currentRoom) at the start');
+  console.log('  ✓ disableDndUI() checks isDnDRoom(currentRoom) at the start');
   console.log('  ✓ Guard returns early without hiding button when in DnD room');
   console.log('  ✓ Guard logs when blocking the disable action');
-  console.log('  ✓ isDndRoom() normalizes room names properly');
+  console.log('  ✓ isDnDRoom() normalizes room names properly');
   console.log('  ✓ Normalization removes spaces, dashes, and underscores');
   console.log('  ✓ Normalization converts to lowercase');
   console.log('  ✓ Matching uses includes() instead of strict equality');
