@@ -10442,6 +10442,21 @@ body.comfortMode[data-theme="Iris & Lola Neon"] .chat::after{
 }
 .dailyLeft .title{ font-weight: 700; }
 .dailyLeft .small{ opacity: 0.85; }
+.dailyCountdown{ margin-top: 4px; }
+.dailyProgress{
+  margin-top: 8px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+  overflow: hidden;
+}
+.dailyProgressFill{
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(120,255,180,0.7), rgba(120,200,255,0.7));
+  transition: width 180ms ease;
+}
+.dailyProgressFill.done{ background: rgba(120,255,180,0.8); }
 .dailyRight{ display:flex; align-items:center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .badge{
   padding: 4px 8px;
