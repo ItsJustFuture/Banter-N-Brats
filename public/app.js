@@ -7821,13 +7821,9 @@ function handleCommandResponse(payload){
   if(payload?.type === "dnd" && payload?.ok) {
     if (typeof openDndModal === "function") {
       openDndModal();
-    } else {
-      responseToDisplay = { ...payload, ok: false, message: "Adventure panel unavailable." };
-    }
-    if (!responseToDisplay?.message) {
-      // Modal opened successfully; no popup needed.
       return;
     }
+    responseToDisplay = { ...payload, ok: false, message: "Adventure panel unavailable." };
   }
   if(responseToDisplay?.type === "help" && Array.isArray(responseToDisplay.commands)){
     const roleLabel = responseToDisplay.role || me?.role || "";

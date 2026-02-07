@@ -4551,7 +4551,7 @@ const commandRegistry = {
       if (!isDndRoom) {
         return { ok: false, message: "Adventure is only available in the DnD room." };
       }
-      return { ok: true, type: "dnd", action: "open", message: "Opening Adventure..." };
+      return { ok: true, type: "dnd", message: "Opening Adventure..." };
     },
   },
   ttt: {
