@@ -4987,6 +4987,16 @@ function getDndAliveCount() {
 function renderDndPanel() {
   const session = dndState.session;
   
+  // Update modal shell class for pulsing effect when session is active
+  const modalShell = document.querySelector('.dndModalShell');
+  if (modalShell) {
+    if (session && session.status === 'active') {
+      modalShell.classList.add('session-active');
+    } else {
+      modalShell.classList.remove('session-active');
+    }
+  }
+  
   // Update header
   if (dndSessionTitle) {
     dndSessionTitle.textContent = session ? session.title : "No session";
@@ -5435,9 +5445,9 @@ async function dndSpectatorInfluence(influenceType) {
   if (!dndState.session) return;
   
   const costs = {
-    heal: 50,
-    bonus: 30,
-    luck: 40
+    heal: 500,
+    bonus: 350,
+    luck: 500
   };
   
   const cost = costs[influenceType];
@@ -5500,6 +5510,18 @@ function openDndCharacterCreator() {
   if (dndCharRace) dndCharRace.value = existingChar?.race || "";
   if (dndCharGender) dndCharGender.value = existingChar?.gender || "";
   if (dndCharBackground) dndCharBackground.value = existingChar?.background || "";
+  
+  // Populate age field
+  const dndCharAge = document.getElementById('dndCharAge');
+  if (dndCharAge) dndCharAge.value = existingChar?.age || "";
+  
+  // Populate traits field
+  const dndCharTraits = document.getElementById('dndCharTraits');
+  if (dndCharTraits) dndCharTraits.value = existingChar?.traits || "";
+  
+  // Populate abilities field
+  const dndCharAbilities = document.getElementById('dndCharAbilities');
+  if (dndCharAbilities) dndCharAbilities.value = existingChar?.abilities || "";
   
   // Populate skills list
   if (dndSkillsList) {
@@ -5594,6 +5616,21 @@ async function saveDndCharacter() {
     const race = (dndCharRace?.value || "").trim();
     const gender = (dndCharGender?.value || "").trim();
     const background = (dndCharBackground?.value || "").trim();
+    
+    // Get age and validate
+    const dndCharAge = document.getElementById('dndCharAge');
+    const age = parseInt(dndCharAge?.value) || null;
+    if (age !== null && age < 18) {
+      alert("Character age must be 18 or older");
+      return;
+    }
+    
+    // Get traits and abilities
+    const dndCharTraits = document.getElementById('dndCharTraits');
+    const traits = (dndCharTraits?.value || "").trim();
+    
+    const dndCharAbilities = document.getElementById('dndCharAbilities');
+    const abilities = (dndCharAbilities?.value || "").trim();
 
     // Get attributes
     const attributes = {
@@ -5642,7 +5679,10 @@ async function saveDndCharacter() {
         name,
         race,
         gender,
+        age,
         background,
+        traits,
+        abilities,
         attributes,
         skills,
         perks

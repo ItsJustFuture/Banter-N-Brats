@@ -138,7 +138,10 @@ async function createDndCharacter(db, params) {
     avatarUrl,
     race,
     gender,
+    age,
     background,
+    traits,
+    abilities,
     attributes,
     skills,
     perks,
@@ -151,13 +154,13 @@ async function createDndCharacter(db, params) {
   try {
     const result = await db.query(
       `INSERT INTO dnd_characters 
-       (session_id, user_id, display_name, avatar_url, race, gender, background,
+       (session_id, user_id, display_name, avatar_url, race, gender, age, background, traits, abilities,
         might, finesse, wit, instinct, presence, resolve, chaos,
         skills_json, perks_json, hp, max_hp, alive, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
        RETURNING *`,
       [
-        sessionId, userId, displayName, avatarUrl, race, gender, background,
+        sessionId, userId, displayName, avatarUrl, race, gender, age, background, traits, abilities,
         attributes.might, attributes.finesse, attributes.wit,
         attributes.instinct, attributes.presence, attributes.resolve, attributes.chaos,
         JSON.stringify(skills), JSON.stringify(perks),

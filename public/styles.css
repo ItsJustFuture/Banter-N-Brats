@@ -12787,6 +12787,22 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   max-height: calc(var(--vvhPx, 100dvh) - 36px);
   display: flex;
   flex-direction: column;
+  box-shadow: 0 0 20px rgba(0, 255, 100, 0.15);
+  border: 1px solid rgba(0, 255, 100, 0.2);
+}
+
+/* Pulsing effect when session is active */
+.dndModalShell.session-active {
+  animation: dndPulseGlow 3s ease-in-out infinite;
+}
+
+@keyframes dndPulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(0, 255, 100, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(0, 255, 100, 0.25);
+  }
 }
 
 .dndModalTop {
@@ -13043,6 +13059,33 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.dndTraitsSection,
+.dndAbilitiesSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dndTraitsSection textarea,
+.dndAbilitiesSection textarea {
+  width: 100%;
+  padding: 8px;
+  background: var(--input-bg, #2a2a2a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 4px;
+  color: var(--text-color, #fff);
+  font-family: inherit;
+  font-size: 0.9em;
+  resize: vertical;
+}
+
+.dndTraitsSection textarea:focus,
+.dndAbilitiesSection textarea:focus {
+  outline: none;
+  border-color: var(--primary-color, #00ff64);
 }
 
 .dndSkillsList,
