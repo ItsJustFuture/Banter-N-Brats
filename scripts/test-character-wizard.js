@@ -54,15 +54,14 @@ requiredExports.forEach(exp => {
 // Test 3: Count items in arrays
 console.log('\n✓ Test 3: Verifying content counts...');
 
-const countItems = (pattern) => {
-  const matches = dataContent.match(new RegExp(`{ id: '${pattern}`, 'g'));
-  return matches ? matches.length : 0;
-};
-
-const skillsCount = (dataContent.match(/{ id: '\w+', name: '[\w\s]+', description: '.*?' }/g) || [])
-  .filter(m => m.includes("Melee combat") || m.includes("Ranged accuracy") || m.includes("Remaining unseen")).length;
-
-console.log(`  ✓ Skills: Found multiple skill definitions`);
+// Count skills (just check if they exist, don't validate specific content)
+const skillsMatch = dataContent.match(/export const SKILLS = \[[\s\S]*?\];/);
+if (skillsMatch) {
+  console.log(`  ✓ Skills: Found skill definitions`);
+} else {
+  console.error('  ❌ Skills not found');
+  process.exit(1);
+}
 
 const traitsMatch = dataContent.match(/\/\/ Traits - positive characteristics.*?\nexport const QUIRKS/s);
 const traitsCount = (traitsMatch ? traitsMatch[0].match(/{ id:/g) || [] : []).length;
