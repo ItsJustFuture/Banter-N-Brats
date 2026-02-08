@@ -2820,7 +2820,6 @@ function disableDndUI() {
     dndDebugLog("UI disabled");
   }
 }
-}
 
 const luckState = {
   luck: 0,
