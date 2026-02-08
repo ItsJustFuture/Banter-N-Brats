@@ -573,15 +573,15 @@
 <p class="small muted">Spend gold to influence the game:</p>
 <div class="dndInfluenceOptions" id="dndInfluenceOptions">
 <div class="dndInfluenceOption">
-<button class="btn secondary small" id="dndInfluenceHeal" type="button">💚 Heal Party (50g)</button>
+<button class="btn secondary small" id="dndInfluenceHeal" type="button">💚 Heal Party (500g)</button>
 <p class="small muted">Restore 20 HP to all characters</p>
 </div>
 <div class="dndInfluenceOption">
-<button class="btn secondary small" id="dndInfluenceBonus" type="button">⭐ Grant Bonus (30g)</button>
+<button class="btn secondary small" id="dndInfluenceBonus" type="button">⭐ Grant Bonus (350g)</button>
 <p class="small muted">+3 bonus to next check</p>
 </div>
 <div class="dndInfluenceOption">
-<button class="btn secondary small" id="dndInfluenceLuck" type="button">🍀 Lucky Event (40g)</button>
+<button class="btn secondary small" id="dndInfluenceLuck" type="button">🍀 Lucky Event (500g)</button>
 <p class="small muted">Increase chance of positive outcome</p>
 </div>
 </div>
@@ -678,6 +678,17 @@
       <option>Urchin</option>
     </select>
   </label>
+  <label>Age (18+)
+    <input id="dndCharAge" type="number" min="18" max="999" placeholder="18"/>
+  </label>
+</div>
+<div class="dndTraitsSection">
+  <label class="small muted" for="dndCharTraits">Character Traits</label>
+  <textarea id="dndCharTraits" maxlength="300" placeholder="Describe your character's traits, personality, and quirks..." rows="3"></textarea>
+</div>
+<div class="dndAbilitiesSection">
+  <label class="small muted" for="dndCharAbilities">Special Abilities</label>
+  <textarea id="dndCharAbilities" maxlength="300" placeholder="List any special abilities or powers your character has..." rows="3"></textarea>
 </div>
 <div class="dndAttributesGrid" id="dndAttributesGrid">
 <label>💪 Might <input type="number" id="attr_might" min="1" max="7" value="3"/></label>

@@ -186,7 +186,10 @@ async function createDndCharacter(params) {
     avatarUrl,
     race,
     gender,
+    age,
     background,
+    traits,
+    abilities,
     attributes,
     skills,
     perks,
@@ -198,12 +201,12 @@ async function createDndCharacter(params) {
   
   const result = await run(
     `INSERT INTO dnd_characters 
-     (session_id, user_id, display_name, avatar_url, race, gender, background,
+     (session_id, user_id, display_name, avatar_url, race, gender, age, background, traits, abilities,
       might, finesse, wit, instinct, presence, resolve, chaos,
       skills_json, perks_json, hp, max_hp, alive, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      sessionId, userId, displayName, avatarUrl, race, gender, background,
+      sessionId, userId, displayName, avatarUrl, race, gender, age, background, traits, abilities,
       attributes.might, attributes.finesse, attributes.wit,
       attributes.instinct, attributes.presence, attributes.resolve, attributes.chaos,
       JSON.stringify(skills), JSON.stringify(perks),

@@ -11282,6 +11282,19 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
     const race = normalizeMeta(req.body?.race, 32);
     const gender = normalizeMeta(req.body?.gender, 32);
     const background = normalizeMeta(req.body?.background, 40);
+    
+    // Validate and sanitize age (18+)
+    let age = null;
+    if (req.body?.age != null) {
+      age = Number(req.body.age);
+      if (isNaN(age) || age < 18 || age > 999) {
+        return res.status(400).json({ message: "Age must be between 18 and 999" });
+      }
+    }
+    
+    // Sanitize traits and abilities
+    const traits = normalizeMeta(req.body?.traits, 300);
+    const abilities = normalizeMeta(req.body?.abilities, 300);
 
     // Validate attributes
     const attributes = req.body?.attributes || {};
@@ -11323,7 +11336,10 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
         display_name: displayName,
         race,
         gender,
+        age,
         background,
+        traits,
+        abilities,
         attributes: finalAttributes,
         skills,
         perks,
@@ -11339,7 +11355,10 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
         avatarUrl: user.avatar || null,
         race,
         gender,
+        age,
         background,
+        traits,
+        abilities,
         attributes: finalAttributes,
         skills,
         perks,
@@ -11644,31 +11663,38 @@ app.post("/api/dnd-story/sessions/:id/end", dndLimiter, requireDndHost, express.
   }
 });
 
-// Spectator gold influence (buff/sabotage)
+// Spectator gold influence (heal/bonus/luck)
 app.post("/api/dnd-story/spectate/influence", dndLimiter, requireLogin, express.json({ limit: "8kb" }), async (req, res) => {
   try {
     const userId = Number(req.session?.user?.id);
     if (!userId) return res.status(401).send("Unauthorized");
 
-    const { sessionId, characterId, influenceType, goldAmount } = req.body;
+    const { session_id, influence_type, amount } = req.body;
 
-    if (sessionId == null || characterId == null || !influenceType) {
+    if (session_id == null || !influence_type || !amount) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const sessionIdNum = Number(sessionId);
-    const characterIdNum = Number(characterId);
+    const sessionIdNum = Number(session_id);
+    const goldAmount = Number(amount);
 
     if (!Number.isInteger(sessionIdNum) || sessionIdNum <= 0) {
       return res.status(400).json({ message: "Invalid sessionId" });
     }
-    if (!Number.isInteger(characterIdNum) || characterIdNum <= 0) {
-      return res.status(400).json({ message: "Invalid characterId" });
+    
+    if (!Number.isInteger(goldAmount) || goldAmount <= 0) {
+      return res.status(400).json({ message: "Invalid amount" });
     }
 
-    const allowedInfluences = ["buff", "sabotage"];
-    if (!allowedInfluences.includes(influenceType)) {
+    const allowedInfluences = ["heal", "bonus", "luck"];
+    if (!allowedInfluences.includes(influence_type)) {
       return res.status(400).json({ message: "Invalid influenceType" });
+    }
+    
+    // Validate gold amount matches expected costs
+    const expectedCosts = { heal: 500, bonus: 350, luck: 500 };
+    if (goldAmount !== expectedCosts[influence_type]) {
+      return res.status(400).json({ message: `Invalid amount for ${influence_type}. Expected ${expectedCosts[influence_type]} gold.` });
     }
 
     // Validate session exists and is active
@@ -11680,39 +11706,29 @@ app.post("/api/dnd-story/spectate/influence", dndLimiter, requireLogin, express.
       return res.status(400).json({ message: "Session is not active" });
     }
 
-    // Validate that the character belongs to this session (when character list is available)
-    if (!Array.isArray(session.characters)) {
-      return res.status(400).json({ message: "Character data unavailable for this session" });
-    }
-    const characterInSession = session.characters.some(c => Number(c?.id) === characterIdNum);
-    if (!characterInSession) {
-      return res.status(400).json({ message: "Character does not belong to this session" });
-    }
-
-    const amount = Math.floor(Math.max(10, Math.min(100, Number(goldAmount) || 10)));
-
     // Spend gold
-    const spendResult = await spendGold(userId, amount, `dnd_influence:${influenceType}`);
+    const spendResult = await spendGold(userId, goldAmount, `dnd_influence:${influence_type}`);
     if (!spendResult.ok) {
       return res.status(400).json({ message: spendResult.message });
     }
 
     // Apply influence effect (stored for next event resolution)
-    // For now, just broadcast to room
+    // Broadcast to room
     io.to(DND_ROOM_ID).emit("dnd:spectatorInfluence", {
       userId,
       username: req.session.user.username,
       sessionId: sessionIdNum,
-      characterId: characterIdNum,
-      influenceType,
-      amount
+      influenceType: influence_type,
+      amount: goldAmount
     });
 
-    const msg = influenceType === "buff"
-      ? `✨ ${req.session.user.username} blessed a hero with ${amount} gold!`
-      : `💀 ${req.session.user.username} sabotaged a hero with ${amount} gold!`;
+    const messages = {
+      heal: `💚 ${req.session.user.username} heals the party for ${goldAmount} gold!`,
+      bonus: `⭐ ${req.session.user.username} grants a bonus for ${goldAmount} gold!`,
+      luck: `🍀 ${req.session.user.username} brings luck for ${goldAmount} gold!`
+    };
 
-    emitRoomSystem(DND_ROOM_ID, msg, { kind: "dnd" });
+    emitRoomSystem(DND_ROOM_ID, messages[influence_type] || `✨ ${req.session.user.username} influenced the game!`, { kind: "dnd" });
     return res.json({ ok: true, gold: spendResult.gold });
   } catch (e) {
     console.warn("[dnd] spectator influence failed", e?.message || e);
