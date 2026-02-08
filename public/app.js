@@ -978,19 +978,20 @@ function isSurvivalRoom(activeRoom){
     : (activeRoom?.name ?? activeRoom?.id ?? "");
   return normalizeRoomKey(roomName) === SURVIVAL_ROOM_ID;
 }
+// Use centralized DnD room detection from dndRoomRegistry.js
+// Legacy function maintained for compatibility, delegates to DnDRoomRegistry
 function isDnDRoom(activeRoom){
-  if (!activeRoom) return false;
-  if (typeof activeRoom === "object") {
-    const directId = activeRoom?.id ?? activeRoom?.room_id ?? activeRoom?.roomId;
-    if (directId && String(directId).toUpperCase() === DND_ROOM_CODE) return true;
-    // Requirement: any room name containing "dnd" counts as a DnD-capable room.
-    const rawName = activeRoom?.name ?? activeRoom?.id ?? "";
-    return String(rawName).toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
+  if (!window.DnDRoomRegistry) {
+    console.error("[DnD] DnDRoomRegistry module not loaded - falling back to basic detection");
+    // Minimal fallback: check for R6 code
+    if (!activeRoom) return false;
+    if (typeof activeRoom === "object") {
+      const directId = activeRoom?.id ?? activeRoom?.room_id ?? activeRoom?.roomId;
+      if (directId && String(directId).toUpperCase() === "R6") return true;
+    }
+    return String(activeRoom || "").toUpperCase() === "R6";
   }
-  const rawName = String(activeRoom);
-  if (rawName.toUpperCase() === DND_ROOM_CODE) return true;
-  // Requirement: any room name containing "dnd" counts as a DnD-capable room.
-  return rawName.toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
+  return window.DnDRoomRegistry.isDnDRoom(activeRoom) || false;
 }
 function displayRoomName(room){
   if (isDiceRoom(room)) return "Dice Room";
@@ -2737,7 +2738,10 @@ let dndModalOpen = false;
 let dndModalTab = "characters";
 let dndUiListenersAttached = false;
 let dndUiEnabled = false;
+
 function enableDndUI() {
+  dndDebugLog("enableDndUI called", { alreadyEnabled: dndUiEnabled });
+  
   // Show the Adventure buttons (top bar + input bar) when in the DnD room
   if (dndNewOpenBtn) { // input bar
     dndNewOpenBtn.hidden = false;
@@ -2799,9 +2803,13 @@ function enableDndUI() {
   if (!dndUiEnabled) {
     dndUiEnabled = true;
     if (IS_DEV) console.log("[dnd] UI enabled");
+    dndDebugLog("UI enabled");
   }
 }
+
 function disableDndUI() {
+  dndDebugLog("disableDndUI called", { wasEnabled: dndUiEnabled });
+  
   // Hide the Adventure buttons (top bar + input bar) when leaving DnD room
   if (dndNewOpenBtn) {
     dndNewOpenBtn.hidden = true;
@@ -2815,10 +2823,11 @@ function disableDndUI() {
     dndComposerBtn.hidden = true;
     dndComposerBtn.setAttribute("aria-hidden", "true");
   }
-  if (dndModalOpen) closeDndModal();
+  // Note: Modal closing is now handled in room change logic
   if (dndUiEnabled) {
     dndUiEnabled = false;
     if (IS_DEV) console.log("[dnd] UI disabled");
+    dndDebugLog("UI disabled");
   }
 }
 
@@ -4829,6 +4838,14 @@ async function loadOlderSurvivalLog() {
 
 const DND_MODAL_ANIM_MS = 120;
 const DND_MODAL_TRIGGER_BUTTON = "button";
+const DND_MODAL_TRIGGER_COMMAND = "command";
+
+// Helper function to log DnD debug messages
+function dndDebugLog(message, data = {}) {
+  if (window.__DND_DEBUG__) {
+    console.log(`[DnD] ${message}`, data);
+  }
+}
 
 function setDndModalTab(tab){
   const validTabs = ["characters", "events", "worldstate", "lobby", "spectate", "controls"];
@@ -4847,29 +4864,27 @@ function setDndModalTab(tab){
   });
 }
 
+// New openDnDModal - no role/permission checks, only room validation
 function openDnDModal(triggerSource = "button"){
-  const inDndRoom = isDnDRoom(currentRoom);
-  const hasPermission = roleRank(me?.role || "Guest") >= roleRank("User");
-  if (!inDndRoom) {
-    const message = "DnD is only available in DnD rooms.";
-    console.warn("[dnd] open denied - invalid room", { triggerSource, room: currentRoom });
-    if (triggerSource === "command") showCommandPopup("Command error", message);
-    else toast(message);
+  const room = currentRoom;
+  
+  dndDebugLog("modal open attempt", { source: triggerSource, room: room });
+
+  // Only check if we're in a DnD room
+  if (!isDnDRoom(room)) {
+    console.warn("[DnD] modal blocked — not a DnD room", room);
+    dndDebugLog("modal blocked — not a DnD room", { room });
     return false;
   }
-  if (!hasPermission) {
-    const message = "You do not have permission to open the DnD panel.";
-    console.warn("[dnd] open denied - insufficient role", { triggerSource, role: me?.role });
-    if (triggerSource === "command") showCommandPopup("Command error", message);
-    else toast(message);
-    return false;
-  }
+
+  // Check if modal element exists
   if (!dndModal) {
-    console.warn("[dnd] open denied - modal missing", { triggerSource });
-    if (triggerSource === "command") showCommandPopup("Command error", "DnD panel unavailable.");
-    else toast("DnD panel unavailable.");
+    console.error("[DnD] dndModal element missing");
+    dndDebugLog("modal blocked — element missing", {});
     return false;
   }
+
+  // Close other modals
   closeMemberMenu();
   closeMembersAdminMenu();
   closeChessModal?.();
@@ -4880,26 +4895,70 @@ function openDnDModal(triggerSource = "button"){
   if (typeof closeChangelogPanel === "function") closeChangelogPanel();
   closeMediaMenu();
   if (typeof closeChallengesPanel === "function") closeChallengesPanel();
+
+  // Open modal
   dndModalOpen = true;
   dndModal.hidden = false;
   dndModal.style.display = "flex";
   dndModal.classList.remove("modal-closing");
   lockBodyScroll(true);
+  
   setDndModalTab(dndModalTab || "characters");
+  
+  // Initialize modal with current permissions
+  initDnDModal();
+  
   renderDndPanel();
+  
+  // Add visibility class with animation
   if (PREFERS_REDUCED_MOTION) {
     dndModal.classList.add("modal-visible");
   } else {
     requestAnimationFrame(() => dndModal.classList.add("modal-visible"));
   }
+
+  window.dndUIActive = true;
+  console.info("[DnD] modal opened via", triggerSource);
+  dndDebugLog("modal opened", { source: triggerSource });
+  
   return true;
 }
+
+// Initialize DnD modal UI based on permissions
+function initDnDModal() {
+  const canHost = dndCanHostSession();
+  const hasSession = !!window.dndState?.session;
+
+  dndDebugLog("initDnDModal", { canHost, hasSession });
+
+  // Show/hide host-only controls
+  document
+    .querySelectorAll("[data-dnd-host-only]")
+    .forEach(el => el.hidden = !canHost);
+
+  // Show/hide session-only controls
+  document
+    .querySelectorAll("[data-dnd-session-only]")
+    .forEach(el => el.hidden = !hasSession);
+}
+
+function dndCanHostSession() {
+  // Check if user has permission to host sessions
+  // Must match server-side requireDndHost, which requires at least "Moderator"
+  const userRole = me?.role || "Guest";
+  return roleRank(userRole) >= roleRank("Moderator");
+}
+
 
 function closeDndModal(){
   if (!dndModal) return;
   dndModalOpen = false;
   dndModal.classList.remove("modal-visible");
   closeDndCharacterPanel();
+  
+  // Clean up UI active state
+  window.dndUIActive = false;
+  
   if (PREFERS_REDUCED_MOTION) {
     dndModal.style.display = "none";
     dndModal.classList.remove("modal-closing");
@@ -4953,6 +5012,11 @@ function renderDndPanel() {
   
   // Update controls
   updateDndControls();
+  
+  // Update permission-based UI visibility (in case session state changed)
+  if (dndModalOpen) {
+    initDnDModal();
+  }
   
   const inDndRoom = isDnDRoom(currentRoom);
   if (inDndRoom) {
@@ -5215,10 +5279,6 @@ function renderDndControls() {
       dndInfoCreated.textContent = "—";
     }
   }
-}
-
-function dndCanHostSession() {
-  return roleRank(me?.role || "User") >= roleRank("Moderator");
 }
 
 function updateDndControls() {
@@ -7875,7 +7935,7 @@ function handleCommandResponse(payload){
   if(commandPopupDismissed) commandPopupDismissed=false;
   if(payload?.type === "dnd") {
     if (payload?.ok) {
-      openDnDModal("command");
+      openDnDModal(DND_MODAL_TRIGGER_COMMAND);
       return;
     }
     showCommandPopup("Command error", escapeHtml(payload?.message || "Adventure command failed."));
@@ -14696,6 +14756,9 @@ function setActiveRoom(room){
   const nowDiceRoom = isDiceRoom(room);
   const nowSurvivalRoom = isSurvivalRoom(room);
   const nowDndRoom = isDnDRoom(room);
+  
+  dndDebugLog("room change", { from: wasDiceRoom || wasSurvivalRoom ? "game room" : "normal", to: room, isDnD: nowDndRoom });
+  
   document.body.classList.toggle("dice-room", nowDiceRoom);
   document.body.classList.toggle("survival-room", nowSurvivalRoom);
   nowRoom.textContent = displayRoomName(room);
@@ -14707,17 +14770,21 @@ function setActiveRoom(room){
   if (diceVariantWrap) diceVariantWrap.style.display = nowDiceRoom ? "" : "none";
   if (luckMeter) luckMeter.style.display = nowDiceRoom ? "" : "none";
   if (survivalOpenBtn) survivalOpenBtn.hidden = !nowSurvivalRoom;
+  
+  // DnD UI management - only enable/disable, don't close modal
   if (nowDndRoom) {
     enableDndUI();
   } else {
     disableDndUI();
+    // Close modal when leaving DnD room
+    if (dndModalOpen) {
+      closeDndModal();
+    }
   }
+  
   if (!nowSurvivalRoom) {
     closeSurvivalModal();
     closeSurvivalNewSeasonModal();
-  }
-  if (!nowDndRoom) {
-    closeDndModal();
   }
   // If a modal is open that is built around room/profile context, close it when switching rooms.
   try {

@@ -592,14 +592,14 @@
 <section class="dndModalSection" data-dnd-view="controls" hidden>
 <h3>Session Controls</h3>
 <div class="dndPanelControls">
-<div class="dndPanelGroup">
+<div class="dndPanelGroup" data-dnd-host-only>
 <h4>Session Management</h4>
 <button class="btn secondary" id="dndNewSessionBtn" type="button">🎲 New Session</button>
 <button class="btn secondary" id="dndStartSessionBtn" type="button">▶️ Start Session</button>
 <button class="btn secondary" id="dndAdvanceBtn" type="button">⏭️ Advance Event</button>
 <button class="btn secondary" id="dndEndBtn" type="button">⏹️ End Session</button>
 </div>
-<div class="dndPanelGroup">
+<div class="dndPanelGroup" data-dnd-session-only>
 <h4>Session Information</h4>
 <div class="dndSessionInfo" id="dndSessionInfo">
 <div class="dndInfoItem"><span>Title:</span> <span id="dndInfoTitle">—</span></div>
@@ -2567,6 +2567,7 @@
 <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script defer="" src="/dndRoomRegistry.js"></script>
 <script defer="" src="/app.js"></script>
 <div id="modalRoot">
 <!-- STAFF: Kick/Ban Appeals Panel -->
