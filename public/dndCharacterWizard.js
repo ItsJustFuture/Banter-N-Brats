@@ -115,6 +115,7 @@ function renderWizard() {
   `;
   
   // Attach event listeners after rendering
+  attachNavigationListeners();
   attachStepEventListeners();
 }
 
@@ -153,25 +154,46 @@ function renderNavigation() {
     <button 
       class="btn secondary wizard-back-btn" 
       ${isFirstStep ? 'disabled' : ''}
-      onclick="window.dndWizardBack()">
+      data-action="back">
       ← Back
     </button>
     ${!isLastStep ? `
       <button 
         class="btn primary wizard-next-btn" 
         ${!canProceed ? 'disabled' : ''}
-        onclick="window.dndWizardNext()">
+        data-action="next">
         Next →
       </button>
     ` : `
       <button 
         class="btn primary wizard-create-btn" 
         ${!canProceed ? 'disabled' : ''}
-        onclick="window.dndWizardCreate()">
+        data-action="create">
         Create Character
       </button>
     `}
   `;
+}
+
+/**
+ * Attach navigation event listeners
+ */
+function attachNavigationListeners() {
+  const backBtn = document.querySelector('.wizard-back-btn');
+  const nextBtn = document.querySelector('.wizard-next-btn');
+  const createBtn = document.querySelector('.wizard-create-btn');
+  
+  if (backBtn && !backBtn.disabled) {
+    backBtn.addEventListener('click', wizardBack);
+  }
+  
+  if (nextBtn && !nextBtn.disabled) {
+    nextBtn.addEventListener('click', wizardNext);
+  }
+  
+  if (createBtn && !createBtn.disabled) {
+    createBtn.addEventListener('click', wizardCreate);
+  }
 }
 
 /**
