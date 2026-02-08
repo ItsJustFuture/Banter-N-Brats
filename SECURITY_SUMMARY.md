@@ -1,11 +1,11 @@
 # Security Summary - DnD Modal Enhancements
 
-## Security Review Completed: ✅ PASS
+## Security Review Summary (manual review + tooling)
 
 **Date**: 2026-02-08
 **Scope**: DnD modal button functionality and visual enhancements
 **Tools Used**: CodeQL, Manual Code Review
-**Result**: 0 security vulnerabilities found
+**Result (at time of review)**: No security vulnerabilities were identified within the scoped changes. See the security CI pipeline for the latest automated scan results.
 
 ## Changes Reviewed
 
