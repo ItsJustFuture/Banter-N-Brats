@@ -908,7 +908,8 @@ function attachPerkListeners() {
     
     if (card) {
       card.addEventListener('click', (e) => {
-        if (e.target !== checkbox && !e.target.closest('input')) {
+        if (e.target !== checkbox && e.target.tagName !== 'LABEL') {
+          checkbox.checked = !checkbox.checked;
           checkbox.dispatchEvent(new Event('change'));
         }
       });
