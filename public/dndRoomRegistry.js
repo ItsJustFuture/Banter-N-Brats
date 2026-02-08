@@ -1,8 +1,8 @@
 /**
  * dndRoomRegistry.js
  * 
- * Single source of truth for DnD room detection.
- * All DnD room checks across the codebase must use this module.
+ * Client-side single source of truth for DnD room detection.
+ * All client-side DnD room checks must use this module.
  */
 
 (function(global) {
@@ -21,6 +21,7 @@
   const VALID_DND_NAMES = [
     "dnd",
     "dndstoryroom",
+    "dndstory",
     "justdnd"
   ];
 

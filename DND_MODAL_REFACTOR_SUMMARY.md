@@ -58,12 +58,12 @@ if (!isDnDRoom(room)) {
 
 ### 3. Permission-Based UI Visibility (`initDnDModal()`)
 Permissions now control what users see INSIDE the modal:
-- `data-dnd-host-only`: Session management controls (Users and above)
+- `data-dnd-host-only`: Session management controls (Moderators and above)
 - `data-dnd-session-only`: Session information (when session exists)
 
 ```javascript
 function initDnDModal() {
-  const canHost = dndCanHostSession();  // User role and above
+  const canHost = dndCanHostSession();  // Moderator role and above
   const hasSession = !!window.dndState?.session;
 
   // Show/hide based on permissions
@@ -144,7 +144,8 @@ All tests passing:
 
 ### ✅ Permission-Based UI
 - **Guests**: Can open modal, see characters, events, spectate tab
-- **Users+**: Can open modal, see all tabs including session controls
+- **Users**: Can open modal, see all tabs but cannot host sessions
+- **Moderators+**: Can open modal, see all tabs including session controls
 - **All users**: Session information only visible when session exists
 
 ### ✅ Room Changes

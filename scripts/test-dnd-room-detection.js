@@ -15,7 +15,7 @@ function normalizeRoomName(name = "") {
 }
 
 // Valid DnD room names - MUST match dndRoomRegistry.js!
-const VALID_NAMES = ["dnd", "dndstoryroom", "justdnd"];
+const VALID_NAMES = ["dnd", "dndstoryroom", "dndstory", "justdnd"];
 
 // isDnDRoom function (copied from dndRoomRegistry.js)
 function isDnDRoom(room) {
@@ -58,10 +58,13 @@ const testCases = [
   { input: "dnd", expected: true, desc: "Room name 'dnd'" },
   { input: "DnD", expected: true, desc: "Room name 'DnD' (mixed case)" },
   { input: "dndstoryroom", expected: true, desc: "Legacy room name 'dndstoryroom'" },
+  { input: "dndstory", expected: true, desc: "Legacy room name 'dndstory'" },
   { input: "DnD Story Room", expected: true, desc: "Room name 'DnD Story Room' (with spaces)" },
+  { input: "DnD Story", expected: true, desc: "Room name 'DnD Story' (with spaces)" },
   { input: "justdnd", expected: true, desc: "Room name 'justdnd'" },
   { input: { id: "R6" }, expected: true, desc: "Room object with id 'R6'" },
   { input: { name: "dnd" }, expected: true, desc: "Room object with name 'dnd'" },
+  { input: { name: "dndstory" }, expected: true, desc: "Room object with name 'dndstory'" },
   { input: { roomId: "R6" }, expected: true, desc: "Room object with roomId 'R6'" },
   { input: { meta: { type: "dnd" } }, expected: true, desc: "Room object with meta.type 'dnd'" },
   { input: { id: "R6", name: "DnD Story Room" }, expected: true, desc: "Room object with both id and name" },

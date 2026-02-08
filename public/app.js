@@ -981,7 +981,17 @@ function isSurvivalRoom(activeRoom){
 // Use centralized DnD room detection from dndRoomRegistry.js
 // Legacy function maintained for compatibility, delegates to DnDRoomRegistry
 function isDnDRoom(activeRoom){
-  return window.DnDRoomRegistry?.isDnDRoom(activeRoom) || false;
+  if (!window.DnDRoomRegistry) {
+    console.error("[DnD] DnDRoomRegistry module not loaded - falling back to basic detection");
+    // Minimal fallback: check for R6 code
+    if (!activeRoom) return false;
+    if (typeof activeRoom === "object") {
+      const directId = activeRoom?.id ?? activeRoom?.room_id ?? activeRoom?.roomId;
+      if (directId && String(directId).toUpperCase() === "R6") return true;
+    }
+    return String(activeRoom || "").toUpperCase() === "R6";
+  }
+  return window.DnDRoomRegistry.isDnDRoom(activeRoom) || false;
 }
 function displayRoomName(room){
   if (isDiceRoom(room)) return "Dice Room";
@@ -4934,8 +4944,9 @@ function initDnDModal() {
 
 function dndCanHostSession() {
   // Check if user has permission to host sessions
+  // Must match server-side requireDndHost, which requires at least "Moderator"
   const userRole = me?.role || "Guest";
-  return roleRank(userRole) >= roleRank("User");
+  return roleRank(userRole) >= roleRank("Moderator");
 }
 
 
@@ -5001,6 +5012,11 @@ function renderDndPanel() {
   
   // Update controls
   updateDndControls();
+  
+  // Update permission-based UI visibility (in case session state changed)
+  if (dndModalOpen) {
+    initDnDModal();
+  }
   
   const inDndRoom = isDnDRoom(currentRoom);
   if (inDndRoom) {

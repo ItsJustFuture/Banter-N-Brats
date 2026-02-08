@@ -1,7 +1,7 @@
 // Service Worker for Banter & Brats PWA
 // Provides offline support and asset caching
 
-const CACHE_VERSION = 'banter-brats-v2';
+const CACHE_VERSION = 'banter-brats-v3';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 
@@ -9,6 +9,7 @@ const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const STATIC_ASSETS = [
   '/',
   '/app.js',
+  '/dndRoomRegistry.js',
   '/theme-init.js',
   '/styles.css',
   '/manifest.json',

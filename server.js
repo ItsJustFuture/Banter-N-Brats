@@ -67,7 +67,7 @@ const DND_SESSION_COOLDOWN_MS = 2 * 60 * 1000;
 const DND_ADVANCE_COOLDOWN_MS = 2000;
 
 // Valid DnD room names (normalized - used in isDnDRoom)
-const VALID_DND_ROOM_NAMES = ["dnd", "dndstoryroom", "justdnd"];
+const VALID_DND_ROOM_NAMES = ["dnd", "dndstoryroom", "dndstory", "justdnd"];
 
 // Tic Tac Toe (room-scoped, in-memory)
 const TICTACTOE_GAMES = new Map(); // room -> game state
