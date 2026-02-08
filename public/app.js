@@ -5261,10 +5261,6 @@ function renderDndControls() {
   }
 }
 
-function dndCanHostSession() {
-  return roleRank(me?.role || "User") >= roleRank("Moderator");
-}
-
 function updateDndControls() {
   const session = dndState.session;
   const isActive = session && session.status === "active";
