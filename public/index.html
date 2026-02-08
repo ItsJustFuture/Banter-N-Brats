@@ -626,7 +626,7 @@
 </section>
 </div>
 </div>
-<!-- Character Creation Panel (Overlay) -->
+<!-- Character Creation Panel (Overlay) - Wizard Version -->
 <div class="dndCharacterPanel" hidden id="dndCharacterPanel">
 <div class="dndPanelHeader">
 <div class="dndPanelTitle">
@@ -635,82 +635,8 @@
 </div>
 </div>
 <div class="dndCharacterForm">
-<div class="dndCharacterBasics">
-  <label>Character Name
-    <input id="dndCharName" maxlength="40" placeholder="Your hero" type="text"/>
-  </label>
-  <label>Race
-    <select id="dndCharRace">
-      <option value="">Select race...</option>
-      <option>Human</option>
-      <option>Elf</option>
-      <option>Dwarf</option>
-      <option>Halfling</option>
-      <option>Orc</option>
-      <option>Dragonborn</option>
-      <option>Tiefling</option>
-      <option>Gnome</option>
-    </select>
-  </label>
-  <label>Gender
-    <select id="dndCharGender">
-      <option value="">Select gender...</option>
-      <option>Female</option>
-      <option>Male</option>
-      <option>Non-binary</option>
-      <option>Agender</option>
-      <option>Other</option>
-      <option>Prefer not to say</option>
-    </select>
-  </label>
-  <label>Background
-    <select id="dndCharBackground">
-      <option value="">Select background...</option>
-      <option>Acolyte</option>
-      <option>Charlatan</option>
-      <option>Criminal</option>
-      <option>Entertainer</option>
-      <option>Folk Hero</option>
-      <option>Noble</option>
-      <option>Outlander</option>
-      <option>Sage</option>
-      <option>Soldier</option>
-      <option>Urchin</option>
-    </select>
-  </label>
-  <label>Age (18+)
-    <input id="dndCharAge" type="number" min="18" max="999" placeholder="18"/>
-  </label>
-</div>
-<div class="dndTraitsSection">
-  <label class="small muted" for="dndCharTraits">Character Traits</label>
-  <textarea id="dndCharTraits" maxlength="300" placeholder="Describe your character's traits, personality, and quirks..." rows="3"></textarea>
-</div>
-<div class="dndAbilitiesSection">
-  <label class="small muted" for="dndCharAbilities">Special Abilities</label>
-  <textarea id="dndCharAbilities" maxlength="300" placeholder="List any special abilities or powers your character has..." rows="3"></textarea>
-</div>
-<div class="dndAttributesGrid" id="dndAttributesGrid">
-<label>💪 Might <input type="number" id="attr_might" min="1" max="7" value="3"/></label>
-<label>🎯 Finesse <input type="number" id="attr_finesse" min="1" max="7" value="3"/></label>
-<label>🧠 Wit <input type="number" id="attr_wit" min="1" max="7" value="3"/></label>
-<label>👁️ Instinct <input type="number" id="attr_instinct" min="1" max="7" value="3"/></label>
-<label>✨ Presence <input type="number" id="attr_presence" min="1" max="7" value="3"/></label>
-<label>🛡️ Resolve <input type="number" id="attr_resolve" min="1" max="7" value="3"/></label>
-<label>🎲 Chaos <input type="number" id="attr_chaos" min="1" max="7" value="3"/></label>
-</div>
-<div class="small muted" id="dndPointsRemaining">Points: 28 / 28</div>
-<div class="dndSkillsSection">
-<label class="small muted">Select 3-6 Skills</label>
-<div class="dndSkillsList" id="dndSkillsList"></div>
-</div>
-<div class="dndPerksSection">
-<label class="small muted">Select up to 3 Perks</label>
-<div class="dndPerksList" id="dndPerksList"></div>
-</div>
-<div class="modalActions">
-<button class="btn" id="dndSaveCharBtn" type="button">Save Character</button>
-</div>
+<!-- Wizard Container -->
+<div id="dndCharacterWizardContainer"></div>
 <div class="small muted" id="dndCharMsg"></div>
 </div>
 </div>
@@ -2579,6 +2505,8 @@
 <script src="https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <script defer="" src="/dndRoomRegistry.js"></script>
+<script type="module" src="/dndCharacterWizardData.js"></script>
+<script type="module" src="/dndCharacterWizard.js"></script>
 <script defer="" src="/app.js"></script>
 <div id="modalRoot">
 <!-- STAFF: Kick/Ban Appeals Panel -->

@@ -13348,3 +13348,863 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 .points-exceeded {
   color: var(--error-color, #ef4444) !important;
 }
+
+/* ============================================ */
+/* DnD Character Creation Wizard Styles */
+/* ============================================ */
+
+/* Wizard Container */
+#dndCharacterWizardContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 80vh;
+  gap: 16px;
+}
+
+/* Progress Indicator */
+.wizard-progress {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px;
+  background: var(--card-bg, #1a1a1a);
+  border-radius: 8px;
+  gap: 8px;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.wizard-progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 80px;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.wizard-progress-step.active,
+.wizard-progress-step.completed {
+  opacity: 1;
+}
+
+.wizard-progress-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--border-color, #444);
+  color: var(--text-muted, #888);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.wizard-progress-step.active .wizard-progress-circle {
+  background: var(--primary-color, #00ff64);
+  color: #000;
+  box-shadow: 0 0 12px rgba(0, 255, 100, 0.5);
+  transform: scale(1.1);
+}
+
+.wizard-progress-step.completed .wizard-progress-circle {
+  background: var(--success-color, #10b981);
+  color: #fff;
+}
+
+.wizard-progress-label {
+  font-size: 11px;
+  text-align: center;
+  color: var(--text-muted, #888);
+  line-height: 1.2;
+}
+
+.wizard-progress-step.active .wizard-progress-label {
+  color: var(--primary-color, #00ff64);
+  font-weight: 600;
+}
+
+/* Wizard Content */
+.wizard-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.wizard-step-title {
+  margin: 0;
+  padding: 0 16px;
+  font-size: 1.5em;
+  color: var(--text-color, #fff);
+}
+
+.wizard-step-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px;
+  min-height: 0;
+}
+
+.wizard-step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.wizard-step-content.scrollable {
+  max-height: 100%;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* Custom scrollbar for wizard content */
+.wizard-step-content.scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.wizard-step-content.scrollable::-webkit-scrollbar-track {
+  background: var(--input-bg, #1a1a1a);
+  border-radius: 4px;
+}
+
+.wizard-step-content.scrollable::-webkit-scrollbar-thumb {
+  background: var(--border-color, #444);
+  border-radius: 4px;
+}
+
+.wizard-step-content.scrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color, #00ff64);
+}
+
+/* Wizard Navigation */
+.wizard-navigation {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  background: var(--card-bg, #1a1a1a);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.wizard-back-btn,
+.wizard-next-btn,
+.wizard-create-btn {
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.wizard-back-btn {
+  background: var(--secondary-bg, #333);
+  color: var(--text-color, #fff);
+  border: 1px solid var(--border-color, #444);
+}
+
+.wizard-back-btn:hover:not(:disabled) {
+  background: var(--border-color, #444);
+}
+
+.wizard-next-btn,
+.wizard-create-btn {
+  background: var(--primary-color, #00ff64);
+  color: #000;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 255, 100, 0.3);
+}
+
+.wizard-next-btn:hover:not(:disabled),
+.wizard-create-btn:hover:not(:disabled) {
+  background: #00dd56;
+  box-shadow: 0 4px 12px rgba(0, 255, 100, 0.5);
+  transform: translateY(-1px);
+}
+
+.wizard-navigation button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Form Elements */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: var(--text-color, #fff);
+  font-size: 14px;
+}
+
+.form-control {
+  padding: 10px 12px;
+  background: var(--input-bg, #1a1a1a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 6px;
+  color: var(--text-color, #fff);
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary-color, #00ff64);
+  box-shadow: 0 0 0 2px rgba(0, 255, 100, 0.1);
+}
+
+.form-hint {
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  margin: 0;
+}
+
+/* Attributes Grid */
+.attributes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.attribute-card {
+  background: var(--card-bg, #2a2a2a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.attribute-card:hover {
+  border-color: var(--primary-color, #00ff64);
+  box-shadow: 0 0 8px rgba(0, 255, 100, 0.2);
+}
+
+.attribute-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.attribute-emoji {
+  font-size: 20px;
+}
+
+.attribute-description {
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  margin: 0 0 12px 0;
+}
+
+.attribute-control {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.attribute-slider {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--input-bg, #1a1a1a);
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.attribute-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary-color, #00ff64);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.attribute-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.attribute-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary-color, #00ff64);
+  cursor: pointer;
+  border: none;
+}
+
+.attribute-value {
+  width: 60px;
+  padding: 6px;
+  background: var(--input-bg, #1a1a1a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 4px;
+  color: var(--text-color, #fff);
+  text-align: center;
+  font-weight: 600;
+}
+
+.attribute-points-display {
+  padding: 16px;
+  background: var(--card-bg, #2a2a2a);
+  border: 2px solid var(--border-color, #444);
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.attribute-points-display.valid {
+  border-color: var(--success-color, #10b981);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.attribute-points-display.exceeded {
+  border-color: var(--error-color, #ef4444);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Skills Grid */
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.skill-card {
+  background: var(--card-bg, #2a2a2a);
+  border: 2px solid var(--border-color, #444);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.skill-card:hover {
+  border-color: var(--primary-color, #00ff64);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 100, 0.2);
+}
+
+.skill-card.selected {
+  border-color: var(--primary-color, #00ff64);
+  background: rgba(0, 255, 100, 0.1);
+}
+
+.skill-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.skill-header input[type="checkbox"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+.skill-header label {
+  cursor: pointer;
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+}
+
+.skill-description {
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  margin: 0;
+  padding-left: 26px;
+}
+
+/* Traits and Quirks */
+.traits-rule-explanation {
+  padding: 16px;
+  background: rgba(255, 165, 0, 0.1);
+  border: 2px solid #ffa500;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.traits-rule-explanation strong {
+  color: #ffa500;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.traits-rule-explanation p {
+  margin: 4px 0;
+  font-size: 13px;
+  color: var(--text-color, #fff);
+}
+
+.traits-section,
+.quirks-section {
+  margin-bottom: 24px;
+}
+
+.traits-section h3,
+.quirks-section h3 {
+  margin: 0 0 12px 0;
+  color: var(--text-color, #fff);
+}
+
+.traits-grid,
+.quirks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.quirks-grid.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.trait-card,
+.quirk-card {
+  background: var(--card-bg, #2a2a2a);
+  border: 2px solid var(--border-color, #444);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.trait-card:hover,
+.quirk-card:hover {
+  border-color: var(--primary-color, #00ff64);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 100, 0.2);
+}
+
+.trait-card.selected {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.quirk-card.selected {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.quirk-card.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.trait-header,
+.quirk-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.trait-header input[type="checkbox"],
+.quirk-header input[type="checkbox"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+.trait-header label,
+.quirk-header label {
+  cursor: pointer;
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+}
+
+.trait-description,
+.quirk-description {
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  margin: 0;
+  padding-left: 26px;
+}
+
+/* Abilities Grid */
+.abilities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.ability-card {
+  background: var(--card-bg, #2a2a2a);
+  border: 2px solid var(--border-color, #444);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ability-card:hover:not(.disabled) {
+  border-color: var(--primary-color, #00ff64);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 100, 0.2);
+}
+
+.ability-card.selected {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.ability-card.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ability-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ability-header input[type="checkbox"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+.ability-header label {
+  cursor: pointer;
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+}
+
+.ability-description {
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  margin: 0;
+  padding-left: 26px;
+}
+
+/* Perks Grid */
+.perks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.perk-card {
+  background: var(--card-bg, #2a2a2a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.perk-card:hover {
+  border-color: var(--primary-color, #00ff64);
+  box-shadow: 0 0 8px rgba(0, 255, 100, 0.2);
+}
+
+.perk-header {
+  margin-bottom: 8px;
+}
+
+.perk-header strong {
+  color: var(--text-color, #fff);
+  font-size: 14px;
+}
+
+.perk-description {
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  margin: 0 0 12px 0;
+}
+
+.perk-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.perk-control label {
+  font-size: 13px;
+  color: var(--text-color, #fff);
+}
+
+.perk-select {
+  flex: 1;
+  padding: 8px;
+  background: var(--input-bg, #1a1a1a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 4px;
+  color: var(--text-color, #fff);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.perk-select:focus {
+  outline: none;
+  border-color: var(--primary-color, #00ff64);
+}
+
+.perk-points-display {
+  padding: 16px;
+  background: var(--card-bg, #2a2a2a);
+  border: 2px solid var(--border-color, #444);
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.perk-points-display.valid {
+  border-color: var(--success-color, #10b981);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.perk-points-display.exceeded {
+  border-color: var(--error-color, #ef4444);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Buffs Grid */
+.buffs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.buff-card {
+  background: var(--card-bg, #2a2a2a);
+  border: 2px solid var(--border-color, #444);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.buff-card:hover {
+  border-color: #f59e0b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+}
+
+.buff-card.selected {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.buff-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.buff-header input[type="checkbox"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+.buff-header label {
+  cursor: pointer;
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+}
+
+.buff-description {
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  margin: 0;
+  padding-left: 26px;
+}
+
+.buff-warning {
+  padding: 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 2px solid #ef4444;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.buff-warning strong {
+  color: #ef4444;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.buff-warning p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-color, #fff);
+}
+
+.buff-info {
+  padding: 16px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.buff-info strong {
+  color: #3b82f6;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.buff-info p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-color, #fff);
+}
+
+/* Review Step */
+.review-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.review-section h3 {
+  margin: 0 0 12px 0;
+  color: var(--text-color, #fff);
+}
+
+.review-card {
+  background: var(--card-bg, #2a2a2a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.review-card h4 {
+  margin: 0 0 12px 0;
+  color: var(--primary-color, #00ff64);
+  font-size: 16px;
+}
+
+.review-card p {
+  margin: 6px 0;
+  font-size: 14px;
+  color: var(--text-color, #fff);
+}
+
+.review-card ul {
+  margin: 8px 0;
+  padding-left: 20px;
+  list-style: disc;
+}
+
+.review-card li {
+  margin: 4px 0;
+  font-size: 14px;
+  color: var(--text-color, #fff);
+}
+
+.review-card.xp-modifier {
+  border: 2px solid var(--primary-color, #00ff64);
+  background: rgba(0, 255, 100, 0.05);
+}
+
+.review-card p.muted {
+  color: var(--text-muted, #888);
+  font-style: italic;
+}
+
+/* Selection Counter */
+.selection-counter {
+  padding: 12px;
+  background: var(--card-bg, #2a2a2a);
+  border-radius: 6px;
+  text-align: center;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.selection-counter strong {
+  color: var(--primary-color, #00ff64);
+}
+
+/* Utility Text Classes */
+.warning-text {
+  color: #ffa500;
+  font-weight: 600;
+}
+
+.error-text {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.success-text {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.info-text {
+  color: #3b82f6;
+  font-size: 13px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .wizard-progress {
+    padding: 12px;
+  }
+  
+  .wizard-progress-circle {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+  
+  .wizard-progress-label {
+    font-size: 10px;
+  }
+  
+  .attributes-grid,
+  .skills-grid,
+  .traits-grid,
+  .quirks-grid,
+  .abilities-grid,
+  .perks-grid,
+  .buffs-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .wizard-step-title {
+    font-size: 1.3em;
+  }
+}
+
+@media (max-width: 520px) {
+  .wizard-progress-step {
+    min-width: 60px;
+  }
+  
+  .wizard-progress-label {
+    font-size: 9px;
+  }
+  
+  .wizard-navigation {
+    flex-direction: column;
+  }
+  
+  .wizard-back-btn,
+  .wizard-next-btn,
+  .wizard-create-btn {
+    width: 100%;
+  }
+}
