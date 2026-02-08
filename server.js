@@ -66,6 +66,9 @@ const DND_ROOM_DB_ID = 2; // Will be created dynamically if needed
 const DND_SESSION_COOLDOWN_MS = 2 * 60 * 1000;
 const DND_ADVANCE_COOLDOWN_MS = 2000;
 
+// Valid DnD room names (normalized - used in isDnDRoom)
+const VALID_DND_ROOM_NAMES = ["dnd", "dndstoryroom", "justdnd"];
+
 // Tic Tac Toe (room-scoped, in-memory)
 const TICTACTOE_GAMES = new Map(); // room -> game state
 const TICTACTOE_DEFAULT_MODE = "classic";
@@ -126,8 +129,7 @@ function isDnDRoom(room) {
     // Check room name with normalized pattern
     const rawName = room?.name ?? room?.id ?? "";
     const normalized = String(rawName).toLowerCase().replace(/[^a-z0-9]/g, "");
-    const VALID_NAMES = ["dnd", "dndstoryroom", "justdnd"];
-    return VALID_NAMES.includes(normalized);
+    return VALID_DND_ROOM_NAMES.includes(normalized);
   }
   
   // Handle string
@@ -135,8 +137,7 @@ function isDnDRoom(room) {
   if (rawName.toUpperCase() === DND_ROOM_CODE) return true;
   
   const normalized = String(rawName).toLowerCase().replace(/[^a-z0-9]/g, "");
-  const VALID_NAMES = ["dnd", "dndstoryroom", "justdnd"];
-  return VALID_NAMES.includes(normalized);
+  return VALID_DND_ROOM_NAMES.includes(normalized);
 }
 
 const CHESS_DEFAULT_ELO = 1200;

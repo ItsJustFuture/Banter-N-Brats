@@ -4944,6 +4944,10 @@ function closeDndModal(){
   dndModalOpen = false;
   dndModal.classList.remove("modal-visible");
   closeDndCharacterPanel();
+  
+  // Clean up UI active state
+  window.dndUIActive = false;
+  
   if (PREFERS_REDUCED_MOTION) {
     dndModal.style.display = "none";
     dndModal.classList.remove("modal-closing");

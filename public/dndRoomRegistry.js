@@ -17,6 +17,13 @@
     return String(name).toLowerCase().replace(/[^a-z0-9]/g, "");
   }
 
+  // Valid DnD room names (normalized)
+  const VALID_DND_NAMES = [
+    "dnd",
+    "dndstoryroom",
+    "justdnd"
+  ];
+
   /**
    * Check if a room is a DnD room
    * @param {string|object} room - Room name string or room object
@@ -40,12 +47,7 @@
       // Check room name
       const rawName = room?.name ?? room?.id ?? "";
       const normalized = normalizeRoomName(rawName);
-      const VALID_NAMES = [
-        "dnd",
-        "dndstoryroom",
-        "justdnd"
-      ];
-      return VALID_NAMES.includes(normalized);
+      return VALID_DND_NAMES.includes(normalized);
     }
 
     // Handle string room names
@@ -56,13 +58,7 @@
 
     // Check normalized name
     const normalized = normalizeRoomName(rawName);
-    const VALID_NAMES = [
-      "dnd",
-      "dndstoryroom",
-      "justdnd"
-    ];
-
-    return VALID_NAMES.includes(normalized);
+    return VALID_DND_NAMES.includes(normalized);
   }
 
   // Expose to global scope
@@ -71,8 +67,8 @@
     isDnDRoom: isDnDRoom
   };
 
-  // Debug logging support
-  global.__DND_DEBUG__ = true;
+  // Debug logging support - defaults to false in production
+  global.__DND_DEBUG__ = false;
 
   function dndLog(...args) {
     if (global.__DND_DEBUG__) {
