@@ -5659,27 +5659,20 @@ async function saveDndCharacterFromWizard(wizardData) {
     const characterData = {
       sessionId: dndState.session.id,
       name: wizardData.name || me?.username || "",
-      // Map new attribute names to old ones
-      attributes: {
-        might: wizardData.attributes.strength || 8,
-        finesse: wizardData.attributes.dexterity || 8,
-        wit: wizardData.attributes.intelligence || 8,
-        instinct: wizardData.attributes.wisdom || 8,
-        presence: wizardData.attributes.charisma || 8,
-        resolve: wizardData.attributes.constitution || 8,
-        chaos: 3 // Default chaos value
-      },
+      // Attributes are now already in correct format (might, finesse, wit, instinct, presence, resolve, chaos)
+      attributes: wizardData.attributes,
+      // Skills are now server-compatible IDs (warrior, rogue, mage, etc.)
       skills: wizardData.skills || [],
-      // Convert new wizard data to compatible format
+      // Perks are now server-compatible IDs (critical_eye, iron_will, etc.)
+      perks: wizardData.perks || [],
+      // Convert traits/quirks and abilities to text format for server
       traits: formatTraitsForServer(wizardData.traits, wizardData.quirks),
       abilities: formatAbilitiesForServer(wizardData.abilities),
-      perks: wizardData.skills.slice(0, 3), // Use first 3 skills as perks for compatibility
-      // Store wizard-specific data
+      // Store wizard-specific data for future use
       wizardData: {
         originalTraits: wizardData.traits,
         originalQuirks: wizardData.quirks,
         originalAbilities: wizardData.abilities,
-        perkPoints: wizardData.perks,
         buffs: wizardData.buffs,
         xpModifier: wizardData.xpModifier
       }

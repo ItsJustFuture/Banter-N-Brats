@@ -718,7 +718,8 @@ function attachIdentityListeners() {
   if (nameInput) {
     nameInput.addEventListener('input', (e) => {
       wizardState.characterData.name = e.target.value.trim();
-      updateNavigation();
+      // Update only navigation buttons, not entire wizard
+      updateNavigationButtons();
     });
   }
   
@@ -731,9 +732,27 @@ function attachIdentityListeners() {
 }
 
 /**
+ * Update only navigation buttons without re-rendering entire wizard
+ */
+function updateNavigationButtons() {
+  const canProceed = validateCurrentStep();
+  const nextBtn = document.querySelector('.wizard-next-btn');
+  const createBtn = document.querySelector('.wizard-create-btn');
+  
+  if (nextBtn) {
+    nextBtn.disabled = !canProceed;
+  }
+  if (createBtn) {
+    createBtn.disabled = !canProceed;
+  }
+}
+
+/**
  * Attributes step listeners
  */
 function attachAttributeListeners() {
+  if (!Array.isArray(ATTRIBUTES)) return;
+  
   ATTRIBUTES.forEach(attr => {
     const slider = document.getElementById(`attr-${attr.id}`);
     const valueInput = document.getElementById(`attr-${attr.id}-value`);
@@ -764,6 +783,8 @@ function attachAttributeListeners() {
  * Skills step listeners
  */
 function attachSkillListeners() {
+  if (!Array.isArray(SKILLS)) return;
+  
   SKILLS.forEach(skill => {
     const checkbox = document.getElementById(`skill-${skill.id}`);
     const card = document.querySelector(`.skill-card[data-skill="${skill.id}"]`);
@@ -783,10 +804,19 @@ function attachSkillListeners() {
     
     if (card) {
       card.addEventListener('click', (e) => {
-        if (e.target !== checkbox && e.target.tagName !== 'LABEL') {
-          checkbox.checked = !checkbox.checked;
-          checkbox.dispatchEvent(new Event('change'));
+        // Avoid double-toggling when clicking on inputs or labels
+        if (!checkbox) return;
+        
+        const clickedInput = e.target.closest('input');
+        const clickedLabel = e.target.closest('label');
+        
+        if (clickedInput || clickedLabel) {
+          // Let native behavior handle checkbox/label clicks
+          return;
         }
+        
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
       });
     }
   });
@@ -797,6 +827,8 @@ function attachSkillListeners() {
  */
 function attachTraitListeners() {
   // Trait checkboxes
+  if (!Array.isArray(TRAITS)) return;
+  
   TRAITS.forEach(trait => {
     const checkbox = document.getElementById(`trait-${trait.id}`);
     const card = document.querySelector(`.trait-card[data-trait="${trait.id}"]`);
@@ -816,15 +848,26 @@ function attachTraitListeners() {
     
     if (card) {
       card.addEventListener('click', (e) => {
-        if (e.target !== checkbox && e.target.tagName !== 'LABEL') {
-          checkbox.checked = !checkbox.checked;
-          checkbox.dispatchEvent(new Event('change'));
+        // Avoid double-toggling when clicking on inputs or labels
+        if (!checkbox) return;
+        
+        const clickedInput = e.target.closest('input');
+        const clickedLabel = e.target.closest('label');
+        
+        if (clickedInput || clickedLabel) {
+          // Let native behavior handle checkbox/label clicks
+          return;
         }
+        
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
       });
     }
   });
   
   // Quirk checkboxes
+  if (!Array.isArray(QUIRKS)) return;
+  
   QUIRKS.forEach(quirk => {
     const checkbox = document.getElementById(`quirk-${quirk.id}`);
     const card = document.querySelector(`.quirk-card[data-quirk="${quirk.id}"]`);
@@ -844,10 +887,19 @@ function attachTraitListeners() {
     
     if (card && !card.classList.contains('disabled')) {
       card.addEventListener('click', (e) => {
-        if (e.target !== checkbox && e.target.tagName !== 'LABEL') {
-          checkbox.checked = !checkbox.checked;
-          checkbox.dispatchEvent(new Event('change'));
+        // Avoid double-toggling when clicking on inputs or labels
+        if (!checkbox) return;
+        
+        const clickedInput = e.target.closest('input');
+        const clickedLabel = e.target.closest('label');
+        
+        if (clickedInput || clickedLabel) {
+          // Let native behavior handle checkbox/label clicks
+          return;
         }
+        
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
       });
     }
   });
@@ -857,6 +909,8 @@ function attachTraitListeners() {
  * Abilities step listeners
  */
 function attachAbilityListeners() {
+  if (!Array.isArray(ABILITIES)) return;
+  
   ABILITIES.forEach(ability => {
     const checkbox = document.getElementById(`ability-${ability.id}`);
     const card = document.querySelector(`.ability-card[data-ability="${ability.id}"]`);
@@ -876,10 +930,19 @@ function attachAbilityListeners() {
     
     if (card && !card.classList.contains('disabled')) {
       card.addEventListener('click', (e) => {
-        if (e.target !== checkbox && e.target.tagName !== 'LABEL') {
-          checkbox.checked = !checkbox.checked;
-          checkbox.dispatchEvent(new Event('change'));
+        // Avoid double-toggling when clicking on inputs or labels
+        if (!checkbox) return;
+        
+        const clickedInput = e.target.closest('input');
+        const clickedLabel = e.target.closest('label');
+        
+        if (clickedInput || clickedLabel) {
+          // Let native behavior handle checkbox/label clicks
+          return;
         }
+        
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
       });
     }
   });
@@ -889,7 +952,9 @@ function attachAbilityListeners() {
  * Perks step listeners
  */
 function attachPerkListeners() {
-  (Array.isArray(PERK_CATEGORIES) ? PERK_CATEGORIES : []).forEach(perk => {
+  if (!Array.isArray(PERK_CATEGORIES)) return;
+  
+  PERK_CATEGORIES.forEach(perk => {
     const checkbox = document.getElementById(`perk-${perk.id}`);
     const card = document.querySelector(`.perk-card[data-perk="${perk.id}"]`);
     
@@ -908,10 +973,19 @@ function attachPerkListeners() {
     
     if (card) {
       card.addEventListener('click', (e) => {
-        if (e.target !== checkbox && e.target.tagName !== 'LABEL') {
-          checkbox.checked = !checkbox.checked;
-          checkbox.dispatchEvent(new Event('change'));
+        // Avoid double-toggling when clicking on inputs or labels
+        if (!checkbox) return;
+        
+        const clickedInput = e.target.closest('input');
+        const clickedLabel = e.target.closest('label');
+        
+        if (clickedInput || clickedLabel) {
+          // Let native behavior handle checkbox/label clicks
+          return;
         }
+        
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
       });
     }
   });
@@ -921,6 +995,8 @@ function attachPerkListeners() {
  * Buffs step listeners
  */
 function attachBuffListeners() {
+  if (!Array.isArray(BUFFS)) return;
+  
   BUFFS.forEach(buff => {
     const checkbox = document.getElementById(`buff-${buff.id}`);
     const card = document.querySelector(`.buff-card[data-buff="${buff.id}"]`);
@@ -946,10 +1022,19 @@ function attachBuffListeners() {
     
     if (card) {
       card.addEventListener('click', (e) => {
-        if (e.target !== checkbox && e.target.tagName !== 'LABEL') {
-          checkbox.checked = !checkbox.checked;
-          checkbox.dispatchEvent(new Event('change'));
+        // Avoid double-toggling when clicking on inputs or labels
+        if (!checkbox) return;
+        
+        const clickedInput = e.target.closest('input');
+        const clickedLabel = e.target.closest('label');
+        
+        if (clickedInput || clickedLabel) {
+          // Let native behavior handle checkbox/label clicks
+          return;
         }
+        
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
       });
     }
   });
@@ -978,7 +1063,7 @@ function validateCurrentStep() {
       const hasTraits = wizardState.characterData.traits.length > 0;
       const hasQuirks = wizardState.characterData.quirks.length > 0;
       
-      if (VALIDATION_RULES.TRAITS_REQUIRE_QUIRKS) {
+      if (VALIDATION_RULES?.TRAITS_REQUIRE_QUIRKS) {
         // If traits selected, must have quirks
         if (hasTraits && !hasQuirks) return false;
       }
