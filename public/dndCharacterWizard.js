@@ -1036,7 +1036,10 @@ export function resetWizard() {
   initCharacterWizard();
 }
 
-// Expose functions to window for button onclick handlers
+// Expose functions to window for button onclick handlers and app.js integration
 window.dndWizardNext = wizardNext;
 window.dndWizardBack = wizardBack;
 window.dndWizardCreate = wizardCreate;
+window.initCharacterWizard = initCharacterWizard;
+window.getWizardState = getWizardState;
+window.resetWizard = resetWizard;

@@ -5505,85 +5505,12 @@ function openDndCharacterCreator() {
   if (!dndCharacterPanel) return;
   dndCharacterPanel.hidden = false;
 
-  const existingChar = dndState.myCharacter;
-  if (dndCharName) dndCharName.value = existingChar?.display_name ?? me?.username ?? "";
-  if (dndCharRace) dndCharRace.value = existingChar?.race || "";
-  if (dndCharGender) dndCharGender.value = existingChar?.gender || "";
-  if (dndCharBackground) dndCharBackground.value = existingChar?.background || "";
-  
-  // Populate age field
-  const dndCharAge = document.getElementById('dndCharAge');
-  if (dndCharAge) dndCharAge.value = existingChar?.age || "";
-  
-  // Populate traits field
-  const dndCharTraits = document.getElementById('dndCharTraits');
-  if (dndCharTraits) dndCharTraits.value = existingChar?.traits || "";
-  
-  // Populate abilities field
-  const dndCharAbilities = document.getElementById('dndCharAbilities');
-  if (dndCharAbilities) dndCharAbilities.value = existingChar?.abilities || "";
-  
-  // Populate skills list
-  if (dndSkillsList) {
-    const skills = {
-      warrior: "Warrior (Might-based combat)",
-      brawler: "Brawler (Unarmed combat)",
-      rogue: "Rogue (Stealth & precision)",
-      ranger: "Ranger (Tracking & survival)",
-      mage: "Mage (Arcane magic)",
-      scholar: "Scholar (Knowledge)",
-      scout: "Scout (Awareness)",
-      hunter: "Hunter (Tracking prey)",
-      leader: "Leader (Command)",
-      diplomat: "Diplomat (Negotiation)",
-      cleric: "Cleric (Divine power)",
-      paladin: "Paladin (Holy warrior)",
-      wildcard: "Wildcard (Unpredictable)",
-      gambler: "Gambler (Risk-taker)",
-      spellblade: "Spellblade (Magic + combat)",
-      trickster: "Trickster (Deception)"
-    };
-    
-    dndSkillsList.innerHTML = Object.entries(skills).map(([id, name]) => `
-      <label>
-        <input type="checkbox" name="skill" value="${id}"/> ${escapeHtml(name)}
-      </label>
-    `).join("");
+  // Initialize the wizard
+  if (window.initCharacterWizard) {
+    window.initCharacterWizard();
+  } else {
+    console.error('[DnD] Character wizard not loaded');
   }
-  
-  // Populate perks list
-  if (dndPerksList) {
-    const perks = {
-      critical_eye: "Critical Eye (Crit on 19-20)",
-      lucky_dodge: "Lucky Dodge (Reroll failed defense)",
-      iron_will: "Iron Will (+2 Resolve)",
-      second_wind: "Second Wind (Heal 20 HP once)",
-      quick_reflexes: "Quick Reflexes (+2 Finesse)",
-      silver_tongue: "Silver Tongue (+2 Presence)",
-      intimidating: "Intimidating (Less targeted)",
-      fate_touched: "Fate Touched (+3 to one roll)",
-      chaos_magnet: "Chaos Magnet (Extreme outcomes)"
-    };
-    
-    dndPerksList.innerHTML = Object.entries(perks).map(([id, name]) => `
-      <label>
-        <input type="checkbox" name="perk" value="${id}"/> ${escapeHtml(name)}
-      </label>
-    `).join("");
-  }
-  
-  // Add attribute change listeners
-  const attrInputs = document.querySelectorAll('[id^="attr_"]');
-  attrInputs.forEach(input => {
-    // Guard to avoid attaching duplicate listeners if the creator is reopened
-    if (input._dndWired) {
-      return;
-    }
-    input.addEventListener('input', updateDndPointsRemaining);
-    input._dndWired = true;
-  });
-  
-  updateDndPointsRemaining();
 }
 
 function updateDndPointsRemaining() {
@@ -5713,6 +5640,119 @@ async function saveDndCharacter() {
     if (dndCharMsg) dndCharMsg.textContent = "Failed to save character";
   }
 }
+
+/**
+ * Save character from wizard data
+ * Called by the character creation wizard
+ */
+async function saveDndCharacterFromWizard(wizardData) {
+  try {
+    if (!dndState.session) {
+      alert("No active session");
+      return;
+    }
+    
+    const dndCharMsg = document.getElementById('dndCharMsg');
+    if (dndCharMsg) dndCharMsg.textContent = "Saving character...";
+    
+    // Map wizard data to server format
+    const characterData = {
+      sessionId: dndState.session.id,
+      name: wizardData.name || me?.username || "",
+      // Map new attribute names to old ones
+      attributes: {
+        might: wizardData.attributes.strength || 8,
+        finesse: wizardData.attributes.dexterity || 8,
+        wit: wizardData.attributes.intelligence || 8,
+        instinct: wizardData.attributes.wisdom || 8,
+        presence: wizardData.attributes.charisma || 8,
+        resolve: wizardData.attributes.constitution || 8,
+        chaos: 3 // Default chaos value
+      },
+      skills: wizardData.skills || [],
+      // Convert new wizard data to compatible format
+      traits: formatTraitsForServer(wizardData.traits, wizardData.quirks),
+      abilities: formatAbilitiesForServer(wizardData.abilities),
+      perks: wizardData.skills.slice(0, 3), // Use first 3 skills as perks for compatibility
+      // Store wizard-specific data
+      wizardData: {
+        originalTraits: wizardData.traits,
+        originalQuirks: wizardData.quirks,
+        originalAbilities: wizardData.abilities,
+        perkPoints: wizardData.perks,
+        buffs: wizardData.buffs,
+        xpModifier: wizardData.xpModifier
+      }
+    };
+    
+    const res = await fetch("/api/dnd-story/characters", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(characterData)
+    });
+    
+    if (!res.ok) {
+      const text = await res.text();
+      if (dndCharMsg) dndCharMsg.textContent = `Error: ${text}`;
+      return;
+    }
+    
+    const data = await res.json();
+    dndState.myCharacter = data.character;
+    
+    if (dndCharMsg) dndCharMsg.textContent = "Character created successfully!";
+    setTimeout(() => {
+      closeDndCharacterPanel();
+      if (dndCharMsg) dndCharMsg.textContent = "";
+    }, 1500);
+    
+    await loadDndCurrent();
+  } catch (e) {
+    console.warn("[dnd] Save character from wizard failed:", e);
+    const dndCharMsg = document.getElementById('dndCharMsg');
+    if (dndCharMsg) dndCharMsg.textContent = "Failed to save character";
+  }
+}
+
+/**
+ * Format traits and quirks for server compatibility
+ */
+function formatTraitsForServer(traits, quirks) {
+  const traitNames = traits.map(id => {
+    // Convert trait IDs to readable names
+    return id.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  });
+  
+  const quirkNames = quirks.map(id => {
+    // Convert quirk IDs to readable names
+    return id.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  });
+  
+  let result = '';
+  if (traitNames.length > 0) {
+    result += 'Traits: ' + traitNames.join(', ');
+  }
+  if (quirkNames.length > 0) {
+    if (result) result += '\n';
+    result += 'Quirks: ' + quirkNames.join(', ');
+  }
+  
+  return result;
+}
+
+/**
+ * Format abilities for server compatibility
+ */
+function formatAbilitiesForServer(abilities) {
+  return abilities.map(id => {
+    // Convert ability IDs to readable names
+    return id.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  }).join(', ');
+}
+
+// Expose the wizard save function globally
+window.saveDndCharacterFromWizard = saveDndCharacterFromWizard;
 
 function isHighRoll(variant, result){
   const threshold = DICE_LUCKY_THRESHOLDS[variant];
