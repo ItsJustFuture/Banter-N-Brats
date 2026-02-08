@@ -11284,9 +11284,12 @@ app.post("/api/dnd-story/characters", requireLogin, express.json({ limit: "16kb"
     const background = normalizeMeta(req.body?.background, 40);
     
     // Validate and sanitize age (18+)
-    const age = req.body?.age ? Number(req.body.age) : null;
-    if (age !== null && (isNaN(age) || age < 18 || age > 999)) {
-      return res.status(400).json({ message: "Age must be between 18 and 999" });
+    let age = null;
+    if (req.body?.age != null) {
+      age = Number(req.body.age);
+      if (isNaN(age) || age < 18 || age > 999) {
+        return res.status(400).json({ message: "Age must be between 18 and 999" });
+      }
     }
     
     // Sanitize traits and abilities

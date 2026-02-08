@@ -5619,10 +5619,13 @@ async function saveDndCharacter() {
     
     // Get age and validate
     const dndCharAge = document.getElementById('dndCharAge');
-    const age = parseInt(dndCharAge?.value) || null;
-    if (age !== null && age < 18) {
-      alert("Character age must be 18 or older");
-      return;
+    let age = null;
+    if (dndCharAge?.value && dndCharAge.value.trim() !== "") {
+      age = parseInt(dndCharAge.value);
+      if (isNaN(age) || age < 18 || age > 999) {
+        alert("Character age must be between 18 and 999");
+        return;
+      }
     }
     
     // Get traits and abilities
