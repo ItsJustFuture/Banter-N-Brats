@@ -14,12 +14,11 @@ import {
   XP_MODIFIER_DEFAULT,
   XP_MODIFIER_WITH_BUFFS,
   ATTRIBUTE_POINT_TOTAL,
-  PERK_POINT_TOTAL,
-  PERK_POINT_MIN,
-  PERK_POINT_MAX,
+  PERK_MAX_SELECTED,
   ABILITY_MAX_SELECTED,
   ABILITY_MIN_SELECTED,
   SKILL_MIN_SELECTED,
+  SKILL_MAX_SELECTED,
   VALIDATION_RULES
 } from './dndCharacterWizardData.js';
 
@@ -30,10 +29,20 @@ const WIZARD_STEPS = [
   { id: 'skills', name: 'Skills', title: 'Select Skills' },
   { id: 'traits', name: 'Traits & Quirks', title: 'Traits & Quirks' },
   { id: 'abilities', name: 'Abilities', title: 'Special Abilities' },
-  { id: 'perks', name: 'Perks', title: 'Perk Allocation' },
+  { id: 'perks', name: 'Perks', title: 'Select Perks' },
   { id: 'buffs', name: 'Buffs', title: 'Optional Buffs' },
   { id: 'review', name: 'Final Review', title: 'Review Character' }
 ];
+
+/**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
 
 // Global wizard state
 let wizardState = {
@@ -46,7 +55,7 @@ let wizardState = {
     traits: [],
     quirks: [],
     abilities: [],
-    perks: {},
+    perks: [],  // Changed to array for server compatibility
     buffs: [],
     xpModifier: XP_MODIFIER_DEFAULT
   }
@@ -68,20 +77,17 @@ export function initCharacterWizard() {
     traits: [],
     quirks: [],
     abilities: [],
-    perks: {},
+    perks: [],  // Changed to array for server compatibility
     buffs: [],
     xpModifier: XP_MODIFIER_DEFAULT
   };
   
   // Initialize default attribute values
-  ATTRIBUTES.forEach(attr => {
-    wizardState.characterData.attributes[attr.id] = attr.default;
-  });
-  
-  // Initialize perk values
-  PERK_CATEGORIES.forEach(perk => {
-    wizardState.characterData.perks[perk.id] = 0;
-  });
+  if (Array.isArray(ATTRIBUTES)) {
+    ATTRIBUTES.forEach(attr => {
+      wizardState.characterData.attributes[attr.id] = attr.default;
+    });
+  }
   
   // Render the wizard
   renderWizard();
@@ -228,6 +234,7 @@ function renderCurrentStep() {
  * Step 1: Identity
  */
 function renderIdentityStep() {
+  const escapedName = escapeHtml(wizardState.characterData.name);
   return `
     <div class="wizard-step-content scrollable">
       <div class="form-group">
@@ -237,7 +244,7 @@ function renderIdentityStep() {
           id="wizard-char-name" 
           class="form-control" 
           placeholder="Enter your character's name"
-          value="${wizardState.characterData.name}"
+          value="${escapedName}"
           maxlength="40"
           required
         />
@@ -276,13 +283,13 @@ function renderAttributesStep() {
       </div>
       
       <div class="attributes-grid">
-        ${ATTRIBUTES.map(attr => `
+        ${(Array.isArray(ATTRIBUTES) ? ATTRIBUTES : []).map(attr => `
           <div class="attribute-card">
             <div class="attribute-header">
               <span class="attribute-emoji">${attr.emoji}</span>
-              <strong>${attr.name}</strong>
+              <strong>${escapeHtml(attr.name)}</strong>
             </div>
-            <p class="attribute-description">${attr.description}</p>
+            <p class="attribute-description">${escapeHtml(attr.description)}</p>
             <div class="attribute-control">
               <input 
                 type="range" 
@@ -320,11 +327,11 @@ function renderSkillsStep() {
     <div class="wizard-step-content scrollable">
       <div class="selection-counter">
         Selected: <strong>${selectedCount}</strong> skill${selectedCount !== 1 ? 's' : ''}
-        ${selectedCount < SKILL_MIN_SELECTED ? `<span class="warning-text"> (minimum ${SKILL_MIN_SELECTED} required)</span>` : ''}
+        ${selectedCount < SKILL_MIN_SELECTED || selectedCount > SKILL_MAX_SELECTED ? `<span class="warning-text"> (requires ${SKILL_MIN_SELECTED}-${SKILL_MAX_SELECTED} skills)</span>` : ''}
       </div>
       
       <div class="skills-grid">
-        ${SKILLS.map(skill => {
+        ${(Array.isArray(SKILLS) ? SKILLS : []).map(skill => {
           const isSelected = wizardState.characterData.skills.includes(skill.id);
           return `
             <div class="skill-card ${isSelected ? 'selected' : ''}" data-skill="${skill.id}">
@@ -336,10 +343,10 @@ function renderSkillsStep() {
                   data-skill="${skill.id}"
                 />
                 <label for="skill-${skill.id}">
-                  <strong>${skill.name}</strong>
+                  <strong>${escapeHtml(skill.name)}</strong>
                 </label>
               </div>
-              <p class="skill-description">${skill.description}</p>
+              <p class="skill-description">${escapeHtml(skill.description)}</p>
             </div>
           `;
         }).join('')}
@@ -370,7 +377,7 @@ function renderTraitsStep() {
           Selected: <strong>${traitsCount}</strong> trait${traitsCount !== 1 ? 's' : ''}
         </div>
         <div class="traits-grid">
-          ${TRAITS.map(trait => {
+          ${(Array.isArray(TRAITS) ? TRAITS : []).map(trait => {
             const isSelected = wizardState.characterData.traits.includes(trait.id);
             return `
               <div class="trait-card ${isSelected ? 'selected' : ''}" data-trait="${trait.id}">
@@ -382,10 +389,10 @@ function renderTraitsStep() {
                     data-trait="${trait.id}"
                   />
                   <label for="trait-${trait.id}">
-                    <strong>${trait.name}</strong>
+                    <strong>${escapeHtml(trait.name)}</strong>
                   </label>
                 </div>
-                <p class="trait-description">${trait.description}</p>
+                <p class="trait-description">${escapeHtml(trait.description)}</p>
               </div>
             `;
           }).join('')}
@@ -400,7 +407,7 @@ function renderTraitsStep() {
         </div>
         ${traitsCount === 0 ? '<p class="info-text">Select at least one trait to unlock quirks</p>' : ''}
         <div class="quirks-grid ${traitsCount === 0 ? 'disabled' : ''}">
-          ${QUIRKS.map(quirk => {
+          ${(Array.isArray(QUIRKS) ? QUIRKS : []).map(quirk => {
             const isSelected = wizardState.characterData.quirks.includes(quirk.id);
             const isDisabled = traitsCount === 0;
             return `
@@ -414,10 +421,10 @@ function renderTraitsStep() {
                     data-quirk="${quirk.id}"
                   />
                   <label for="quirk-${quirk.id}">
-                    <strong>${quirk.name}</strong>
+                    <strong>${escapeHtml(quirk.name)}</strong>
                   </label>
                 </div>
-                <p class="quirk-description">${quirk.description}</p>
+                <p class="quirk-description">${escapeHtml(quirk.description)}</p>
               </div>
             `;
           }).join('')}
@@ -442,7 +449,7 @@ function renderAbilitiesStep() {
       </div>
       
       <div class="abilities-grid">
-        ${ABILITIES.map(ability => {
+        ${(Array.isArray(ABILITIES) ? ABILITIES : []).map(ability => {
           const isSelected = wizardState.characterData.abilities.includes(ability.id);
           const isDisabled = !isSelected && !canSelectMore;
           return `
@@ -456,10 +463,10 @@ function renderAbilitiesStep() {
                   data-ability="${ability.id}"
                 />
                 <label for="ability-${ability.id}">
-                  <strong>${ability.name}</strong>
+                  <strong>${escapeHtml(ability.name)}</strong>
                 </label>
               </div>
-              <p class="ability-description">${ability.description}</p>
+              <p class="ability-description">${escapeHtml(ability.description)}</p>
             </div>
           `;
         }).join('')}
@@ -472,35 +479,35 @@ function renderAbilitiesStep() {
  * Step 6: Perks
  */
 function renderPerksStep() {
-  const totalAllocated = Object.values(wizardState.characterData.perks).reduce((sum, val) => sum + val, 0);
-  const pointsRemaining = PERK_POINT_TOTAL - totalAllocated;
-  const isValid = pointsRemaining >= 0;
+  const selectedCount = wizardState.characterData.perks.length;
+  const canSelectMore = selectedCount < PERK_MAX_SELECTED;
   
   return `
     <div class="wizard-step-content scrollable">
-      <div class="perk-points-display ${isValid ? pointsRemaining === 0 ? 'valid' : '' : 'exceeded'}">
-        <strong>Points Remaining: ${pointsRemaining} / ${PERK_POINT_TOTAL}</strong>
-        ${!isValid ? '<p class="warning-text">You have exceeded the point limit</p>' : ''}
-        <p class="info-text">Allocate points across different perk categories</p>
+      <div class="selection-counter">
+        Selected: <strong>${selectedCount} / ${PERK_MAX_SELECTED}</strong> perks
+        ${selectedCount === 0 ? '<span class="info-text"> (all perks are optional)</span>' : ''}
       </div>
       
       <div class="perks-grid">
-        ${PERK_CATEGORIES.map(perk => {
-          const currentValue = wizardState.characterData.perks[perk.id] || 0;
+        ${(Array.isArray(PERK_CATEGORIES) ? PERK_CATEGORIES : []).map(perk => {
+          const isSelected = wizardState.characterData.perks.includes(perk.id);
+          const isDisabled = !isSelected && !canSelectMore;
           return `
-            <div class="perk-card">
+            <div class="perk-card ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" data-perk="${perk.id}">
               <div class="perk-header">
-                <strong>${perk.name}</strong>
+                <input 
+                  type="checkbox" 
+                  id="perk-${perk.id}" 
+                  ${isSelected ? 'checked' : ''}
+                  ${isDisabled ? 'disabled' : ''}
+                  data-perk="${perk.id}"
+                />
+                <label for="perk-${perk.id}">
+                  <strong>${escapeHtml(perk.name)}</strong>
+                </label>
               </div>
-              <p class="perk-description">${perk.description}</p>
-              <div class="perk-control">
-                <label for="perk-${perk.id}">Points:</label>
-                <select id="perk-${perk.id}" class="perk-select" data-perk="${perk.id}">
-                  ${Array.from({ length: PERK_POINT_MAX - PERK_POINT_MIN + 1 }, (_, i) => i + PERK_POINT_MIN).map(val => `
-                    <option value="${val}" ${val === currentValue ? 'selected' : ''}>${val}</option>
-                  `).join('')}
-                </select>
-              </div>
+              <p class="perk-description">${escapeHtml(perk.description)}</p>
             </div>
           `;
         }).join('')}
@@ -536,7 +543,7 @@ function renderBuffsStep() {
       </div>
       
       <div class="buffs-grid">
-        ${BUFFS.map(buff => {
+        ${(Array.isArray(BUFFS) ? BUFFS : []).map(buff => {
           const isSelected = wizardState.characterData.buffs.includes(buff.id);
           return `
             <div class="buff-card ${isSelected ? 'selected' : ''}" data-buff="${buff.id}">
@@ -548,10 +555,10 @@ function renderBuffsStep() {
                   data-buff="${buff.id}"
                 />
                 <label for="buff-${buff.id}">
-                  <strong>${buff.name}</strong>
+                  <strong>${escapeHtml(buff.name)}</strong>
                 </label>
               </div>
-              <p class="buff-description">${buff.description}</p>
+              <p class="buff-description">${escapeHtml(buff.description)}</p>
             </div>
           `;
         }).join('')}
@@ -574,14 +581,14 @@ function renderReviewStep() {
         
         <div class="review-card">
           <h4>Identity</h4>
-          <p><strong>Name:</strong> ${wizardState.characterData.name || 'Not set'}</p>
-          ${wizardState.characterData.archetype ? `<p><strong>Archetype:</strong> ${wizardState.characterData.archetype}</p>` : ''}
+          <p><strong>Name:</strong> ${escapeHtml(wizardState.characterData.name) || 'Not set'}</p>
+          ${wizardState.characterData.archetype ? `<p><strong>Archetype:</strong> ${escapeHtml(wizardState.characterData.archetype)}</p>` : ''}
         </div>
         
         <div class="review-card">
           <h4>Core Attributes</h4>
-          ${ATTRIBUTES.map(attr => `
-            <p><strong>${attr.emoji} ${attr.name}:</strong> ${wizardState.characterData.attributes[attr.id]}</p>
+          ${(Array.isArray(ATTRIBUTES) ? ATTRIBUTES : []).map(attr => `
+            <p><strong>${attr.emoji} ${escapeHtml(attr.name)}:</strong> ${wizardState.characterData.attributes[attr.id]}</p>
           `).join('')}
         </div>
         
@@ -590,8 +597,8 @@ function renderReviewStep() {
           ${wizardState.characterData.skills.length > 0 ? `
             <ul>
               ${wizardState.characterData.skills.map(skillId => {
-                const skill = SKILLS.find(s => s.id === skillId);
-                return `<li>${skill ? skill.name : skillId}</li>`;
+                const skill = (Array.isArray(SKILLS) ? SKILLS : []).find(s => s.id === skillId);
+                return `<li>${skill ? escapeHtml(skill.name) : escapeHtml(skillId)}</li>`;
               }).join('')}
             </ul>
           ` : '<p class="muted">None selected</p>'}
@@ -602,8 +609,8 @@ function renderReviewStep() {
           ${wizardState.characterData.traits.length > 0 ? `
             <ul>
               ${wizardState.characterData.traits.map(traitId => {
-                const trait = TRAITS.find(t => t.id === traitId);
-                return `<li>${trait ? trait.name : traitId}</li>`;
+                const trait = (Array.isArray(TRAITS) ? TRAITS : []).find(t => t.id === traitId);
+                return `<li>${trait ? escapeHtml(trait.name) : escapeHtml(traitId)}</li>`;
               }).join('')}
             </ul>
           ` : '<p class="muted">None selected</p>'}
@@ -614,8 +621,8 @@ function renderReviewStep() {
           ${wizardState.characterData.quirks.length > 0 ? `
             <ul>
               ${wizardState.characterData.quirks.map(quirkId => {
-                const quirk = QUIRKS.find(q => q.id === quirkId);
-                return `<li>${quirk ? quirk.name : quirkId}</li>`;
+                const quirk = (Array.isArray(QUIRKS) ? QUIRKS : []).find(q => q.id === quirkId);
+                return `<li>${quirk ? escapeHtml(quirk.name) : escapeHtml(quirkId)}</li>`;
               }).join('')}
             </ul>
           ` : '<p class="muted">None selected</p>'}
@@ -626,22 +633,23 @@ function renderReviewStep() {
           ${wizardState.characterData.abilities.length > 0 ? `
             <ul>
               ${wizardState.characterData.abilities.map(abilityId => {
-                const ability = ABILITIES.find(a => a.id === abilityId);
-                return `<li>${ability ? ability.name : abilityId}</li>`;
+                const ability = (Array.isArray(ABILITIES) ? ABILITIES : []).find(a => a.id === abilityId);
+                return `<li>${ability ? escapeHtml(ability.name) : escapeHtml(abilityId)}</li>`;
               }).join('')}
             </ul>
           ` : '<p class="muted">None selected</p>'}
         </div>
         
         <div class="review-card">
-          <h4>Perks</h4>
-          ${PERK_CATEGORIES.map(perk => {
-            const value = wizardState.characterData.perks[perk.id];
-            if (value > 0) {
-              return `<p><strong>${perk.name}:</strong> ${value} points</p>`;
-            }
-            return '';
-          }).filter(Boolean).join('') || '<p class="muted">No points allocated</p>'}
+          <h4>Perks (${wizardState.characterData.perks.length})</h4>
+          ${wizardState.characterData.perks.length > 0 ? `
+            <ul>
+              ${wizardState.characterData.perks.map(perkId => {
+                const perk = (Array.isArray(PERK_CATEGORIES) ? PERK_CATEGORIES : []).find(p => p.id === perkId);
+                return `<li>${perk ? escapeHtml(perk.name) : escapeHtml(perkId)}</li>`;
+              }).join('')}
+            </ul>
+          ` : '<p class="muted">None selected</p>'}
         </div>
         
         <div class="review-card">
@@ -649,8 +657,8 @@ function renderReviewStep() {
           ${wizardState.characterData.buffs.length > 0 ? `
             <ul>
               ${wizardState.characterData.buffs.map(buffId => {
-                const buff = BUFFS.find(b => b.id === buffId);
-                return `<li>${buff ? buff.name : buffId}</li>`;
+                const buff = (Array.isArray(BUFFS) ? BUFFS : []).find(b => b.id === buffId);
+                return `<li>${buff ? escapeHtml(buff.name) : escapeHtml(buffId)}</li>`;
               }).join('')}
             </ul>
           ` : '<p class="muted">None selected</p>'}
@@ -881,13 +889,28 @@ function attachAbilityListeners() {
  * Perks step listeners
  */
 function attachPerkListeners() {
-  PERK_CATEGORIES.forEach(perk => {
-    const select = document.getElementById(`perk-${perk.id}`);
+  (Array.isArray(PERK_CATEGORIES) ? PERK_CATEGORIES : []).forEach(perk => {
+    const checkbox = document.getElementById(`perk-${perk.id}`);
+    const card = document.querySelector(`.perk-card[data-perk="${perk.id}"]`);
     
-    if (select) {
-      select.addEventListener('change', (e) => {
-        wizardState.characterData.perks[perk.id] = parseInt(e.target.value);
+    if (checkbox) {
+      checkbox.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          if (!wizardState.characterData.perks.includes(perk.id)) {
+            wizardState.characterData.perks.push(perk.id);
+          }
+        } else {
+          wizardState.characterData.perks = wizardState.characterData.perks.filter(p => p !== perk.id);
+        }
         renderWizard();
+      });
+    }
+    
+    if (card) {
+      card.addEventListener('click', (e) => {
+        if (e.target !== checkbox && !e.target.closest('input')) {
+          checkbox.dispatchEvent(new Event('change'));
+        }
       });
     }
   });
@@ -947,7 +970,8 @@ function validateCurrentStep() {
     }
       
     case 'skills':
-      return wizardState.characterData.skills.length >= SKILL_MIN_SELECTED;
+      return wizardState.characterData.skills.length >= SKILL_MIN_SELECTED &&
+             wizardState.characterData.skills.length <= SKILL_MAX_SELECTED;
       
     case 'traits': {
       const hasTraits = wizardState.characterData.traits.length > 0;
@@ -965,10 +989,8 @@ function validateCurrentStep() {
       return wizardState.characterData.abilities.length >= ABILITY_MIN_SELECTED && 
              wizardState.characterData.abilities.length <= ABILITY_MAX_SELECTED;
       
-    case 'perks': {
-      const totalAllocated = Object.values(wizardState.characterData.perks).reduce((sum, val) => sum + val, 0);
-      return totalAllocated >= 0 && totalAllocated <= PERK_POINT_TOTAL;
-    }
+    case 'perks':
+      return wizardState.characterData.perks.length <= PERK_MAX_SELECTED;
       
     case 'buffs':
       return true; // Buffs are optional
