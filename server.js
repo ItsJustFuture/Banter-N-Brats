@@ -114,17 +114,29 @@ function resolveRoomCode(roomName) {
 
 function isDnDRoom(room) {
   if (!room) return false;
+  
   if (typeof room === "object") {
+    // Check meta.type first
+    if (room.meta?.type === "dnd") return true;
+
+    // Check room ID
     const directId = room?.id ?? room?.room_id ?? room?.roomId;
     if (directId && String(directId).toUpperCase() === DND_ROOM_CODE) return true;
-    // Requirement: any room name containing "dnd" counts as a DnD-capable room.
+    
+    // Check room name with normalized pattern
     const rawName = room?.name ?? room?.id ?? "";
-    return String(rawName).toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
+    const normalized = String(rawName).toLowerCase().replace(/[^a-z0-9]/g, "");
+    const VALID_NAMES = ["dnd", "dndstoryroom", "justdnd"];
+    return VALID_NAMES.includes(normalized);
   }
+  
+  // Handle string
   const rawName = String(room || "");
   if (rawName.toUpperCase() === DND_ROOM_CODE) return true;
-  // Requirement: any room name containing "dnd" counts as a DnD-capable room.
-  return rawName.toLowerCase().includes(DND_ROOM_NAME_FRAGMENT);
+  
+  const normalized = String(rawName).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const VALID_NAMES = ["dnd", "dndstoryroom", "justdnd"];
+  return VALID_NAMES.includes(normalized);
 }
 
 const CHESS_DEFAULT_ELO = 1200;
