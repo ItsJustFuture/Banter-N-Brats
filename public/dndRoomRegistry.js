@@ -35,26 +35,24 @@
 
     // CASE 1: room is a STRING (most of the app)
     if (typeof room === "string") {
-      const normalized = normalizeRoomName(room);
-      return [
-        "dnd",
-        "dndstoryroom",
-        "justdnd"
-      ].includes(normalized);
+      const rawName = String(room);
+
+      if (rawName.toUpperCase() === "R6") return true;
+
+      const normalized = normalizeRoomName(rawName);
+      return VALID_DND_NAMES.includes(normalized);
     }
 
     // CASE 2: room is an OBJECT (future-proofing)
     if (typeof room === "object") {
       if (room.meta?.type === "dnd") return true;
 
-      if (room.id === "R6") return true;
+      const directId = room?.id ?? room?.room_id ?? room?.roomId;
+      if (directId && String(directId).toUpperCase() === "R6") return true;
 
-      const normalized = normalizeRoomName(room.name);
-      return [
-        "dnd",
-        "dndstoryroom",
-        "justdnd"
-      ].includes(normalized);
+      const rawName = room?.name ?? room?.id ?? "";
+      const normalized = normalizeRoomName(rawName);
+      return VALID_DND_NAMES.includes(normalized);
     }
 
     return false;
