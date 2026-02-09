@@ -21699,9 +21699,9 @@ function syncTextCustomizationInputs(){
     textCustomizationStyle.value = textStyleDraft.fontStyle || TEXT_STYLE_DEFAULTS.fontStyle;
   }
   if (textCustomizationEffect) {
-    const effectId = textStyleDraft.effectId || TEXT_STYLE_DEFAULTS.effectId;
-    textStyleDraft.effectId = canUseTextEffect(effectId) ? effectId : TEXT_STYLE_DEFAULTS.effectId;
-    textCustomizationEffect.value = textStyleDraft.effectId || TEXT_STYLE_DEFAULTS.effectId;
+    const nextEffect = textStyleDraft.effectId || TEXT_STYLE_DEFAULTS.effectId;
+    textStyleDraft.effectId = canUseTextEffect(nextEffect) ? nextEffect : TEXT_STYLE_DEFAULTS.effectId;
+    textCustomizationEffect.value = textStyleDraft.effectId;
   }
   if (textCustomizationIntensity) {
     textCustomizationIntensity.value = textStyleDraft.neon?.intensity || TEXT_STYLE_DEFAULTS.neon.intensity;
@@ -21971,7 +21971,7 @@ function buildTextCustomizationModal(){
     if (!textStyleDraft) return;
     const nextEffect = textCustomizationEffect.value;
     if (nextEffect && !canUseTextEffect(nextEffect)) {
-      toast("VIP-only text effect.");
+      toast("This text effect requires VIP status. Upgrade to unlock premium effects.");
       textCustomizationEffect.value = "none";
       textStyleDraft.effectId = "none";
     } else {
