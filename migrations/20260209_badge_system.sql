@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS badge_definitions (
 
 CREATE INDEX IF NOT EXISTS idx_user_badges_username ON user_badges(username);
 CREATE INDEX IF NOT EXISTS idx_user_badges_badge ON user_badges(badge_id);
+CREATE INDEX IF NOT EXISTS idx_user_badges_username_nocase ON user_badges(username COLLATE NOCASE);
 
 -- Insert initial badge definitions
 INSERT OR IGNORE INTO badge_definitions (badge_id, name, description, emoji, rarity, category) VALUES

@@ -390,6 +390,7 @@ async function runSqliteMigrations() {
     ["status_expires_at", "status_expires_at INTEGER"],
   ];
   await ensureColumns("users", userColumns);
+  await run(`CREATE INDEX IF NOT EXISTS idx_users_username_nocase ON users(username COLLATE NOCASE)`);
   await run("UPDATE users SET vibe_tags='[]' WHERE vibe_tags IS NULL");
   await run("UPDATE users SET prefs_json='{}' WHERE prefs_json IS NULL OR prefs_json='' ");
 
@@ -1073,6 +1074,7 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
   `);
   await run(`CREATE INDEX IF NOT EXISTS idx_user_badges_username ON user_badges(username)`);
   await run(`CREATE INDEX IF NOT EXISTS idx_user_badges_badge ON user_badges(badge_id)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_user_badges_username_nocase ON user_badges(username COLLATE NOCASE)`);
   await run(`
     INSERT OR IGNORE INTO badge_definitions (badge_id, name, description, emoji, rarity, category) VALUES
     ('anniversary-1y', '1 Year Anniversary', 'Member for 1 year', '🎂', 'rare', 'milestone'),
@@ -1147,17 +1149,17 @@ async function updateRoleSymbolPrefs(username, prefs = {}) {
 }
 
 async function updateUserBanner(username, { banner_url, banner_gradient, banner_style } = {}) {
-  const safeName = String(username || "").trim().toLowerCase();
+  const safeName = String(username || "").trim();
   if (!safeName) return null;
   await run(
-    `UPDATE users SET banner_url = ?, banner_gradient = ?, banner_style = ? WHERE lower(username) = lower(?)`,
+    `UPDATE users SET banner_url = ?, banner_gradient = ?, banner_style = ? WHERE username = ? COLLATE NOCASE`,
     [banner_url ?? null, banner_gradient ?? null, banner_style ?? "cover", safeName]
   );
   return true;
 }
 
 async function updateUserStatus(username, { custom_status, status_emoji, status_color, status_expires_at } = {}) {
-  const safeName = String(username || "").trim().toLowerCase();
+  const safeName = String(username || "").trim();
   if (!safeName) return null;
   await run(
     `UPDATE users SET
@@ -1165,7 +1167,7 @@ async function updateUserStatus(username, { custom_status, status_emoji, status_
       status_emoji = ?,
       status_color = ?,
       status_expires_at = ?
-    WHERE lower(username) = lower(?)`,
+    WHERE username = ? COLLATE NOCASE`,
     [
       custom_status ?? null,
       status_emoji ?? null,
@@ -1178,13 +1180,13 @@ async function updateUserStatus(username, { custom_status, status_emoji, status_
 }
 
 async function getUserBadges(username) {
-  const safeName = String(username || "").trim().toLowerCase();
+  const safeName = String(username || "").trim();
   if (!safeName) return [];
   const rows = await all(
     `SELECT ub.*, bd.name, bd.description, bd.emoji, bd.rarity, bd.category
      FROM user_badges ub
      JOIN badge_definitions bd ON ub.badge_id = bd.badge_id
-     WHERE lower(ub.username) = lower(?)
+     WHERE ub.username = ? COLLATE NOCASE
      ORDER BY ub.earned_at DESC`,
     [safeName]
   );
