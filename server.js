@@ -10290,7 +10290,7 @@ app.post("/api/messages/:messageId/react", strictLimiter, requireLogin, async (r
       [messageId, room]
     );
 
-    io.to(room).emit("message reactions", { messageId, reactions });
+    io.to(room).emit("messageReactions", { messageId, reactions });
     return res.json({ reactions });
   } catch (err) {
     console.error("Error toggling reaction:", err);
@@ -17530,7 +17530,7 @@ function doJoin(room, status) {
                 byMsg[key].push({ emoji: r.emoji, count: r.count, users: r.users });
               }
               for (const mid of Object.keys(byMsg)) {
-                socket.emit("message reactions", { messageId: mid, reactions: byMsg[mid] });
+                socket.emit("messageReactions", { messageId: mid, reactions: byMsg[mid] });
               }
             }
           );

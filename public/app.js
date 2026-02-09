@@ -10644,7 +10644,7 @@ function buildMainMsgItem(m, opts){
 
   // Reactions container (kept outside bubble so it can sit beside it)
   const reacts = document.createElement("div");
-  reacts.className = "reacts messageReactions";
+  reacts.className = "messageReactions";
   reacts.id = "reacts-" + mid;
 
   // Actions rail
@@ -10863,7 +10863,7 @@ function renderMessageReactions(messageEl, messageId, room, { force = false } = 
   const roomKey = String(room || "").trim().replace(/^#/, "");
   if (!roomKey) return;
   const cacheKey = getReactionCacheKey(roomKey, messageId);
-  const container = messageEl.querySelector(".messageReactions") || messageEl.querySelector(".reacts") || document.createElement("div");
+  const container = messageEl.querySelector(".messageReactions") || document.createElement("div");
   container.classList.add("messageReactions");
   if (!messageEl.contains(container)) {
     const main = messageEl.querySelector(".msgMain");
@@ -10911,7 +10911,7 @@ async function toggleReaction(messageId, room, emoji){
       const roomKey = String(room || "").trim().replace(/^#/, "");
       const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
       if (messageEl) {
-        const container = messageEl.querySelector(".messageReactions") || messageEl.querySelector(".reacts");
+        const container = messageEl.querySelector(".messageReactions");
         if (container) renderMessageReactionsFromData(container, messageId, roomKey, data.reactions);
       }
     }
@@ -24213,13 +24213,13 @@ socket.on("mod:case_event", (payload = {}) => {
       renderMessageReactions(messageEl, messageId, currentRoom, { force: shouldFetch });
     }
   });
-  socket.on("message reactions", ({ messageId, reactions }) => {
+  socket.on("messageReactions", ({ messageId, reactions }) => {
     if (!messageId) return;
     const cacheKey = getReactionCacheKey(currentRoom, messageId);
     if (cacheKey) messageReactionsCache[cacheKey] = Array.isArray(reactions) ? reactions : [];
     const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
     if (messageEl) {
-      const container = messageEl.querySelector(".messageReactions") || messageEl.querySelector(".reacts");
+      const container = messageEl.querySelector(".messageReactions");
       if (container) renderMessageReactionsFromData(container, messageId, currentRoom, reactions || []);
     }
   });

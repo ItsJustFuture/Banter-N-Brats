@@ -4678,11 +4678,11 @@ body.sys-density-minimized .chat-main{
 }
 
 /* Reactions are OUTSIDE the bubble (inside .msgMain) */
-.chat-main .msgMain > .reacts{
+.chat-main .msgMain > .messageReactions{
   align-self:flex-end;
   margin:0 2px 2px 2px;
 }
-.chat-main .msgMain > .reacts:empty{ display:none; }
+.chat-main .msgMain > .messageReactions:empty{ display:none; }
 .metaLine{ display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
 .uName{ font-weight:900; font-size:13px; text-shadow:var(--text-shadow-soft); }
 .badge{
