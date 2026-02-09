@@ -2941,6 +2941,10 @@ const MODERATOR_GEM_KEYS = [
 
 const ROLE_SYMBOL_COLOR_KEYS = ["blue", "pink", "gold", "purple", "green", "red"];
 
+function normalizeRoleSymbolUsername(username) {
+  return String(username || "").trim().toLowerCase();
+}
+
 function validateRoleSymbolInput(payload = {}) {
   if (payload.vip_gemstone && !VIP_GEM_KEYS.includes(payload.vip_gemstone)) {
     return "Invalid VIP gemstone";
@@ -2982,7 +2986,7 @@ function normalizeRoleSymbolPrefs(prefs = {}) {
 
 async function pgGetRoleSymbolPrefs(username) {
   const rawName = String(username || "").trim();
-  const safeName = rawName.toLowerCase();
+  const safeName = normalizeRoleSymbolUsername(rawName);
   if (!safeName) return { ...ROLE_SYMBOL_DEFAULTS };
   const { rows } = await pgPool.query(
     `SELECT vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations
@@ -2996,7 +3000,7 @@ async function pgGetRoleSymbolPrefs(username) {
 
 async function pgUpsertRoleSymbolPrefs(username, prefs) {
   const rawName = String(username || "").trim();
-  const safeName = rawName.toLowerCase();
+  const safeName = normalizeRoleSymbolUsername(rawName);
   if (!safeName) return { ...ROLE_SYMBOL_DEFAULTS };
   const normalized = normalizeRoleSymbolPrefs(prefs || {});
   const now = Date.now();
