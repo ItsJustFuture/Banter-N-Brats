@@ -2531,6 +2531,7 @@ const UNSAFE_CSS_URL_RE = /["'(),\s]/;
 const STATUS_EMOJI_MAX_LENGTH = 16;
 const STATUS_TEXT_MAX_LENGTH = 100;
 const ALLOWED_BANNER_PATH_PREFIXES = ["/uploads/"];
+const PRIMARY_BANNER_PATH_PREFIX = ALLOWED_BANNER_PATH_PREFIXES[0] || "/uploads/";
 
 function sanitizeVibeTags(raw) {
   const arr = Array.isArray(raw)
@@ -2574,8 +2575,10 @@ function sanitizeBannerUrl(raw) {
     const allowed = ALLOWED_BANNER_PATH_PREFIXES.some((prefix) => value.startsWith(prefix));
     if (!allowed) return null;
     const normalized = path.posix.normalize(value);
-    if (!normalized.startsWith("/uploads/")) return null;
+    if (!normalized.startsWith(PRIMARY_BANNER_PATH_PREFIX)) return null;
     if (!SAFE_UPLOAD_PATH_RE.test(normalized)) return null;
+    const segments = normalized.slice(PRIMARY_BANNER_PATH_PREFIX.length).split("/").filter(Boolean);
+    if (segments.some((segment) => segment === "." || segment === "..")) return null;
     return normalized.slice(0, BANNER_URL_MAX_LENGTH);
   }
   try {
