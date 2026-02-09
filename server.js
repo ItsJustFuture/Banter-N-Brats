@@ -10318,7 +10318,7 @@ app.get("/api/messages/:messageId/reactions", requireLogin, async (req, res) => 
       [messageId, room]
     );
 
-    return res.json(reactions);
+    return res.json({ reactions });
   } catch (err) {
     console.error("Error fetching reactions:", err);
     return res.status(500).json({ error: "Failed to fetch reactions" });

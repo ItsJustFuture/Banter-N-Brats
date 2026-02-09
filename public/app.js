@@ -2371,7 +2371,7 @@ function canUseTextEffect(effectId){
 }
 
 function normalizeTextEffectSelection(effectId){
-  const key = String(effectId || "none").trim();
+  const key = String(effectId || "none").trim().toLowerCase();
   if (!TEXT_EFFECT_MAP.has(key)) return { effectId: "none", gated: false };
   if (!canUseTextEffect(key)) return { effectId: "none", gated: true };
   return { effectId: key, gated: false };
@@ -10835,9 +10835,12 @@ function renderMessageReactionsFromData(container, messageId, room, reactions){
         <span class="reactionCount">${count}</span>
       </button>
     `;
-  }).join("") + `
-    <button class="addReactionBtn" title="Add reaction">➕</button>
-  `;
+  }).join("");
+  if (list.length > 0) {
+    container.innerHTML += `
+      <button class="addReactionBtn" title="Add reaction">➕</button>
+    `;
+  }
 
   container.querySelectorAll(".reactionBubble").forEach((btn) => {
     btn.onclick = (e) => {
@@ -10898,17 +10901,17 @@ function renderMessageReactions(messageEl, messageId, room, { force = false } = 
 }
 
 async function toggleReaction(messageId, room, emoji){
-  if (!messageId || !room || !emoji) return;
+  const roomKey = String(room || "").trim().replace(/^#/, "");
+  if (!messageId || !roomKey || !emoji) return;
   try {
     const res = await fetch(`/api/messages/${messageId}/react`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ emoji, room })
+      body: JSON.stringify({ emoji, room: roomKey })
     });
     const data = res.ok ? await res.json().catch(() => null) : null;
     if (data?.reactions) {
-      const roomKey = String(room || "").trim().replace(/^#/, "");
       const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
       if (messageEl) {
         const container = messageEl.querySelector(".messageReactions");
