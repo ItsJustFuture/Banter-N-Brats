@@ -1233,7 +1233,7 @@
 </div>
 <div class="field">
 <label>Mood</label>
-<input id="editMood" placeholder="e.g. chilling"/>
+<input id="editMood" placeholder="e.g. chilling" maxlength="100"/>
 </div>
 <div class="field">
 <label>Username</label>
@@ -1261,7 +1261,7 @@
 </div>
 </div>
 <div class="field">
-<label>Vibe tags (pick up to <span id="vibeTagLimit">3</span>)</label>
+<label>Vibe tags (pick up to <span id="vibeTagLimit">5</span>)</label>
 <div class="pillRow" id="vibeTagOptions"></div>
 <div class="small">Adds a few personality badges to your profile.</div>
 </div>
@@ -1270,7 +1270,7 @@
 <label>Bio (BBCode supported)</label>
 <button class="pillBtn small" id="bioHelperToggle" type="button">BBCode help &amp; preview</button>
 </div>
-<textarea id="editBio" placeholder="[b]bold[/b] [i]italics[/i] [url=https://...]link[/url] [quote]...[/quote]"></textarea>
+<textarea id="editBio" placeholder="[b]bold[/b] [i]italics[/i] [url=https://...]link[/url] [quote]...[/quote]" maxlength="500"></textarea>
 <div class="bioHelper" hidden="" id="bioHelper">
 <div class="bioHelperRow" id="bioHelperButtons">
 <button class="pillBtn tiny" data-bio-tag="b" type="button">[b][/b]</button>
@@ -1886,7 +1886,7 @@
 </div>
 <div class="field">
 <label for="editProfileMood">Mood</label>
-<input id="editProfileMood" placeholder="e.g. chilling, gaming, coding..." type="text"/>
+<input id="editProfileMood" placeholder="e.g. chilling, gaming, coding..." type="text" maxlength="100"/>
 <div class="small muted">Short status visible on your profile.</div>
 </div>
 <div class="field">
@@ -1966,7 +1966,7 @@
 <div class="sectionTitle">Vibe Tags</div>
 <div class="panelBox">
 <div class="field">
-<label>Select up to <span id="editVibeTagLimit">3</span> vibe tags</label>
+<label>Select up to <span id="editVibeTagLimit">5</span> vibe tags</label>
 <div class="pillRow" id="editVibeTagOptions"></div>
 <div class="small muted">Show your personality with badges on your profile.</div>
 </div>
@@ -1980,7 +1980,7 @@
 <label for="editProfileBio">About You (BBCode supported)</label>
 <button class="pillBtn small" id="editBioHelperToggle" type="button">BBCode help</button>
 </div>
-<textarea id="editProfileBio" placeholder="Tell others about yourself... [b]bold[/b] [i]italics[/i] [url=https://...]link[/url]" rows="6"></textarea>
+<textarea id="editProfileBio" placeholder="Tell others about yourself... [b]bold[/b] [i]italics[/i] [url=https://...]link[/url]" rows="6" maxlength="500"></textarea>
 <div class="bioHelper" hidden="" id="editBioHelper">
 <div class="bioHelperRow" id="editBioHelperButtons">
 <button class="pillBtn tiny" data-bio-tag="b" type="button">[b]Bold[/b]</button>
@@ -2391,7 +2391,7 @@
           </div>
           <div class="field">
             <label for="editProfileMood">Mood</label>
-            <input id="editProfileMood" placeholder="e.g. chilling" maxlength="60"/>
+            <input id="editProfileMood" placeholder="e.g. chilling" maxlength="100"/>
             <div class="small muted">A short status message that appears on your profile.</div>
           </div>
           <div class="row" style="gap:10px;">
@@ -2415,11 +2415,11 @@
           </div>
           <div class="field">
             <label for="editProfileBio">Bio (BBCode supported)</label>
-            <textarea id="editProfileBio" rows="4" maxlength="2000" placeholder="[b]bold[/b] [i]italics[/i] [url=https://...]link[/url]"></textarea>
+            <textarea id="editProfileBio" rows="4" maxlength="500" placeholder="[b]bold[/b] [i]italics[/i] [url=https://...]link[/url]"></textarea>
             <div class="small muted">Use BBCode for formatting. Links require full URLs.</div>
           </div>
           <div class="field">
-            <label>Vibe tags (pick up to <span id="editProfileVibeLimit">3</span>)</label>
+            <label>Vibe tags (pick up to <span id="editProfileVibeLimit">5</span>)</label>
             <div class="pillRow" id="editProfileVibeOptions"></div>
             <div class="small muted">Select personality badges to display on your profile.</div>
           </div>

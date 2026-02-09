@@ -15543,8 +15543,8 @@ app.post("/profile", strictLimiter, requireLogin, (req, res) => {
     }
 
     const userId = req.session.user.id;
-    const mood = String(req.body?.mood || "").slice(0, 40);
-    const bio = String(req.body?.bio || "").slice(0, 2000);
+    const mood = String(req.body?.mood || "").slice(0, 100);
+    const bio = String(req.body?.bio || "").slice(0, 500);
     const age = req.body?.age === "" || req.body?.age == null ? null : clamp(req.body.age, 18, 120);
     const gender = String(req.body?.gender || "").slice(0, 40);
     const vibeTags = sanitizeVibeTags(req.body?.vibeTags);
