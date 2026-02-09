@@ -1038,7 +1038,6 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
       updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
     )
   `);
-  await run(`CREATE INDEX IF NOT EXISTS idx_role_symbols_username ON user_role_symbols(username)`);
 
 
 // --- Fixed role assignments
@@ -1048,11 +1047,11 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
 }
 
 async function getRoleSymbolPrefs(username) {
-  const safeName = String(username || "").trim();
+  const safeName = String(username || "").trim().toLowerCase();
   if (!safeName) return { ...DEFAULT_ROLE_SYMBOL_PREFS };
   const rows = await all(
     `SELECT vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations
-     FROM user_role_symbols WHERE username = ? LIMIT 1`,
+     FROM user_role_symbols WHERE lower(username) = lower(?) LIMIT 1`,
     [safeName]
   );
   const row = rows?.[0];
@@ -1067,13 +1066,17 @@ async function getRoleSymbolPrefs(username) {
 }
 
 async function updateRoleSymbolPrefs(username, prefs = {}) {
-  const safeName = String(username || "").trim();
+  const safeName = String(username || "").trim().toLowerCase();
   if (!safeName) return null;
   const merged = {
     ...DEFAULT_ROLE_SYMBOL_PREFS,
     ...(prefs || {}),
   };
   const now = Date.now();
+  await run(
+    `DELETE FROM user_role_symbols WHERE lower(username) = lower(?) AND username <> ?`,
+    [safeName, safeName]
+  );
   await run(
     `INSERT INTO user_role_symbols (
       username, vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations, updated_at

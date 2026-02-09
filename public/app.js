@@ -7346,7 +7346,34 @@ const DEFAULT_ROLE_SYMBOL_PREFS = {
 
 const roleSymbolCache = new Map();
 const roleSymbolPrefetchPending = new Set();
+const roleGemMaskCache = new Map();
 let roleSymbolMaskCounter = 0;
+let roleGemDefsRootSvg = null;
+
+function getRoleGemDefsContainer() {
+  const svgNs = "http://www.w3.org/2000/svg";
+  if (!roleGemDefsRootSvg) {
+    roleGemDefsRootSvg = document.createElementNS(svgNs, "svg");
+    roleGemDefsRootSvg.setAttribute("id", "roleGemDefsRoot");
+    roleGemDefsRootSvg.setAttribute("width", "0");
+    roleGemDefsRootSvg.setAttribute("height", "0");
+    roleGemDefsRootSvg.setAttribute("aria-hidden", "true");
+    roleGemDefsRootSvg.style.position = "absolute";
+    roleGemDefsRootSvg.style.width = "0";
+    roleGemDefsRootSvg.style.height = "0";
+    roleGemDefsRootSvg.style.overflow = "hidden";
+    roleGemDefsRootSvg.style.pointerEvents = "none";
+    const defs = document.createElementNS(svgNs, "defs");
+    roleGemDefsRootSvg.appendChild(defs);
+  }
+
+  if (!roleGemDefsRootSvg.isConnected) {
+    const target = document.body || document.documentElement;
+    if (target) target.appendChild(roleGemDefsRootSvg);
+  }
+
+  return roleGemDefsRootSvg.querySelector("defs");
+}
 
 function roleIcon(role){
   switch(role){
@@ -7399,20 +7426,23 @@ function createRoleGemSvg(filePath, color) {
   svg.setAttribute("aria-hidden", "true");
   svg.classList.add("roleIconSvg");
   if (color) svg.style.color = color;
-  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-  const mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
-  const maskId = `roleGemMask-${roleSymbolMaskCounter++}`;
-  mask.setAttribute("id", maskId);
-  mask.setAttribute("maskUnits", "userSpaceOnUse");
-  mask.setAttribute("maskContentUnits", "userSpaceOnUse");
-  const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
-  image.setAttribute("href", filePath);
-  image.setAttribute("width", "256");
-  image.setAttribute("height", "256");
-  image.setAttribute("preserveAspectRatio", "xMidYMid meet");
-  mask.appendChild(image);
-  defs.appendChild(mask);
-  svg.appendChild(defs);
+  let maskId = roleGemMaskCache.get(filePath);
+  if (!maskId) {
+    const defs = getRoleGemDefsContainer();
+    const mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
+    maskId = `roleGemMask-${roleSymbolMaskCounter++}`;
+    mask.setAttribute("id", maskId);
+    mask.setAttribute("maskUnits", "userSpaceOnUse");
+    mask.setAttribute("maskContentUnits", "userSpaceOnUse");
+    const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+    image.setAttribute("href", filePath);
+    image.setAttribute("width", "256");
+    image.setAttribute("height", "256");
+    image.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    mask.appendChild(image);
+    if (defs) defs.appendChild(mask);
+    roleGemMaskCache.set(filePath, maskId);
+  }
   const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
   rect.setAttribute("width", "256");
   rect.setAttribute("height", "256");
