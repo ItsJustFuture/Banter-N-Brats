@@ -1,25 +1,46 @@
 "use strict";
 
-// Register Service Worker for PWA support
+// Register Service Worker for PWA support with instant updates
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
         console.log('[PWA] Service Worker registered:', registration.scope);
         
-        // Check for updates periodically (every 6 hours to avoid excessive requests)
-        setInterval(() => {
-          registration.update();
-        }, 6 * 60 * 60 * 1000);
+        // Check for updates on every page load to ensure instant deployment updates
+        registration.update()
+          .then(() => console.log('[PWA] Update check complete'))
+          .catch((err) => console.warn('[PWA] Update check failed:', err));
+        
+        // Handle controller change - reload page automatically when new SW activates
+        // Guard against infinite reload loops by tracking reload timestamp
+        // Using 30-second cooldown to handle race conditions across multiple tabs
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('[PWA] New service worker activated, checking if reload needed...');
+          const lastReloadRaw = localStorage.getItem('sw-last-reload');
+          const parsedLastReload = Number(lastReloadRaw);
+          const lastReload = Number.isFinite(parsedLastReload) ? parsedLastReload : 0;
+          const now = Date.now();
+          
+          // Only reload if last reload was more than 30 seconds ago
+          if (!lastReloadRaw || now - lastReload > 30000) {
+            localStorage.setItem('sw-last-reload', now.toString());
+            console.log('[PWA] Reloading page to apply update...');
+            window.location.reload();
+          } else {
+            console.log('[PWA] Skipping reload (recently reloaded at', new Date(lastReload).toISOString() + ')');
+          }
+        });
         
         // Handle updates
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {
+            console.log('[PWA] New service worker installing...');
             newWorker.addEventListener('statechange', () => {
+              console.log('[PWA] Service worker state:', newWorker.state);
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('[PWA] New version available. Reload to update.');
-                // Optionally show a notification to the user
+                console.log('[PWA] New version installed, will activate immediately');
               }
             });
           }
@@ -27,6 +48,7 @@ if ('serviceWorker' in navigator) {
       })
       .catch((error) => {
         console.error('[PWA] Service Worker registration failed:', error);
+        console.error('[PWA] Error details:', error.message, error.stack);
       });
   });
 }

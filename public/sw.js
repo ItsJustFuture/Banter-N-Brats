@@ -1,50 +1,52 @@
 // Service Worker for Banter & Brats PWA
-// Provides offline support and asset caching
+// Ensures every deploy updates instantly with no stale cache
 
-const CACHE_VERSION = 'banter-brats-v9';
-const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
+// Use timestamp-based cache name to ensure every build gets a unique cache
+// Note: Date.now() is evaluated when the SW script is first parsed/executed.
+// Since Render serves a new sw.js on each deploy, this creates a unique cache
+// per deployment, not per page load. The browser caches sw.js itself and only
+// re-fetches it when it detects changes (byte-for-byte comparison).
+const CACHE_NAME = `banter-brats-${Date.now()}`;
 
-// Assets to cache on install
-const STATIC_ASSETS = [
+// Minimal shell files to cache (network-first strategy)
+const SHELL_FILES = [
   '/',
-  '/app.js',
-  '/dndRoomRegistry.js',
-  '/dndCharacterWizardData.js',
-  '/dndCharacterWizard.js',
-  '/theme-init.js',
-  '/styles.css',
-  '/manifest.json',
+  '/index.html'
 ];
 
-// Install event - cache static assets
+// Install event - skip waiting immediately to activate new version
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker...');
+  console.log('[SW] Installing new service worker with cache:', CACHE_NAME);
+  
   event.waitUntil(
-    caches.open(STATIC_CACHE)
+    caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[SW] Caching static assets');
-        return cache.addAll(STATIC_ASSETS);
+        console.log('[SW] Caching minimal shell files');
+        return cache.addAll(SHELL_FILES);
       })
       .then(() => {
-        console.log('[SW] Service worker installed');
+        console.log('[SW] Install complete, skipping waiting');
+        // Force this service worker to become active immediately
         return self.skipWaiting();
       })
       .catch((err) => {
         console.error('[SW] Installation failed:', err);
+        throw err;
       })
   );
 });
 
-// Activate event - clean up old caches
+// Activate event - delete ALL old caches and take control immediately
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker...');
+  console.log('[SW] Activating new service worker');
+  
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
+        // Delete all caches except the current one
         return Promise.all(
           cacheNames
-            .filter((name) => name.startsWith('banter-brats-') && name !== STATIC_CACHE && name !== DYNAMIC_CACHE)
+            .filter((name) => name !== CACHE_NAME)
             .map((name) => {
               console.log('[SW] Deleting old cache:', name);
               return caches.delete(name);
@@ -52,13 +54,17 @@ self.addEventListener('activate', (event) => {
         );
       })
       .then(() => {
-        console.log('[SW] Service worker activated');
+        console.log('[SW] All old caches deleted');
+        // Take control of all clients immediately (no waiting for refresh)
         return self.clients.claim();
+      })
+      .then(() => {
+        console.log('[SW] Service worker activated and claimed all clients');
       })
   );
 });
 
-// Fetch event - serve from cache with network fallback
+// Fetch event - network-first strategy with cache fallback
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -73,84 +79,42 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip API requests (they need to be fresh)
+  // Skip API requests (always fetch fresh)
   if (url.pathname.startsWith('/api/')) {
     return;
   }
 
-  // Handle static assets with cache-first strategy
-  if (STATIC_ASSETS.some(asset => url.pathname === asset || url.pathname.startsWith('/uploads/'))) {
-    event.respondWith(
-      caches.match(request)
-        .then((cached) => {
-          if (cached) {
-            return cached;
-          }
-          return fetch(request)
-            .then((response) => {
-              if (response.ok) {
-                const clone = response.clone();
-                caches.open(STATIC_CACHE)
-                  .then((cache) => cache.put(request, clone));
-              }
-              return response;
-            });
-        })
-        .catch(() => {
-          // If offline and not cached, return a basic offline page
-          if (request.mode === 'navigate') {
-            return new Response(
-              '<html><body><h1>Offline</h1><p>You are currently offline. Please check your connection.</p></body></html>',
-              { headers: { 'Content-Type': 'text/html' } }
-            );
-          }
-        })
-    );
-    return;
-  }
-
-  // For other requests, use network-first with cache fallback
+  // Network-first strategy: always try network first, fall back to cache
   event.respondWith(
     fetch(request)
       .then((response) => {
+        // Cache successful responses for offline fallback
         if (response.ok) {
           const clone = response.clone();
-          caches.open(DYNAMIC_CACHE)
-            .then((cache) => cache.put(request, clone));
+          caches.open(CACHE_NAME)
+            .then((cache) => cache.put(request, clone))
+            .catch((err) => console.warn('[SW] Cache put failed:', err));
         }
         return response;
       })
       .catch(() => {
+        // Network failed, try cache
         return caches.match(request)
           .then((cached) => {
             if (cached) {
+              console.log('[SW] Serving from cache (offline):', url.pathname);
               return cached;
             }
-            // Return offline page for navigation requests
+            // No cache available, return offline page for navigation
             if (request.mode === 'navigate') {
               return new Response(
                 '<html><body><h1>Offline</h1><p>You are currently offline. Please check your connection.</p></body></html>',
                 { headers: { 'Content-Type': 'text/html' } }
               );
             }
+            // For other requests, return a descriptive error
+            throw new Error(`Failed to fetch ${url.pathname}: network unavailable and no cached version exists. Please check your internet connection.`);
           });
       })
   );
-});
-
-// Message event - allow clients to control the SW
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-  
-  if (event.data && event.data.type === 'CLEAR_CACHE') {
-    event.waitUntil(
-      caches.keys().then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => caches.delete(cacheName))
-        );
-      })
-    );
-  }
 });
