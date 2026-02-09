@@ -6029,6 +6029,17 @@ const editProfileChangeUsernameBtn = document.getElementById("editProfileChangeU
 const editProfileUsernameMsg = document.getElementById("editProfileUsernameMsg");
 const editProfileVibeOptions = document.getElementById("editProfileVibeOptions");
 const editProfileVibeLimit = document.getElementById("editProfileVibeLimit");
+const roleSymbolSettingsSection = document.getElementById("roleSymbolSettingsSection");
+const roleSymbolVipField = document.getElementById("roleSymbolVipField");
+const roleSymbolModField = document.getElementById("roleSymbolModField");
+const roleSymbolAnimRow = document.getElementById("roleSymbolAnimRow");
+const roleSymbolVipGem = document.getElementById("roleSymbolVipGem");
+const roleSymbolVipColor = document.getElementById("roleSymbolVipColor");
+const roleSymbolModGem = document.getElementById("roleSymbolModGem");
+const roleSymbolModColor = document.getElementById("roleSymbolModColor");
+const roleSymbolAnimToggle = document.getElementById("roleSymbolAnimToggle");
+const roleSymbolSaveBtn = document.getElementById("roleSymbolSaveBtn");
+const roleSymbolMsg = document.getElementById("roleSymbolMsg");
 const profilePreviewCard = document.getElementById("profilePreviewCard");
 const profilePreviewHeader = document.getElementById("profilePreviewHeader");
 const profilePreviewAvatar = document.getElementById("profilePreviewAvatar");
@@ -7285,6 +7296,90 @@ function roleBadgeColor(role){
     default: return "#bdc3c7";
   }
 }
+const ROLE_GEM_DEFS = {
+  diamond: { name: "Diamond", file: "/icons/3410/gem-01.png" },
+  ruby: { name: "Ruby", file: "/icons/3410/gem-02.png" },
+  emerald: { name: "Emerald", file: "/icons/3410/gem-03.png" },
+  sapphire: { name: "Sapphire", file: "/icons/3410/gem-04.png" },
+  amethyst: { name: "Amethyst", file: "/icons/3410/gem-05.png" },
+  topaz: { name: "Topaz", file: "/icons/3410/gem-06.png" },
+  opal: { name: "Opal", file: "/icons/3410/gem-07.png" },
+  pearl: { name: "Pearl", file: "/icons/3410/gem-08.png" },
+  onyx: { name: "Onyx", file: "/icons/3410/gem-09.png" },
+  citrine: { name: "Citrine", file: "/icons/3410/gem-10.png" },
+  garnet: { name: "Garnet", file: "/icons/3410/gem-11.png" },
+  aquamarine: { name: "Aquamarine", file: "/icons/3410/gem-12.png" },
+  peridot: { name: "Peridot", file: "/icons/3410/gem-13.png" },
+  obsidian: { name: "Obsidian", file: "/icons/3410/gem-14.png" },
+  tanzanite: { name: "Tanzanite", file: "/icons/3410/gem-15.png" },
+  quartz: { name: "Quartz", file: "/icons/3410/gem-16.png" },
+};
+
+const VIP_GEM_KEYS = ["diamond", "ruby", "emerald", "sapphire", "amethyst", "topaz", "opal", "pearl"];
+const MODERATOR_GEM_KEYS = [
+  "onyx",
+  "citrine",
+  "garnet",
+  "aquamarine",
+  "peridot",
+  "obsidian",
+  "tanzanite",
+  "quartz",
+];
+
+const ROLE_SYMBOL_COLOR_VARIANTS = {
+  blue: { name: "Ice Blue", color: "#6EC5FF" },
+  pink: { name: "Rose Pink", color: "#FF7AD9" },
+  gold: { name: "Royal Gold", color: "#F5C542" },
+  purple: { name: "Mystic Purple", color: "#9B6BFF" },
+  green: { name: "Jade Green", color: "#3DDC84" },
+  red: { name: "Ruby Red", color: "#FF4B4B" },
+};
+
+const DEFAULT_ROLE_SYMBOL_PREFS = {
+  vip_gemstone: "diamond",
+  vip_color_variant: "blue",
+  moderator_gemstone: "onyx",
+  moderator_color_variant: "blue",
+  enable_animations: 1,
+};
+
+const roleSymbolCache = new Map();
+const roleSymbolPrefetchPending = new Set();
+const roleGemMaskCache = new Map();
+let roleSymbolMaskCounter = 0;
+let roleGemDefsRootSvg = null;
+
+function getRoleGemDefsContainer() {
+  const svgNs = "http://www.w3.org/2000/svg";
+  if (!roleGemDefsRootSvg) {
+    roleGemDefsRootSvg = document.createElementNS(svgNs, "svg");
+    roleGemDefsRootSvg.setAttribute("id", "roleGemDefsRoot");
+    roleGemDefsRootSvg.setAttribute("width", "0");
+    roleGemDefsRootSvg.setAttribute("height", "0");
+    roleGemDefsRootSvg.setAttribute("aria-hidden", "true");
+    roleGemDefsRootSvg.style.position = "absolute";
+    roleGemDefsRootSvg.style.width = "0";
+    roleGemDefsRootSvg.style.height = "0";
+    roleGemDefsRootSvg.style.overflow = "hidden";
+    roleGemDefsRootSvg.style.pointerEvents = "none";
+    const defs = document.createElementNS(svgNs, "defs");
+    roleGemDefsRootSvg.appendChild(defs);
+  }
+
+  if (!roleGemDefsRootSvg.isConnected) {
+    const target = document.body || document.documentElement;
+    if (target) target.appendChild(roleGemDefsRootSvg);
+  }
+
+  let defs = roleGemDefsRootSvg.querySelector("defs");
+  if (!defs) {
+    defs = document.createElementNS(svgNs, "defs");
+    roleGemDefsRootSvg.appendChild(defs);
+  }
+  return defs;
+}
+
 function roleIcon(role){
   switch(role){
     case "Owner": return "👑";
@@ -7294,6 +7389,167 @@ function roleIcon(role){
     case "VIP": return "💎";
     case "Guest": return "👥";
     default: return "👤";
+  }
+}
+
+function normalizeRoleSymbolPrefs(prefs = {}) {
+  const vipGem = VIP_GEM_KEYS.includes(prefs.vip_gemstone) ? prefs.vip_gemstone : DEFAULT_ROLE_SYMBOL_PREFS.vip_gemstone;
+  const vipColor = ROLE_SYMBOL_COLOR_VARIANTS[prefs.vip_color_variant]
+    ? prefs.vip_color_variant
+    : DEFAULT_ROLE_SYMBOL_PREFS.vip_color_variant;
+  const modGem = MODERATOR_GEM_KEYS.includes(prefs.moderator_gemstone)
+    ? prefs.moderator_gemstone
+    : DEFAULT_ROLE_SYMBOL_PREFS.moderator_gemstone;
+  const modColor = ROLE_SYMBOL_COLOR_VARIANTS[prefs.moderator_color_variant]
+    ? prefs.moderator_color_variant
+    : DEFAULT_ROLE_SYMBOL_PREFS.moderator_color_variant;
+  const enableAnimations = prefs.enable_animations === 0 || prefs.enable_animations === "0" || prefs.enable_animations === false ? 0 : 1;
+  return {
+    vip_gemstone: vipGem,
+    vip_color_variant: vipColor,
+    moderator_gemstone: modGem,
+    moderator_color_variant: modColor,
+    enable_animations: enableAnimations,
+  };
+}
+
+function updateRoleSymbolCache(username, prefs) {
+  const key = normKey(username);
+  if (!key || !prefs) return;
+  roleSymbolCache.set(key, normalizeRoleSymbolPrefs(prefs));
+}
+
+function resolveRoleSymbolPrefs(username) {
+  if (!username) return { ...DEFAULT_ROLE_SYMBOL_PREFS };
+  const cached = roleSymbolCache.get(normKey(username));
+  return cached ? { ...DEFAULT_ROLE_SYMBOL_PREFS, ...cached } : { ...DEFAULT_ROLE_SYMBOL_PREFS };
+}
+
+function createRoleGemSvg(filePath, color) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 256 256");
+  svg.setAttribute("aria-hidden", "true");
+  svg.classList.add("roleIconSvg");
+  if (color) svg.style.color = color;
+  let maskId = roleGemMaskCache.get(filePath);
+  if (!maskId) {
+    const defs = getRoleGemDefsContainer();
+    const mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
+    maskId = `roleGemMask-${roleSymbolMaskCounter++}`;
+    mask.setAttribute("id", maskId);
+    mask.setAttribute("maskUnits", "userSpaceOnUse");
+    mask.setAttribute("maskContentUnits", "userSpaceOnUse");
+    const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+    image.setAttribute("href", filePath);
+    image.setAttribute("width", "256");
+    image.setAttribute("height", "256");
+    image.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    mask.appendChild(image);
+    defs.appendChild(mask);
+    roleGemMaskCache.set(filePath, maskId);
+  }
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("width", "256");
+  rect.setAttribute("height", "256");
+  rect.setAttribute("fill", "currentColor");
+  rect.setAttribute("mask", `url(#${maskId})`);
+  svg.appendChild(rect);
+  return svg;
+}
+
+function createRoleIconElement(role, username = null) {
+  const span = document.createElement("span");
+  span.className = "roleIconWrapper";
+  const normalizedRole = normalizeRole(role);
+  span.dataset.role = normalizedRole.toLowerCase();
+  span.dataset.roleName = normalizedRole;
+  span.setAttribute("role", "img");
+  const prefs = resolveRoleSymbolPrefs(username);
+  let ariaLabel = `${normalizedRole} role icon`;
+  if (["Owner", "Co-owner", "Admin"].includes(normalizedRole) && prefs.enable_animations !== 0) {
+    span.classList.add("roleIconAnimated");
+  }
+
+  if (normalizedRole === "VIP" || normalizedRole === "Moderator") {
+    const gemKey = normalizedRole === "VIP" ? prefs.vip_gemstone : prefs.moderator_gemstone;
+    const colorKey = normalizedRole === "VIP" ? prefs.vip_color_variant : prefs.moderator_color_variant;
+    const gem = ROLE_GEM_DEFS[gemKey];
+    const color = ROLE_SYMBOL_COLOR_VARIANTS[colorKey]?.color;
+    const colorName = ROLE_SYMBOL_COLOR_VARIANTS[colorKey]?.name;
+    if (gem) {
+      span.dataset.gem = gemKey;
+      if (color) span.style.color = color;
+      const colorSuffix = colorName ? ` (${colorName})` : "";
+      ariaLabel = `${normalizedRole} gemstone ${gem.name}${colorSuffix}`;
+      span.setAttribute("aria-label", ariaLabel);
+      span.appendChild(createRoleGemSvg(gem.file, color));
+      return span;
+    }
+  }
+
+  span.classList.add("roleIconEmoji");
+  span.textContent = roleIcon(normalizedRole);
+  span.setAttribute("aria-label", ariaLabel);
+  return span;
+}
+
+function applyRoleIcon(container, role, username = null) {
+  if (!container) return;
+  const normalizedRole = normalizeRole(role);
+  container.dataset.role = normalizedRole;
+  if (username) container.dataset.username = username;
+  container.innerHTML = "";
+  container.appendChild(createRoleIconElement(normalizedRole, username));
+}
+
+function applyRoleIconLabel(container, role, username, label) {
+  if (!container) return;
+  container.innerHTML = "";
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "roleIco";
+  applyRoleIcon(iconWrap, role, username);
+  container.appendChild(iconWrap);
+  if (label) container.appendChild(document.createTextNode(label));
+}
+
+function refreshAllRoleIcons() {
+  document.querySelectorAll(".roleIco").forEach((el) => {
+    const role = el.dataset.role || el.getAttribute("data-role") || "";
+    const username = el.dataset.username || "";
+    applyRoleIcon(el, role, username || null);
+  });
+}
+
+async function preloadRoleSymbols(usernames) {
+  const names = Array.isArray(usernames) ? usernames : [];
+  const missing = [];
+  const pendingKeys = [];
+  names.forEach((name) => {
+    const key = normKey(name);
+    if (!key || roleSymbolCache.has(key) || roleSymbolPrefetchPending.has(key)) return;
+    roleSymbolPrefetchPending.add(key);
+    pendingKeys.push(key);
+    missing.push(name);
+  });
+  if (!missing.length) return;
+  try {
+    const res = await fetch("/api/role-symbols/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ usernames: missing }),
+    });
+    if (!res.ok) return;
+    const payload = await res.json();
+    (payload || []).forEach((entry) => {
+      if (!entry?.username || !entry?.prefs) return;
+      updateRoleSymbolCache(entry.username, entry.prefs);
+    });
+    refreshAllRoleIcons();
+  } catch (err) {
+    console.warn("Failed to preload role symbols:", err);
+  } finally {
+    pendingKeys.forEach((key) => roleSymbolPrefetchPending.delete(key));
   }
 }
 const PRESET_REASONS = [
@@ -9925,7 +10181,7 @@ function buildMainMsgItem(m, opts){
   if (showHeader) {
     const ico = document.createElement("span");
     ico.className = "roleIco";
-    ico.textContent = `${roleIcon(m.role)} `;
+    applyRoleIcon(ico, m.role, m.user || m.username);
     const uname = document.createElement("span");
     uname.className = "unameText";
     uname.dataset.role = roleTag;
@@ -10555,7 +10811,8 @@ function openMemberMenu(user, anchor){
   }
   if (memberMenuName) {
     const displayName = user?.name || user?.username || memberMenuUsername || "";
-    memberMenuName.textContent = `${roleIcon(user.role)} ${displayName}`.trim();
+    const uname = user?.username || user?.name || memberMenuUsername || "";
+    applyRoleIconLabel(memberMenuName, user.role, uname, displayName);
   }
   memberMenu.classList.add("open");
   scheduleMemberMenuPosition();
@@ -10717,6 +10974,7 @@ function renderMembers(users){
   lastUsers = ensureIrisLolaPartnerAdjacency(reorderCouplesInMembers(users || []));
   cleanupRecentDiceRolls();
   refreshModTargetOptions(lastUsers);
+  preloadRoleSymbols((lastUsers || []).map((u) => u?.username || u?.name).filter(Boolean));
   withFlip(memberList, "data-flip-key", () => {
     memberList.innerHTML="";
     const presentNames = new Set((lastUsers||[]).map(u=>u?.name).filter(Boolean));
@@ -10770,7 +11028,7 @@ function renderMembers(users){
       }
       const ico = document.createElement("span");
       ico.className = "roleIco";
-      ico.textContent = `${roleIcon(u.role)} `;
+      applyRoleIcon(ico, u.role, u.username || u.name);
       const uname = document.createElement("span");
       uname.className = "unameText";
       uname.textContent = String(u.name || "");
@@ -10864,6 +11122,7 @@ function setMembersViewMode(mode){
 function renderFriendsList(list){
   const friends = Array.isArray(list) ? list : [];
   cleanupRecentDiceRolls();
+  preloadRoleSymbols(friends.map((f) => f?.username).filter(Boolean));
   withFlip(memberList, 'data-flip-key', () => {
     memberList.innerHTML = '';
     if (!friends.length) {
@@ -10904,7 +11163,7 @@ function renderFriendsList(list){
       }
       const ico = document.createElement('span');
       ico.className = 'roleIco';
-      ico.textContent = `${roleIcon(f.role)} `;
+      applyRoleIcon(ico, f.role, f.username);
       const uname = document.createElement('span');
       uname.className = 'unameText';
       uname.textContent = f.username;
@@ -14039,6 +14298,10 @@ function loadEditProfileData() {
   const editProfileGenderCustomize = document.getElementById("editProfileGender");
   const editProfileBioCustomize = document.getElementById("editProfileBio");
   const editProfileUsernameCustomize = document.getElementById("editProfileUsername");
+
+  initRoleSymbolSettings();
+  updateRoleSymbolSettingsVisibility(me?.role);
+  void loadRoleSymbolSettings();
   
   if (editProfileMoodCustomize) editProfileMoodCustomize.value = me?.mood || "";
   if (editProfileAgeCustomize) editProfileAgeCustomize.value = me?.age || "";
@@ -14260,6 +14523,7 @@ openEditProfileBtn?.addEventListener("click", () => {
 editProfileModalClose?.addEventListener("click", closeEditProfileModal);
 editProfileCancelBtn?.addEventListener("click", closeEditProfileModal);
 editProfileSaveBtn?.addEventListener("click", saveEditProfile);
+roleSymbolSaveBtn?.addEventListener("click", saveRoleSymbolSettings);
 
 // Handle username change separately
 editProfileChangeUsernameBtn?.addEventListener("click", async () => {
@@ -19088,15 +19352,130 @@ async function loadMyProfile(){
   applyProgressionPayload(p);
 
   meName.textContent=p.username;
-  meRole.textContent=`${roleIcon(p.role)} ${p.role}`;
+  applyRoleIconLabel(meRole, p.role, p.username, p.role);
   meAvatar.innerHTML="";
   meAvatar.appendChild(avatarNode(p.avatar, p.username, p.role));
   renderLevelProgress(progression, true);
   renderVibeOptions(me.vibe_tags || []);
   updateChatFxPreviewIdentity(me);
+  initRoleSymbolSettings();
+  updateRoleSymbolSettingsVisibility(p.role);
+  await loadRoleSymbolSettings();
   if (editUsername) editUsername.value = "";
   if (priorRole && priorRole !== p.role) {
     pushNotification({ type: "system", text: `Role updated to ${p.role}.` });
+  }
+}
+
+let roleSymbolSettingsInitialized = false;
+
+function initRoleSymbolSettings() {
+  if (roleSymbolSettingsInitialized) return;
+  if (roleSymbolVipGem) {
+    roleSymbolVipGem.innerHTML = "";
+    VIP_GEM_KEYS.forEach((key) => {
+      const gem = ROLE_GEM_DEFS[key];
+      if (!gem) return;
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = gem.name;
+      roleSymbolVipGem.appendChild(opt);
+    });
+  }
+  if (roleSymbolModGem) {
+    roleSymbolModGem.innerHTML = "";
+    MODERATOR_GEM_KEYS.forEach((key) => {
+      const gem = ROLE_GEM_DEFS[key];
+      if (!gem) return;
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = gem.name;
+      roleSymbolModGem.appendChild(opt);
+    });
+  }
+  if (roleSymbolVipColor) {
+    roleSymbolVipColor.innerHTML = "";
+    Object.entries(ROLE_SYMBOL_COLOR_VARIANTS).forEach(([key, info]) => {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = info.name;
+      roleSymbolVipColor.appendChild(opt);
+    });
+  }
+  if (roleSymbolModColor) {
+    roleSymbolModColor.innerHTML = "";
+    Object.entries(ROLE_SYMBOL_COLOR_VARIANTS).forEach(([key, info]) => {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = info.name;
+      roleSymbolModColor.appendChild(opt);
+    });
+  }
+  roleSymbolSettingsInitialized = true;
+}
+
+function updateRoleSymbolSettingsVisibility(role) {
+  if (!roleSymbolSettingsSection) return;
+  const normalizedRole = normalizeRole(role || "User");
+  const vipPlus = roleRank(normalizedRole) >= roleRank("VIP");
+  roleSymbolSettingsSection.style.display = vipPlus ? "" : "none";
+  if (roleSymbolVipField) roleSymbolVipField.style.display = normalizedRole === "VIP" ? "" : "none";
+  if (roleSymbolModField) roleSymbolModField.style.display = normalizedRole === "Moderator" ? "" : "none";
+  if (roleSymbolAnimRow) {
+    roleSymbolAnimRow.style.display = roleRank(normalizedRole) >= roleRank("Admin") ? "" : "none";
+  }
+}
+
+async function loadRoleSymbolSettings() {
+  if (!roleSymbolSettingsSection || !me?.username) return;
+  try {
+    const res = await fetch("/api/role-symbols", { credentials: "include" });
+    if (!res.ok) throw new Error(await res.text());
+    const prefs = normalizeRoleSymbolPrefs(await res.json());
+    updateRoleSymbolCache(me.username, prefs);
+    if (roleSymbolVipGem) roleSymbolVipGem.value = prefs.vip_gemstone;
+    if (roleSymbolVipColor) roleSymbolVipColor.value = prefs.vip_color_variant;
+    if (roleSymbolModGem) roleSymbolModGem.value = prefs.moderator_gemstone;
+    if (roleSymbolModColor) roleSymbolModColor.value = prefs.moderator_color_variant;
+    if (roleSymbolAnimToggle) roleSymbolAnimToggle.checked = prefs.enable_animations !== 0;
+    refreshAllRoleIcons();
+    setMsgline(roleSymbolMsg, "");
+  } catch (err) {
+    console.warn("Failed to load role symbol settings:", err);
+    setMsgline(roleSymbolMsg, "Could not load role symbol settings.");
+  }
+}
+
+async function saveRoleSymbolSettings() {
+  if (!me?.username) return;
+  const prefs = {};
+  if (roleSymbolVipField && roleSymbolVipField.style.display !== "none") {
+    prefs.vip_gemstone = roleSymbolVipGem?.value || DEFAULT_ROLE_SYMBOL_PREFS.vip_gemstone;
+    prefs.vip_color_variant = roleSymbolVipColor?.value || DEFAULT_ROLE_SYMBOL_PREFS.vip_color_variant;
+  }
+  if (roleSymbolModField && roleSymbolModField.style.display !== "none") {
+    prefs.moderator_gemstone = roleSymbolModGem?.value || DEFAULT_ROLE_SYMBOL_PREFS.moderator_gemstone;
+    prefs.moderator_color_variant = roleSymbolModColor?.value || DEFAULT_ROLE_SYMBOL_PREFS.moderator_color_variant;
+  }
+  if (roleSymbolAnimRow && roleSymbolAnimRow.style.display !== "none") {
+    prefs.enable_animations = roleSymbolAnimToggle?.checked ? 1 : 0;
+  }
+  setMsgline(roleSymbolMsg, "Saving role symbols...");
+  try {
+    const res = await fetch("/api/role-symbols", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(prefs),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const updated = normalizeRoleSymbolPrefs(await res.json());
+    updateRoleSymbolCache(me.username, updated);
+    refreshAllRoleIcons();
+    setMsgline(roleSymbolMsg, "✓ Role symbol settings saved!");
+  } catch (err) {
+    console.warn("Failed to save role symbol settings:", err);
+    setMsgline(roleSymbolMsg, "Failed to save role symbol settings.");
   }
 }
 
@@ -19461,6 +19840,7 @@ function renderCouplesFlair(p) {
 
 function fillProfileUI(p, isSelf){
   currentProfileIsSelf = !!isSelf;
+  preloadRoleSymbols([p?.username].filter(Boolean));
 
   if (modalAvatar){
     modalAvatar.innerHTML="";
@@ -19468,7 +19848,7 @@ function fillProfileUI(p, isSelf){
   }
   if (modalName) modalName.textContent=p.username;
   if (modalRole){
-    modalRole.textContent=`${roleIcon(p.role)} ${p.role}`;
+    applyRoleIconLabel(modalRole, p.role, p.username, p.role);
     modalRole.style.color=roleBadgeColor(p.role);
   }
   // Mood lives under the username/role in the header.
@@ -19596,8 +19976,13 @@ function fillProfileSheetHeader(p, isSelf){
     applyNameFxToEl(profileSheetName, fx);
   }
   if (profileSheetRoleChip){
-    profileSheetRoleChip.textContent = p.role ? `${roleIcon(p.role)} ${p.role}` : "User";
-    profileSheetRoleChip.style.color = roleBadgeColor(p.role || "User");
+    if (p.role) {
+      applyRoleIconLabel(profileSheetRoleChip, p.role, p.username, p.role);
+      profileSheetRoleChip.style.color = roleBadgeColor(p.role || "User");
+    } else {
+      profileSheetRoleChip.textContent = "User";
+      profileSheetRoleChip.style.color = roleBadgeColor("User");
+    }
   }
   if (profileSheetNameRow){
     let ring = profileSheetNameRow.querySelector(".profileLevelRing");
@@ -20020,7 +20405,7 @@ function updateChatFxPreviewIdentity(user = me){
     chatFxPreviewName.dataset.role = roleToken;
     chatFxPreviewName.closest(".name")?.setAttribute("data-role", roleToken);
   }
-  if (chatFxPreviewRoleIcon) chatFxPreviewRoleIcon.textContent = `${roleIcon(role)} `;
+  if (chatFxPreviewRoleIcon) applyRoleIcon(chatFxPreviewRoleIcon, role, username);
   if (chatFxPreviewAvatar) {
     chatFxPreviewAvatar.innerHTML = "";
     chatFxPreviewAvatar.appendChild(avatarNode(user?.avatar || user?.avatarUrl, username, role, username));
@@ -20032,7 +20417,7 @@ function updateChatFxPreviewIdentity(user = me){
     textFxPreviewName.dataset.role = roleToken;
     textFxPreviewName.closest(".name")?.setAttribute("data-role", roleToken);
   }
-  if (textFxPreviewRoleIcon) textFxPreviewRoleIcon.textContent = `${roleIcon(role)} `;
+  if (textFxPreviewRoleIcon) applyRoleIcon(textFxPreviewRoleIcon, role, username);
   if (textFxPreviewAvatar) {
     textFxPreviewAvatar.innerHTML = "";
     textFxPreviewAvatar.appendChild(avatarNode(user?.avatar || user?.avatarUrl, username, role, username));
