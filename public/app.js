@@ -1034,6 +1034,7 @@ let friendsCache = [];
 let friendsDirty = true;
 const roleCache = new Map();
 const reactionsCache = Object.create(null);
+const messageReactionsCache = Object.create(null);
 const dmReactionsCache = Object.create(null);
 const dmReadCache = Object.create(null); // threadId -> { userId, messageId, ts }
 const userFxMap = Object.create(null);
@@ -1063,6 +1064,7 @@ const CHAT_FX_DEFAULTS = Object.freeze({
 const TEXT_STYLE_DEFAULTS = Object.freeze({
   mode: "color",
   color: "",
+  effectId: "none",
   neon: {
     presetId: null,
     color: "",
@@ -1076,6 +1078,20 @@ const TEXT_STYLE_DEFAULTS = Object.freeze({
   fontFamily: "system",
   fontStyle: "normal"
 });
+const TEXT_EFFECTS = [
+  { id: "none", name: "None", type: "none" },
+  { id: "neon", name: "Neon Glow", type: "glow" },
+  { id: "gradient", name: "Gradient", type: "gradient" },
+  { id: "rainbow", name: "Rainbow", type: "animated-gradient", vip: true },
+  { id: "shimmer", name: "Shimmer", type: "animated-shine", vip: true },
+  { id: "fire", name: "Fire", type: "animated-flicker", vip: true },
+  { id: "glitch", name: "Glitch", type: "animated-distort", vip: true },
+  { id: "wave", name: "Wave", type: "animated-wave", vip: true },
+  { id: "3d-pop", name: "3D Pop", type: "shadow-depth" },
+  { id: "outline", name: "Outline", type: "stroke" },
+  { id: "shadow", name: "Drop Shadow", type: "shadow" }
+];
+const TEXT_EFFECT_MAP = new Map(TEXT_EFFECTS.map((effect) => [effect.id, effect]));
 const TEXT_STYLE_MODES = new Set(["color", "neon", "gradient"]);
 const TEXT_STYLE_INTENSITIES = new Set(["low", "med", "high", "ultra"]);
 const TEXT_STYLE_GRADIENT_INTENSITIES = new Set(["soft", "normal", "bold"]);
@@ -1678,6 +1694,7 @@ let textCustomizationPreviewMessage = null;
 let textCustomizationTitle = null;
 let textCustomizationIntensity = null;
 let textCustomizationGradientIntensity = null;
+let textCustomizationEffect = null;
 let textCustomizationFont = null;
 let textCustomizationStyle = null;
 let textCustomizationColorInput = null;
@@ -2074,6 +2091,8 @@ function normalizeTextStyle(raw, legacy = {}){
   base.color = normalizeHexColor6(raw.color);
   base.fontFamily = normalizeChatFxFontKey(raw.fontFamily || raw.font);
   base.fontStyle = normalizeTextStyleFontStyle(raw.fontStyle);
+  const effectKey = String(raw.effectId ?? raw.effect ?? "").trim().toLowerCase();
+  if (TEXT_EFFECT_MAP.has(effectKey)) base.effectId = effectKey;
   if (raw.neon && typeof raw.neon === "object") {
     const presetId = typeof raw.neon.presetId === "string" ? raw.neon.presetId : null;
     const preset = presetId ? NEON_PRESET_MAP.get(presetId) : null;
@@ -2344,6 +2363,23 @@ function gradientVisibilityProfile(intensity){
   return profiles[intensity] || profiles.normal;
 }
 
+function canUseTextEffect(effectId){
+  const effect = TEXT_EFFECT_MAP.get(effectId);
+  if (!effect || !effect.vip) return true;
+  return roleRank(me?.role || "User") >= roleRank("VIP");
+}
+
+function applyTextEffect(element, effectId){
+  if (!element) return;
+  Array.from(element.classList).forEach((cls) => {
+    if (cls.startsWith("text-effect-")) element.classList.remove(cls);
+  });
+  const effect = TEXT_EFFECT_MAP.get(effectId) || TEXT_EFFECT_MAP.get("none");
+  if (!effect || effect.id === "none") return;
+  if (effect.vip && !canUseTextEffect(effect.id)) return;
+  element.classList.add(`text-effect-${effect.id}`);
+}
+
 function applyTextStyleToEl(el, style, { fallbackColor = "" } = {}){
   if (!el) return;
   const normalized = normalizeTextStyle(style);
@@ -2370,6 +2406,7 @@ function applyTextStyleToEl(el, style, { fallbackColor = "" } = {}){
       el.style.setProperty("--text-gradient-stroke", profile.stroke);
       el.style.setProperty("--text-gradient-stroke-color", profile.strokeColor);
       el.classList.add("textStyleGradient");
+      applyTextEffect(el, normalized.effectId);
       return;
     }
   }
@@ -2381,12 +2418,14 @@ function applyTextStyleToEl(el, style, { fallbackColor = "" } = {}){
       const textColor = preset?.textColor || baseColor;
       el.style.color = brightenHexColor(textColor, 0.2);
       el.style.textShadow = buildNeonTextShadow(baseColor, normalized.neon.intensity);
+      applyTextEffect(el, normalized.effectId);
       return;
     }
   }
 
   const color = normalized.color || fallbackColor;
   if (color) el.style.color = color;
+  applyTextEffect(el, normalized.effectId);
 }
 
 function applyNameFxToEl(el, fx){
@@ -2590,6 +2629,8 @@ function applyChatFxToBubble(bubble, fx, options = {}){
   bubble.dataset.fxTextGradB = gradientB;
   bubble.classList.toggle("fx-textGradient", gradientEnabled);
   bubble.classList.toggle("fx-autoContrast", autoContrast);
+  const textEl = bubble.querySelector(".text");
+  if (textEl) applyTextEffect(textEl, textStyle.effectId);
 }
 
 function markDmRead(threadId, ts) {
@@ -9664,6 +9705,168 @@ function closeThemeActionSheet(){
   themesActionSheet?.setAttribute("aria-hidden", "true");
   themeActionThemeId = "";
 }
+
+const BUBBLE_STYLE_PRESETS = [
+  {
+    id: "minimal",
+    name: "Minimal",
+    radius: 12,
+    border: 0,
+    glass: false,
+    glow: false
+  },
+  {
+    id: "rounded",
+    name: "Rounded",
+    radius: 20,
+    border: 1,
+    glass: false,
+    glow: false
+  },
+  {
+    id: "glass",
+    name: "Glass",
+    radius: 16,
+    border: 1,
+    glass: true,
+    blur: 10,
+    glow: false
+  },
+  {
+    id: "neon-glow",
+    name: "Neon Glow",
+    radius: 14,
+    border: 2,
+    glow: true,
+    glass: false
+  },
+  {
+    id: "sharp",
+    name: "Sharp Edges",
+    radius: 4,
+    border: 1,
+    glass: false,
+    glow: false
+  },
+  {
+    id: "pill",
+    name: "Pill Shape",
+    radius: 999,
+    border: 0,
+    glass: false,
+    glow: false
+  },
+  {
+    id: "retro-terminal",
+    name: "Retro Terminal",
+    radius: 0,
+    border: 2,
+    glass: false,
+    glow: false
+  },
+  {
+    id: "bubble-tea",
+    name: "Bubble Tea",
+    radius: 24,
+    border: 0,
+    glass: true,
+    blur: 8,
+    glow: false
+  },
+  {
+    id: "frosted",
+    name: "Frosted Glass",
+    radius: 18,
+    border: 1,
+    glass: true,
+    blur: 20,
+    glow: false
+  },
+  {
+    id: "neumorphic",
+    name: "Neumorphic",
+    radius: 16,
+    border: 0,
+    shadow: "inset",
+    glass: false,
+    glow: false
+  },
+];
+const BUBBLE_STYLE_STORAGE_KEY = "bubbleStylePreset";
+
+function applyBubbleStylePreset(preset, { persist = false } = {}){
+  if (!preset) return;
+  document.documentElement.style.setProperty("--bubble-radius", `${preset.radius}px`);
+  document.documentElement.style.setProperty("--bubble-border", `${preset.border}px`);
+  document.documentElement.style.setProperty("--bubble-glow", preset.glow ? "1" : "0");
+  document.documentElement.style.setProperty("--bubble-blur", preset.glass ? `${preset.blur || 0}px` : "0px");
+  document.documentElement.style.setProperty("--bubble-glass", preset.glass ? "0.12" : "0");
+  const extraShadow = preset.shadow === "inset"
+    ? "inset 0 0 12px rgba(0,0,0,0.35)"
+    : "0 0 0 transparent";
+  document.documentElement.style.setProperty("--bubble-extra-shadow", extraShadow);
+  if (persist) {
+    localStorage.setItem(BUBBLE_STYLE_STORAGE_KEY, preset.id);
+  }
+}
+
+function applyStoredBubbleStyle(){
+  const stored = localStorage.getItem(BUBBLE_STYLE_STORAGE_KEY);
+  const preset = BUBBLE_STYLE_PRESETS.find((p) => p.id === stored) || BUBBLE_STYLE_PRESETS[0];
+  if (preset) applyBubbleStylePreset(preset);
+}
+
+function renderBubbleStyleSettings() {
+  const container = document.getElementById("bubbleStyleSettings");
+  if (!container) return;
+
+  container.innerHTML = `
+    <h3>Chat Bubble Style</h3>
+    <div class="bubbleStyleGrid">
+      ${BUBBLE_STYLE_PRESETS.map((preset) => `
+        <div class="bubbleStylePreview" data-preset-id="${preset.id}">
+          <div class="previewBubble" style="
+            border-radius: ${preset.radius}px;
+            border: ${preset.border}px solid var(--accent);
+            ${preset.glass ? "backdrop-filter: blur(" + preset.blur + "px);" : ""}
+            ${preset.glow ? "box-shadow: 0 0 20px var(--accent);" : ""}
+          ">
+            ${preset.name}
+          </div>
+        </div>
+      `).join("")}
+    </div>
+    <button id="saveBubbleStyleBtn" class="btn btnPrimary">Apply Style</button>
+  `;
+
+  const stored = localStorage.getItem(BUBBLE_STYLE_STORAGE_KEY);
+  const selectedId = stored || BUBBLE_STYLE_PRESETS[0]?.id;
+  if (selectedId) {
+    const selected = container.querySelector(`[data-preset-id="${selectedId}"]`);
+    selected?.classList.add("selected");
+  }
+
+  container.querySelectorAll(".bubbleStylePreview").forEach((preview) => {
+    preview.onclick = () => {
+      container.querySelectorAll(".bubbleStylePreview").forEach((p) => p.classList.remove("selected"));
+      preview.classList.add("selected");
+    };
+  });
+
+  const saveBtn = document.getElementById("saveBubbleStyleBtn");
+  if (saveBtn) saveBtn.onclick = saveBubbleStyle;
+}
+
+function saveBubbleStyle() {
+  const selected = document.querySelector(".bubbleStylePreview.selected");
+  const presetId = selected?.dataset.presetId;
+  const preset = BUBBLE_STYLE_PRESETS.find((p) => p.id === presetId);
+
+  if (!preset) return;
+
+  applyBubbleStylePreset(preset, { persist: true });
+  showToast("✅ Bubble style applied!");
+}
 function switchCustomizationSection(section){
   customNavButtons.forEach((btn) => {
     const isActive = btn.dataset.section === section;
@@ -9736,6 +9939,8 @@ function initCustomizationUi(){
   themeRecents = loadThemeRecents();
   updateCurrentThemeLabel();
   renderThemeCatalog();
+  renderBubbleStyleSettings();
+  applyStoredBubbleStyle();
 }
 async function loadThemePreference(){
   let desired = sanitizeThemeName(getStoredTheme() || currentTheme || DEFAULT_THEME);
@@ -9804,6 +10009,7 @@ applyDmNeonPrefs();
 applyDmTranslucent(readDmTranslucentStorage(), { persistLocal: false, persistServer: false });
 initCustomizationUi();
 const EMOJI_CHOICES = ["😀","😁","😂","🙂","😉","😍","😘","🤔","😤","😭","😡","🥹","😈","💀","🔥","👀","🖕","♥️","💯","👍","👎","🎉","📸","🫦",];
+const QUICK_REACTIONS = ["❤️", "👍", "😂", "😮", "😢", "🔥", "🎉", "👀"];
 
 let reactionMenuEl = null;
 let reactionMenuFor = null;
@@ -10317,6 +10523,7 @@ function buildMainMsgItem(m, opts){
   item.className = "msgItem msg--main" + (isSelf ? " self" : "");
   if (!showHeader) item.classList.add("msgItem--continued");
   item.dataset.mid = mid;
+  item.dataset.messageId = mid;
 
   const bubble = document.createElement("div");
   bubble.className = "bubble";
@@ -10429,7 +10636,7 @@ function buildMainMsgItem(m, opts){
 
   // Reactions container (kept outside bubble so it can sit beside it)
   const reacts = document.createElement("div");
-  reacts.className = "reacts";
+  reacts.className = "reacts messageReactions";
   reacts.id = "reacts-" + mid;
 
   // Actions rail
@@ -10443,8 +10650,7 @@ function buildMainMsgItem(m, opts){
   reactToggle.title = "React";
   reactToggle.onclick = (e)=>{
     e.stopPropagation();
-    if(reactionMenuFor === mid) closeReactionMenu();
-    else openReactionMenu(mid, reactToggle, item);
+    showReactionPicker(mid, currentRoom, reactToggle);
   };
   actions.appendChild(reactToggle);
 
@@ -10513,6 +10719,7 @@ actions.appendChild(replyBtn);
   main.appendChild(actions);
 
   item.appendChild(main);
+  renderMessageReactions(item, mid, currentRoom);
 
   // Mobile tap-to-toggle actions (per message item)
   const toggleActions = (e) => {
@@ -10529,9 +10736,6 @@ actions.appendChild(replyBtn);
 
   bubble.addEventListener("click", toggleActions);
   bubble.addEventListener("touchstart", toggleActions, { passive:false });
-
-  // Initial reactions render if present
-  if(m.reactions) renderReactions(mid, m.reactions);
 
   return item;
 }
@@ -10595,6 +10799,158 @@ function safeAddMessage(m){
   }
 }
 
+
+function getReactionCacheKey(room, messageId){
+  const roomKey = String(room || "").trim().replace(/^#/, "");
+  return roomKey && messageId ? `${roomKey}:${messageId}` : "";
+}
+
+function renderMessageReactionsFromData(container, messageId, room, reactions){
+  const list = Array.isArray(reactions) ? reactions : [];
+  const cacheKey = getReactionCacheKey(room, messageId);
+  if (cacheKey) messageReactionsCache[cacheKey] = list;
+  container.innerHTML = list.map((r) => {
+    const emojiRaw = String(r?.emoji || "");
+    const emoji = escapeHtml(emojiRaw);
+    if (!emoji) return "";
+    const count = Number(r?.count || 0);
+    const users = String(r?.users || "")
+      .split(",")
+      .map((u) => u.trim())
+      .filter(Boolean)
+      .join(", ");
+    const title = users ? escapeHtml(users) : "";
+    const emojiAttr = encodeURIComponent(emojiRaw);
+    return `
+      <button class="reactionBubble" data-emoji="${emojiAttr}" title="${title}">
+        <span class="reactionEmoji">${emoji}</span>
+        <span class="reactionCount">${count}</span>
+      </button>
+    `;
+  }).join("") + `
+    <button class="addReactionBtn" title="Add reaction">➕</button>
+  `;
+
+  container.querySelectorAll(".reactionBubble").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const emoji = btn.dataset.emoji ? decodeURIComponent(btn.dataset.emoji) : "";
+      toggleReaction(messageId, room, emoji);
+    };
+  });
+  const addBtn = container.querySelector(".addReactionBtn");
+  if (addBtn) {
+    addBtn.onclick = (e) => {
+      e.stopPropagation();
+      showReactionPicker(messageId, room, addBtn);
+    };
+  }
+
+  const host = container.closest(".msgItem");
+  if (host) host.classList.toggle("hasReacts", list.length > 0);
+}
+
+function renderMessageReactions(messageEl, messageId, room, { force = false } = {}){
+  if (!messageEl || !messageId) return;
+  const roomKey = String(room || "").trim().replace(/^#/, "");
+  if (!roomKey) return;
+  const cacheKey = getReactionCacheKey(roomKey, messageId);
+  const container = messageEl.querySelector(".messageReactions") || messageEl.querySelector(".reacts") || document.createElement("div");
+  container.classList.add("messageReactions");
+  if (!messageEl.contains(container)) {
+    const main = messageEl.querySelector(".msgMain");
+    (main || messageEl).appendChild(container);
+  }
+
+  if (!force && messageReactionsCache[cacheKey]) {
+    renderMessageReactionsFromData(container, messageId, roomKey, messageReactionsCache[cacheKey]);
+    return;
+  }
+  if (!force) {
+    messageReactionsCache[cacheKey] = messageReactionsCache[cacheKey] || [];
+    renderMessageReactionsFromData(container, messageId, roomKey, messageReactionsCache[cacheKey]);
+    return;
+  }
+  if (container.dataset.loading === "1") return;
+  container.dataset.loading = "1";
+  fetch(`/api/messages/${messageId}/reactions?room=${encodeURIComponent(roomKey)}`, {
+    credentials: "include"
+  })
+    .then((res) => (res.ok ? res.json() : []))
+    .then((reactions) => {
+      const list = Array.isArray(reactions) ? reactions : reactions?.reactions || [];
+      messageReactionsCache[cacheKey] = list;
+      container.dataset.loading = "0";
+      renderMessageReactionsFromData(container, messageId, roomKey, list);
+    })
+    .catch((err) => {
+      container.dataset.loading = "0";
+      console.error("Failed to load reactions:", err);
+    });
+}
+
+async function toggleReaction(messageId, room, emoji){
+  if (!messageId || !room || !emoji) return;
+  try {
+    const res = await fetch(`/api/messages/${messageId}/react`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ emoji, room })
+    });
+    const data = res.ok ? await res.json().catch(() => null) : null;
+    if (data?.reactions) {
+      const roomKey = String(room || "").trim().replace(/^#/, "");
+      const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
+      if (messageEl) {
+        const container = messageEl.querySelector(".messageReactions") || messageEl.querySelector(".reacts");
+        if (container) renderMessageReactionsFromData(container, messageId, roomKey, data.reactions);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to toggle reaction:", err);
+  }
+}
+
+function showReactionPicker(messageId, room, anchorEl){
+  if (!messageId || !room) return;
+  document.querySelectorAll(".reactionPicker").forEach((picker) => picker.remove());
+  const picker = document.createElement("div");
+  picker.className = "reactionPicker";
+  picker.innerHTML = QUICK_REACTIONS.map((emoji) => `
+    <button class="reactionPickerEmoji" type="button">${escapeHtml(emoji)}</button>
+  `).join("");
+
+  picker.querySelectorAll(".reactionPickerEmoji").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      toggleReaction(messageId, room, btn.textContent);
+      picker.remove();
+    };
+  });
+
+  document.body.appendChild(picker);
+
+  const rect = anchorEl?.getBoundingClientRect();
+  const pickerRect = picker.getBoundingClientRect();
+  const x = rect
+    ? Math.min(window.innerWidth - pickerRect.width - 12, Math.max(12, rect.left))
+    : Math.max(12, (window.innerWidth - pickerRect.width) / 2);
+  const y = rect
+    ? Math.min(window.innerHeight - pickerRect.height - 12, rect.bottom + 8)
+    : Math.max(12, (window.innerHeight - pickerRect.height) / 2);
+  picker.style.left = `${x}px`;
+  picker.style.top = `${y}px`;
+
+  setTimeout(() => {
+    document.addEventListener("click", function closeReactionPicker(e) {
+      if (!picker.contains(e.target)) {
+        picker.remove();
+        document.removeEventListener("click", closeReactionPicker);
+      }
+    });
+  }, 10);
+}
 
 function renderReactions(messageId, reactionsMap){
   reactionsCache[messageId] = reactionsMap || {};
@@ -21143,6 +21499,7 @@ function cloneTextStyle(style){
   return normalizeTextStyle({
     mode: safe.mode,
     color: safe.color,
+    effectId: safe.effectId,
     neon: { ...safe.neon },
     gradient: { ...safe.gradient },
     fontFamily: safe.fontFamily,
@@ -21341,6 +21698,11 @@ function syncTextCustomizationInputs(){
   if (textCustomizationStyle) {
     textCustomizationStyle.value = textStyleDraft.fontStyle || TEXT_STYLE_DEFAULTS.fontStyle;
   }
+  if (textCustomizationEffect) {
+    const effectId = textStyleDraft.effectId || TEXT_STYLE_DEFAULTS.effectId;
+    textStyleDraft.effectId = canUseTextEffect(effectId) ? effectId : TEXT_STYLE_DEFAULTS.effectId;
+    textCustomizationEffect.value = textStyleDraft.effectId || TEXT_STYLE_DEFAULTS.effectId;
+  }
   if (textCustomizationIntensity) {
     textCustomizationIntensity.value = textStyleDraft.neon?.intensity || TEXT_STYLE_DEFAULTS.neon.intensity;
   }
@@ -21400,17 +21762,21 @@ function buildTextCustomizationModal(){
                 <label for="textCustomizationFont">Font family</label>
                 <select id="textCustomizationFont"></select>
               </div>
-              <div class="textCustomizationField">
-                <label for="textCustomizationStyle">Font style</label>
-                <select id="textCustomizationStyle">
-                  <option value="normal">Normal</option>
-                  <option value="bold">Bold</option>
-                  <option value="italic">Italic</option>
-                </select>
-              </div>
-              <div class="textCustomizationField">
-                <label for="textCustomizationIntensity">Neon intensity</label>
-                <select id="textCustomizationIntensity">
+               <div class="textCustomizationField">
+                 <label for="textCustomizationStyle">Font style</label>
+                 <select id="textCustomizationStyle">
+                   <option value="normal">Normal</option>
+                   <option value="bold">Bold</option>
+                   <option value="italic">Italic</option>
+                 </select>
+               </div>
+               <div class="textCustomizationField">
+                 <label for="textCustomizationEffect">Text effect</label>
+                 <select id="textCustomizationEffect"></select>
+               </div>
+               <div class="textCustomizationField">
+                 <label for="textCustomizationIntensity">Neon intensity</label>
+                 <select id="textCustomizationIntensity">
                   <option value="low">Low</option>
                   <option value="med">Medium</option>
                   <option value="high">High</option>
@@ -21463,6 +21829,7 @@ function buildTextCustomizationModal(){
   textCustomizationPreviewMessage = modal.querySelector("#textCustomizationPreviewMessage");
   textCustomizationIntensity = modal.querySelector("#textCustomizationIntensity");
   textCustomizationGradientIntensity = modal.querySelector("#textCustomizationGradientIntensity");
+  textCustomizationEffect = modal.querySelector("#textCustomizationEffect");
   textCustomizationFont = modal.querySelector("#textCustomizationFont");
   textCustomizationStyle = modal.querySelector("#textCustomizationStyle");
   textCustomizationColorInput = modal.querySelector("#textCustomizationColorInput");
@@ -21476,6 +21843,13 @@ function buildTextCustomizationModal(){
 
   const fontOptions = buildFontSelectOptionsHTML();
   if (textCustomizationFont) textCustomizationFont.innerHTML = fontOptions;
+  if (textCustomizationEffect) {
+    textCustomizationEffect.innerHTML = TEXT_EFFECTS.map((effect) => {
+      const label = effect.vip ? `${effect.name} (VIP)` : effect.name;
+      const disabled = effect.vip && !canUseTextEffect(effect.id) ? " disabled" : "";
+      return `<option value="${escapeHtml(effect.id)}"${disabled}>${escapeHtml(label)}</option>`;
+    }).join("");
+  }
 
   modal.addEventListener("click", (e) => {
     const closeBtn = e.target.closest("[data-action='close-text-customization']");
@@ -21591,6 +21965,18 @@ function buildTextCustomizationModal(){
   textCustomizationStyle?.addEventListener("change", () => {
     if (!textStyleDraft) return;
     textStyleDraft.fontStyle = textCustomizationStyle.value;
+    updateTextCustomizationPreview();
+  });
+  textCustomizationEffect?.addEventListener("change", () => {
+    if (!textStyleDraft) return;
+    const nextEffect = textCustomizationEffect.value;
+    if (nextEffect && !canUseTextEffect(nextEffect)) {
+      toast("VIP-only text effect.");
+      textCustomizationEffect.value = "none";
+      textStyleDraft.effectId = "none";
+    } else {
+      textStyleDraft.effectId = nextEffect || "none";
+    }
     updateTextCustomizationPreview();
   });
 
@@ -23794,9 +24180,41 @@ socket.on("mod:case_event", (payload = {}) => {
       }
     }catch{}
   });
-  socket.on("reaction update", ({ messageId, reactions }) => {
-    renderReactions(messageId, reactions);
+  socket.on("reaction update", ({ messageId }) => {
+    const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (messageEl) {
+      const cacheKey = getReactionCacheKey(currentRoom, messageId);
+      const shouldFetch = !messageReactionsCache[cacheKey];
+      renderMessageReactions(messageEl, messageId, currentRoom, { force: shouldFetch });
+    }
     if (Sound.shouldReaction()) Sound.cues.reaction();
+  });
+  socket.on("reactionAdded", ({ messageId }) => {
+    const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (messageEl) {
+      const cacheKey = getReactionCacheKey(currentRoom, messageId);
+      const shouldFetch = !messageReactionsCache[cacheKey];
+      renderMessageReactions(messageEl, messageId, currentRoom, { force: shouldFetch });
+    }
+    if (Sound.shouldReaction()) Sound.cues.reaction();
+  });
+  socket.on("reactionRemoved", ({ messageId }) => {
+    const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (messageEl) {
+      const cacheKey = getReactionCacheKey(currentRoom, messageId);
+      const shouldFetch = !messageReactionsCache[cacheKey];
+      renderMessageReactions(messageEl, messageId, currentRoom, { force: shouldFetch });
+    }
+  });
+  socket.on("message reactions", ({ messageId, reactions }) => {
+    if (!messageId) return;
+    const cacheKey = getReactionCacheKey(currentRoom, messageId);
+    if (cacheKey) messageReactionsCache[cacheKey] = Array.isArray(reactions) ? reactions : [];
+    const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (messageEl) {
+      const container = messageEl.querySelector(".messageReactions") || messageEl.querySelector(".reacts");
+      if (container) renderMessageReactionsFromData(container, messageId, currentRoom, reactions || []);
+    }
   });
 
   const onMainMessageDeleted = ({ messageId }) => {
