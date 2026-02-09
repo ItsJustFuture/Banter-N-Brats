@@ -3001,8 +3001,8 @@ async function pgUpsertRoleSymbolPrefs(username, prefs) {
   const normalized = normalizeRoleSymbolPrefs(prefs || {});
   const now = Date.now();
   await pgPool.query(
-    `DELETE FROM user_role_symbols WHERE lower(username) = $1 AND username <> $2`,
-    [safeName, safeName]
+    `DELETE FROM user_role_symbols WHERE lower(username) = $1`,
+    [safeName]
   );
   await pgPool.query(
     `INSERT INTO user_role_symbols (

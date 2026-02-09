@@ -1079,8 +1079,8 @@ async function updateRoleSymbolPrefs(username, prefs = {}) {
   };
   const now = Date.now();
   await run(
-    `DELETE FROM user_role_symbols WHERE lower(username) = ? AND username <> ?`,
-    [safeName, safeName]
+    `DELETE FROM user_role_symbols WHERE lower(username) = ?`,
+    [safeName]
   );
   await run(
     `INSERT INTO user_role_symbols (

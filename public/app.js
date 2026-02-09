@@ -7445,7 +7445,7 @@ function createRoleGemSvg(filePath, color) {
     image.setAttribute("height", "256");
     image.setAttribute("preserveAspectRatio", "xMidYMid meet");
     mask.appendChild(image);
-    if (defs) defs.appendChild(mask);
+    defs.appendChild(mask);
     roleGemMaskCache.set(filePath, maskId);
   }
   const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
