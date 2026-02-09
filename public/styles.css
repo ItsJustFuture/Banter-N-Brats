@@ -15078,3 +15078,99 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
     filter: drop-shadow(0 0 3px rgba(255, 140, 0, 0.6)) hue-rotate(0deg);
   }
 }
+
+/* Profile Banner */
+.profileBanner {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  position: absolute;
+  inset: 0;
+  border-radius: 14px 14px 0 0;
+}
+
+/* Custom Status */
+.userStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.userStatus .emoji {
+  font-size: 16px;
+}
+
+/* Badges */
+.badgeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.badgeGrid .badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.badgeGrid .badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.badgeGrid .badge.rarity-common { border-color: #94a3b8; }
+.badgeGrid .badge.rarity-rare { border-color: #3b82f6; }
+.badgeGrid .badge.rarity-epic { border-color: #a855f7; }
+.badgeGrid .badge.rarity-legendary { border-color: #f59e0b; }
+
+.badgeEmoji {
+  font-size: 32px;
+}
+
+.badgeName {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Settings UI */
+.gradientGrid, .emojiPicker, .colorPicker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.gradientOption, .emojiOption, .colorOption {
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.gradientOption:hover, .emojiOption:hover, .colorOption:hover {
+  transform: scale(1.1);
+}
+
+.gradientOption.selected, .emojiOption.selected, .colorOption.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}

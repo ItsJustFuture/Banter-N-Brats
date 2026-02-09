@@ -381,6 +381,13 @@ async function runSqliteMigrations() {
     ["vibe_tags", "vibe_tags TEXT"],
     ["header_grad_a", "header_grad_a TEXT"],
     ["header_grad_b", "header_grad_b TEXT"],
+    ["banner_url", "banner_url TEXT"],
+    ["banner_gradient", "banner_gradient TEXT"],
+    ["banner_style", "banner_style TEXT DEFAULT 'cover'"],
+    ["custom_status", "custom_status TEXT"],
+    ["status_emoji", "status_emoji TEXT"],
+    ["status_color", "status_color TEXT"],
+    ["status_expires_at", "status_expires_at INTEGER"],
   ];
   await ensureColumns("users", userColumns);
   await run("UPDATE users SET vibe_tags='[]' WHERE vibe_tags IS NULL");
@@ -1044,6 +1051,39 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
   `);
   await run(`CREATE INDEX IF NOT EXISTS idx_role_symbols_username_lower ON user_role_symbols(lower(username))`);
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS user_badges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL,
+      badge_id TEXT NOT NULL,
+      earned_at INTEGER NOT NULL,
+      UNIQUE(username, badge_id)
+    )
+  `);
+  await run(`
+    CREATE TABLE IF NOT EXISTS badge_definitions (
+      badge_id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      emoji TEXT,
+      rarity TEXT,
+      category TEXT,
+      conditions_json TEXT
+    )
+  `);
+  await run(`CREATE INDEX IF NOT EXISTS idx_user_badges_username ON user_badges(username)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_user_badges_badge ON user_badges(badge_id)`);
+  await run(`
+    INSERT OR IGNORE INTO badge_definitions (badge_id, name, description, emoji, rarity, category) VALUES
+    ('anniversary-1y', '1 Year Anniversary', 'Member for 1 year', '🎂', 'rare', 'milestone'),
+    ('chatterbox', 'Chatterbox', 'Sent 10,000 messages', '💬', 'rare', 'achievement'),
+    ('lucky-streak', 'Lucky Streak', 'Won 10 dice rolls in a row', '🎲', 'epic', 'achievement'),
+    ('vip-member', 'VIP Member', 'Has VIP status', '👑', 'rare', 'special'),
+    ('theme-collector', 'Theme Collector', 'Unlocked 20+ themes', '🎨', 'epic', 'achievement'),
+    ('chess-master', 'Chess Master', 'Chess ELO over 1800', '♟️', 'legendary', 'achievement'),
+    ('lovebirds', 'Lovebirds', 'Coupled for 6+ months', '💝', 'rare', 'special')
+  `);
+
 
 // --- Fixed role assignments
   await run("UPDATE users SET role='Owner' WHERE lower(username)='iri'");
@@ -1106,6 +1146,63 @@ async function updateRoleSymbolPrefs(username, prefs = {}) {
   return merged;
 }
 
+async function updateUserBanner(username, { banner_url, banner_gradient, banner_style } = {}) {
+  const safeName = String(username || "").trim();
+  if (!safeName) return null;
+  await run(
+    `UPDATE users SET banner_url = ?, banner_gradient = ?, banner_style = ? WHERE username = ?`,
+    [banner_url ?? null, banner_gradient ?? null, banner_style ?? "cover", safeName]
+  );
+  return true;
+}
+
+async function updateUserStatus(username, { custom_status, status_emoji, status_color, status_expires_at } = {}) {
+  const safeName = String(username || "").trim();
+  if (!safeName) return null;
+  await run(
+    `UPDATE users SET
+      custom_status = ?,
+      status_emoji = ?,
+      status_color = ?,
+      status_expires_at = ?
+    WHERE username = ?`,
+    [
+      custom_status ?? null,
+      status_emoji ?? null,
+      status_color ?? null,
+      status_expires_at ?? null,
+      safeName,
+    ]
+  );
+  return true;
+}
+
+async function getUserBadges(username) {
+  const safeName = String(username || "").trim();
+  if (!safeName) return [];
+  const rows = await all(
+    `SELECT ub.*, bd.name, bd.description, bd.emoji, bd.rarity, bd.category
+     FROM user_badges ub
+     JOIN badge_definitions bd ON ub.badge_id = bd.badge_id
+     WHERE ub.username = ?
+     ORDER BY ub.earned_at DESC`,
+    [safeName]
+  );
+  return rows;
+}
+
+async function awardBadge(username, badge_id) {
+  const safeName = String(username || "").trim();
+  const safeBadge = String(badge_id || "").trim();
+  if (!safeName || !safeBadge) return null;
+  await run(
+    `INSERT OR IGNORE INTO user_badges (username, badge_id, earned_at)
+     VALUES (?, ?, ?)`,
+    [safeName, safeBadge, Date.now()]
+  );
+  return true;
+}
+
 async function seedDevUser({ username, password, role }) {
   const safeName = String(username || "").trim();
   if (!safeName || !password) return null;
@@ -1138,4 +1235,8 @@ module.exports = {
   seedDevUser,
   getRoleSymbolPrefs,
   updateRoleSymbolPrefs,
+  updateUserBanner,
+  updateUserStatus,
+  getUserBadges,
+  awardBadge,
 };

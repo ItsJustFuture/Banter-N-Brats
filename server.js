@@ -358,6 +358,9 @@ const {
   DB_FILE,
   getRoleSymbolPrefs,
   updateRoleSymbolPrefs,
+  updateUserBanner,
+  updateUserStatus,
+  getUserBadges,
 } = require("./database");
 const { VIBE_TAGS, VIBE_TAG_LIMIT } = require("./vibe-tags");
 
@@ -962,6 +965,39 @@ const pgInitPromise = PG_ENABLED ? (async () => {
     `);
 
     await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS user_badges (
+        id SERIAL PRIMARY KEY,
+        username TEXT NOT NULL,
+        badge_id TEXT NOT NULL,
+        earned_at BIGINT NOT NULL,
+        UNIQUE(username, badge_id)
+      );
+      CREATE TABLE IF NOT EXISTS badge_definitions (
+        badge_id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        emoji TEXT,
+        rarity TEXT,
+        category TEXT,
+        conditions_json TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_user_badges_username ON user_badges(username);
+      CREATE INDEX IF NOT EXISTS idx_user_badges_badge ON user_badges(badge_id);
+    `);
+
+    await pgPool.query(
+      `INSERT INTO badge_definitions (badge_id, name, description, emoji, rarity, category) VALUES
+      ('anniversary-1y', '1 Year Anniversary', 'Member for 1 year', '🎂', 'rare', 'milestone'),
+      ('chatterbox', 'Chatterbox', 'Sent 10,000 messages', '💬', 'rare', 'achievement'),
+      ('lucky-streak', 'Lucky Streak', 'Won 10 dice rolls in a row', '🎲', 'epic', 'achievement'),
+      ('vip-member', 'VIP Member', 'Has VIP status', '👑', 'rare', 'special'),
+      ('theme-collector', 'Theme Collector', 'Unlocked 20+ themes', '🎨', 'epic', 'achievement'),
+      ('chess-master', 'Chess Master', 'Chess ELO over 1800', '♟️', 'legendary', 'achievement'),
+      ('lovebirds', 'Lovebirds', 'Coupled for 6+ months', '💝', 'rare', 'special')
+      ON CONFLICT (badge_id) DO NOTHING`
+    );
+
+    await pgPool.query(`
       CREATE TABLE IF NOT EXISTS room_master_categories (
         id SERIAL PRIMARY KEY,
         name TEXT UNIQUE NOT NULL,
@@ -1398,6 +1434,13 @@ try {
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS vibe_tags JSONB NOT NULL DEFAULT '[]'::jsonb`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS header_grad_a TEXT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS header_grad_b TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS banner_url TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS banner_gradient TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS banner_style TEXT DEFAULT 'cover'`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_status TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS status_emoji TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS status_color TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS status_expires_at BIGINT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_bytes BYTEA`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_mime TEXT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_updated BIGINT`,
@@ -2480,6 +2523,7 @@ const VIBE_TAG_LABELS = new Map(
 );
 
 const HEX_COLOR_RE = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const BANNER_STYLE_VALUES = new Set(["cover", "contain", "pattern"]);
 
 function sanitizeVibeTags(raw) {
   const arr = Array.isArray(raw)
@@ -2502,6 +2546,39 @@ function sanitizeHexColor(raw){
   const c = String(raw || "").trim();
   if(!c) return null;
   return HEX_COLOR_RE.test(c) ? c : null;
+}
+
+function sanitizeBannerGradient(raw) {
+  const value = String(raw || "").trim();
+  if (!value) return null;
+  if (value.length > 220) return null;
+  const lower = value.toLowerCase();
+  if (lower.includes("url(")) return null;
+  if (!lower.startsWith("linear-gradient") && !lower.startsWith("radial-gradient")) return null;
+  return value;
+}
+
+function sanitizeBannerUrl(raw) {
+  const value = String(raw || "").trim();
+  if (!value) return null;
+  if (value.startsWith("/")) return value.slice(0, 400);
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return value.slice(0, 400);
+    }
+  } catch {}
+  return null;
+}
+
+function sanitizeStatusEmoji(raw) {
+  const value = String(raw || "").trim();
+  return value ? value.slice(0, 16) : null;
+}
+
+function normalizeBannerStyle(raw) {
+  const value = String(raw || "").trim().toLowerCase();
+  return BANNER_STYLE_VALUES.has(value) ? value : "cover";
 }
 
 const CHAT_FX_DEFAULTS = Object.freeze({
@@ -2775,6 +2852,7 @@ async function syncGoldXpThemeToPg(uid) {
 }
 
 async function pgGetUserByUsername(username) {
+  if (!pgPool || !PG_READY) return null;
   const { rows } = await pgPool.query(
     `SELECT * FROM users WHERE lower(username) = lower($1) LIMIT 1`,
     [username]
@@ -2790,7 +2868,112 @@ async function pgGetUserById(id) {
   return pgRowToUser(rows[0]);
 }
 
+async function pgUpdateUserBanner(userId, { banner_url, banner_gradient, banner_style }) {
+  await pgPool.query(
+    `UPDATE users
+       SET banner_url = $1,
+           banner_gradient = $2,
+           banner_style = $3
+     WHERE id = $4`,
+    [banner_url ?? null, banner_gradient ?? null, banner_style ?? "cover", userId]
+  );
+}
 
+async function pgUpdateUserStatus(userId, { custom_status, status_emoji, status_color, status_expires_at }) {
+  await pgPool.query(
+    `UPDATE users
+       SET custom_status = $1,
+           status_emoji = $2,
+           status_color = $3,
+           status_expires_at = $4
+     WHERE id = $5`,
+    [
+      custom_status ?? null,
+      status_emoji ?? null,
+      status_color ?? null,
+      status_expires_at ?? null,
+      userId,
+    ]
+  );
+}
+
+async function updateUserBannerForUser(userId, username, banner) {
+  try {
+    if (await pgUserExists(userId)) {
+      await pgUpdateUserBanner(userId, banner);
+      updateUserBanner(username, banner).catch(() => {});
+      return true;
+    }
+  } catch (e) {
+    console.warn("[profile banner][pg] update failed, falling back to sqlite:", e?.message || e);
+  }
+  await updateUserBanner(username, banner);
+  return true;
+}
+
+async function updateUserStatusForUser(userId, username, status) {
+  try {
+    if (await pgUserExists(userId)) {
+      await pgUpdateUserStatus(userId, status);
+      updateUserStatus(username, status).catch(() => {});
+      return true;
+    }
+  } catch (e) {
+    console.warn("[profile status][pg] update failed, falling back to sqlite:", e?.message || e);
+  }
+  await updateUserStatus(username, status);
+  return true;
+}
+
+function normalizeStatusPayload(row) {
+  return {
+    custom_status: row?.custom_status ? String(row.custom_status) : null,
+    status_emoji: row?.status_emoji ? String(row.status_emoji) : null,
+    status_color: sanitizeHexColor(row?.status_color),
+    status_expires_at: row?.status_expires_at ? Number(row.status_expires_at) : null,
+  };
+}
+
+function normalizeBannerPayload(row) {
+  return {
+    banner_url: sanitizeBannerUrl(row?.banner_url),
+    banner_gradient: sanitizeBannerGradient(row?.banner_gradient),
+    banner_style: normalizeBannerStyle(row?.banner_style),
+  };
+}
+
+async function resolveCustomStatus(row, { userId, username } = {}) {
+  const status = normalizeStatusPayload(row);
+  if (status.status_expires_at && status.status_expires_at <= Date.now()) {
+    await updateUserStatusForUser(userId, username, {
+      custom_status: null,
+      status_emoji: null,
+      status_color: null,
+      status_expires_at: null,
+    });
+    return {
+      custom_status: null,
+      status_emoji: null,
+      status_color: null,
+      status_expires_at: null,
+    };
+  }
+  return status;
+}
+
+async function pgGetUserBadges(username) {
+  const rawName = String(username || "").trim();
+  if (!rawName) return [];
+  const { rows } = await pgPool.query(
+    `SELECT ub.*, bd.name, bd.description, bd.emoji, bd.rarity, bd.category
+       FROM user_badges ub
+       JOIN badge_definitions bd ON ub.badge_id = bd.badge_id
+      WHERE lower(ub.username) = lower($1)
+      ORDER BY ub.earned_at DESC`,
+    [rawName]
+  );
+  return rows || [];
+}
 
 // Fetch a raw Postgres user row by id, selecting only requested columns.
 // NOTE: This returns the raw row object (snake_case keys), not the mapped pgRowToUser().
@@ -2799,7 +2982,8 @@ async function pgGetUserRowById(id, columns) {
     "id","username","password_hash","role","created_at","avatar","avatar_bytes","avatar_mime","avatar_updated","bio","mood","age","gender",
     "last_seen","last_room","last_status","theme","gold","xp",
     "lastXpMessageAt","lastDailyLoginAt","lastGoldTickAt","lastMessageGoldAt","lastDailyLoginGoldAt",
-    "lastDiceRollAt","dice_sixes","luck","roll_streak","last_qual_msg_hash","last_qual_msg_at","vibe_tags","header_grad_a","header_grad_b"
+    "lastDiceRollAt","dice_sixes","luck","roll_streak","last_qual_msg_hash","last_qual_msg_at","vibe_tags","header_grad_a","header_grad_b",
+    "banner_url","banner_gradient","banner_style","custom_status","status_emoji","status_color","status_expires_at"
   ]);
   const cols = (Array.isArray(columns) && columns.length)
     ? columns.filter((c) => allow.has(String(c)))
@@ -2831,7 +3015,9 @@ async function pgUpsertFromSqliteRow(row) {
       last_seen, last_room, last_status,
       theme, gold, xp,
       "lastXpMessageAt", "lastDailyLoginAt", "lastGoldTickAt", "lastMessageGoldAt", "lastDailyLoginGoldAt",
-      "lastDiceRollAt", dice_sixes, luck, roll_streak, last_qual_msg_hash, last_qual_msg_at
+      "lastDiceRollAt", dice_sixes, luck, roll_streak, last_qual_msg_hash, last_qual_msg_at,
+      banner_url, banner_gradient, banner_style,
+      custom_status, status_emoji, status_color, status_expires_at
     )
     VALUES (
       $1,$2,$3,$4,
@@ -2839,7 +3025,9 @@ async function pgUpsertFromSqliteRow(row) {
       $10,$11,$12,
       $13,$14,$15,
       $16,$17,$18,$19,$20,
-      $21,$22,$23,$24,$25,$26
+      $21,$22,$23,$24,$25,$26,
+      $27,$28,$29,
+      $30,$31,$32,$33
     )
     ON CONFLICT (username) DO UPDATE SET
       password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash),
@@ -2858,6 +3046,13 @@ async function pgUpsertFromSqliteRow(row) {
       dice_sixes = GREATEST(users.dice_sixes, EXCLUDED.dice_sixes),
       luck = COALESCE(EXCLUDED.luck, users.luck),
       roll_streak = COALESCE(EXCLUDED.roll_streak, users.roll_streak),
+      banner_url = COALESCE(EXCLUDED.banner_url, users.banner_url),
+      banner_gradient = COALESCE(EXCLUDED.banner_gradient, users.banner_gradient),
+      banner_style = COALESCE(EXCLUDED.banner_style, users.banner_style),
+      custom_status = COALESCE(EXCLUDED.custom_status, users.custom_status),
+      status_emoji = COALESCE(EXCLUDED.status_emoji, users.status_emoji),
+      status_color = COALESCE(EXCLUDED.status_color, users.status_color),
+      status_expires_at = COALESCE(EXCLUDED.status_expires_at, users.status_expires_at),
       last_qual_msg_hash = COALESCE(EXCLUDED.last_qual_msg_hash, users.last_qual_msg_hash),
       last_qual_msg_at = CASE
         WHEN users.last_qual_msg_at IS NULL THEN EXCLUDED.last_qual_msg_at
@@ -2873,7 +3068,9 @@ async function pgUpsertFromSqliteRow(row) {
     row.last_seen ?? null, row.last_room || null, row.last_status || null,
     theme, row.gold ?? 0, row.xp ?? 0,
     row.lastXpMessageAt ?? null, row.lastDailyLoginAt ?? null, row.lastGoldTickAt ?? null, row.lastMessageGoldAt ?? null, row.lastDailyLoginGoldAt ?? null,
-    row.lastDiceRollAt ?? null, row.dice_sixes ?? 0, row.luck ?? 0, row.roll_streak ?? 0, row.last_qual_msg_hash ?? null, row.last_qual_msg_at ?? null
+    row.lastDiceRollAt ?? null, row.dice_sixes ?? 0, row.luck ?? 0, row.roll_streak ?? 0, row.last_qual_msg_hash ?? null, row.last_qual_msg_at ?? null,
+    row.banner_url ?? null, row.banner_gradient ?? null, row.banner_style ?? "cover",
+    row.custom_status ?? null, row.status_emoji ?? null, row.status_color ?? null, row.status_expires_at ?? null
   ]);
 
   return pgRowToUser(rows[0]);
@@ -8808,26 +9005,28 @@ app.post("/login", loginIpLimiter, async (req, res) => {
     }
 
     // Mirror into Postgres (so /me + progression + persistent systems work)
-    await pgPool.query(
-      `INSERT INTO users (id, username, password_hash, role, created_at, theme, gold, xp)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-       ON CONFLICT (username) DO UPDATE
-         SET password_hash = EXCLUDED.password_hash,
-             role = EXCLUDED.role,
-             theme = COALESCE(users.theme, EXCLUDED.theme),
-             gold = COALESCE(users.gold, EXCLUDED.gold),
-             xp = COALESCE(users.xp, EXCLUDED.xp)`,
-      [
-        row.id,
-        row.username,
-        passwordHash,
-        row.role || "User",
-        Number(row.created_at || Date.now()),
-        theme,
-        Number(row.gold || 0),
-        Number(row.xp || 0),
-      ]
-    ).catch((e) => console.error("PG mirror on login failed:", e));
+    if (PG_READY && pgPool) {
+      await pgPool.query(
+        `INSERT INTO users (id, username, password_hash, role, created_at, theme, gold, xp)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         ON CONFLICT (username) DO UPDATE
+           SET password_hash = EXCLUDED.password_hash,
+               role = EXCLUDED.role,
+               theme = COALESCE(users.theme, EXCLUDED.theme),
+               gold = COALESCE(users.gold, EXCLUDED.gold),
+               xp = COALESCE(users.xp, EXCLUDED.xp)`,
+        [
+          row.id,
+          row.username,
+          passwordHash,
+          row.role || "User",
+          Number(row.created_at || Date.now()),
+          theme,
+          Number(row.gold || 0),
+          Number(row.xp || 0),
+        ]
+      ).catch((e) => console.error("PG mirror on login failed:", e));
+    }
 
     req.session.regenerate((regenErr) => {
       if (regenErr) return res.status(500).send("Session failed");
@@ -9024,21 +9223,23 @@ app.get("/me", async (req, res) => {
     // IMPORTANT: /me is used to hydrate the session and client state.
     // We MUST select role/theme and avatar fields; otherwise we may overwrite
     // req.session.user.role/theme with undefined, which breaks permission gating.
-    const { rows } = await pgPool.query(
-      `SELECT id,
-              username,
-              role,
-              theme,
-              avatar,
-              avatar_updated,
-              avatar_bytes
-         FROM users
-        WHERE id = $1
-        LIMIT 1`,
-      [req.session.user.id]
-    );
-
-    let row = rows[0];
+    let row = null;
+    if (PG_READY && pgPool) {
+      const { rows } = await pgPool.query(
+        `SELECT id,
+                username,
+                role,
+                theme,
+                avatar,
+                avatar_updated,
+                avatar_bytes
+           FROM users
+          WHERE id = $1
+          LIMIT 1`,
+        [req.session.user.id]
+      );
+      row = rows[0];
+    }
 
     // If not in Postgres yet, fallback to SQLite and (optionally) sync
     if (!row) {
@@ -10134,6 +10335,143 @@ app.post("/api/profile/customization", strictLimiter, requireLogin, async (req, 
     });
   });
 });
+
+// Profile banner endpoints
+app.get("/api/profile/banner", requireLogin, async (req, res) => {
+  const userId = req.session.user?.id;
+  try {
+    if (await pgUserExists(userId)) {
+      const row = await pgGetUserRowById(userId, ["banner_url", "banner_gradient", "banner_style"]);
+      if (!row) return res.status(404).json({ error: "Not found" });
+      return res.json(normalizeBannerPayload(row));
+    }
+  } catch (err) {
+    console.warn("[profile banner][pg] read failed, falling back to sqlite:", err?.message || err);
+  }
+
+  try {
+    const row = await dbGet(`SELECT banner_url, banner_gradient, banner_style FROM users WHERE id = ?`, [userId]);
+    if (!row) return res.status(404).json({ error: "Not found" });
+    return res.json(normalizeBannerPayload(row));
+  } catch (err) {
+    console.error("Error fetching banner:", err);
+    return res.status(500).json({ error: "Failed to fetch banner" });
+  }
+});
+
+app.post("/api/profile/banner", strictLimiter, requireLogin, express.json({ limit: "16kb" }), async (req, res) => {
+  const userId = req.session.user?.id;
+  const username = req.session.user?.username;
+  const rawStyle = req.body?.banner_style;
+  const normalizedStyle = normalizeBannerStyle(rawStyle);
+  if (rawStyle && !BANNER_STYLE_VALUES.has(String(rawStyle).trim().toLowerCase())) {
+    return res.status(400).json({ error: "Invalid banner style" });
+  }
+
+  const banner = {
+    banner_url: sanitizeBannerUrl(req.body?.banner_url),
+    banner_gradient: sanitizeBannerGradient(req.body?.banner_gradient),
+    banner_style: normalizedStyle,
+  };
+
+  try {
+    await updateUserBannerForUser(userId, username, banner);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Error updating banner:", err);
+    return res.status(500).json({ error: "Failed to update banner" });
+  }
+});
+
+// Custom status endpoints
+app.get("/api/profile/status", requireLogin, async (req, res) => {
+  const userId = req.session.user?.id;
+  const username = req.session.user?.username;
+  try {
+    if (await pgUserExists(userId)) {
+      const row = await pgGetUserRowById(userId, ["custom_status", "status_emoji", "status_color", "status_expires_at"]);
+      if (!row) return res.status(404).json({ error: "Not found" });
+      const status = await resolveCustomStatus(row, { userId, username });
+      return res.json(status);
+    }
+  } catch (err) {
+    console.warn("[profile status][pg] read failed, falling back to sqlite:", err?.message || err);
+  }
+
+  try {
+    const row = await dbGet(
+      `SELECT custom_status, status_emoji, status_color, status_expires_at FROM users WHERE id = ?`,
+      [userId]
+    );
+    if (!row) return res.status(404).json({ error: "Not found" });
+    const status = await resolveCustomStatus(row, { userId, username });
+    return res.json(status);
+  } catch (err) {
+    console.error("Error fetching status:", err);
+    return res.status(500).json({ error: "Failed to fetch status" });
+  }
+});
+
+app.post("/api/profile/status", strictLimiter, requireLogin, express.json({ limit: "16kb" }), async (req, res) => {
+  const userId = req.session.user?.id;
+  const username = req.session.user?.username;
+  const rawStatus = String(req.body?.custom_status || "").trim();
+  if (rawStatus && rawStatus.length > 100) {
+    return res.status(400).json({ error: "Status too long (max 100 chars)" });
+  }
+
+  const expiresAtRaw = req.body?.status_expires_at;
+  const expiresAtNum = Number(expiresAtRaw);
+  const status = {
+    custom_status: rawStatus ? rawStatus.slice(0, 100) : null,
+    status_emoji: sanitizeStatusEmoji(req.body?.status_emoji),
+    status_color: sanitizeHexColor(req.body?.status_color),
+    status_expires_at: Number.isFinite(expiresAtNum) && expiresAtNum > 0 ? expiresAtNum : null,
+  };
+
+  try {
+    await updateUserStatusForUser(userId, username, status);
+    io.emit("userStatusUpdated", {
+      username,
+      status: {
+        custom_status: status.custom_status,
+        status_emoji: status.status_emoji,
+        status_color: status.status_color,
+      },
+    });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Error updating status:", err);
+    return res.status(500).json({ error: "Failed to update status" });
+  }
+});
+
+// Badge endpoints
+async function handleProfileBadges(req, res) {
+  const rawParam = req.params.username;
+  let decoded = rawParam;
+  try { decoded = decodeURIComponent(rawParam); } catch {}
+  const username = String(decoded || req.session.user?.username || "").trim();
+  if (!username) return res.status(400).json({ error: "Invalid username" });
+  try {
+    if (PG_READY && pgPool) {
+      try {
+        const badges = await pgGetUserBadges(username);
+        return res.json(badges);
+      } catch (e) {
+        console.warn("[badges][pg] failed, falling back to sqlite:", e?.message || e);
+      }
+    }
+    const badges = await getUserBadges(username);
+    return res.json(badges);
+  } catch (err) {
+    console.error("Error fetching badges:", err);
+    return res.status(500).json({ error: "Failed to fetch badges" });
+  }
+}
+
+app.get("/api/profile/badges", requireLogin, handleProfileBadges);
+app.get("/api/profile/badges/:username", requireLogin, handleProfileBadges);
 
 function sortLeaderboardRows(rows, valueKey) {
   return rows
@@ -13553,6 +13891,13 @@ app.get("/profile", requireLogin, async (req, res) => {
         "gold",
         "xp",
         "vibe_tags",
+        "banner_url",
+        "banner_gradient",
+        "banner_style",
+        "custom_status",
+        "status_emoji",
+        "status_color",
+        "status_expires_at",
       ]);
       if (!row) return res.status(404).send("Not found");
 
@@ -13561,6 +13906,8 @@ app.get("/profile", requireLogin, async (req, res) => {
       const lastSeen = resolveLastSeen(row, live, lastStatus);
 
       const likeStats = await fetchProfileLikeStats(row.id, userId);
+      const statusPayload = await resolveCustomStatus(row, { userId: row.id, username: row.username });
+      const bannerPayload = normalizeBannerPayload(row);
       const payload = {
         id: row.id,
         username: row.username,
@@ -13577,6 +13924,13 @@ app.get("/profile", requireLogin, async (req, res) => {
         current_room: live?.room || null,
         header_grad_a: sanitizeHexColor(row.header_grad_a),
         header_grad_b: sanitizeHexColor(row.header_grad_b),
+        banner_url: bannerPayload.banner_url,
+        banner_gradient: bannerPayload.banner_gradient,
+        banner_style: bannerPayload.banner_style,
+        custom_status: statusPayload.custom_status,
+        status_emoji: statusPayload.status_emoji,
+        status_color: statusPayload.status_color,
+        status_expires_at: statusPayload.status_expires_at,
         likes: likeStats.likes,
         likedByMe: likeStats.liked,
         vibe_tags: sanitizeVibeTags(row.vibe_tags || []),
@@ -13589,15 +13943,14 @@ app.get("/profile", requireLogin, async (req, res) => {
   }
 
   // SQLite fallback (original behavior)
-  const row = await dbGet(
-    `SELECT id, username FROM users WHERE id = ?`,
-    [userId]
-  );
+  const row = await dbGet(`SELECT * FROM users WHERE id = ?`, [userId]);
   if (!row) return res.status(404).send("Not found");
   const live = onlineState.get(row.id);
   const lastStatus = normalizeStatus(live?.status || row.last_status, "");
   const lastSeen = resolveLastSeen(row, live, lastStatus);
   const likeStats = await fetchProfileLikeStats(row.id, userId);
+  const statusPayload = await resolveCustomStatus(row, { userId: row.id, username: row.username });
+  const bannerPayload = normalizeBannerPayload(row);
   const payload = {
     id: row.id,
     username: row.username,
@@ -13614,6 +13967,13 @@ app.get("/profile", requireLogin, async (req, res) => {
     current_room: live?.room || null,
     header_grad_a: sanitizeHexColor(row.header_grad_a),
     header_grad_b: sanitizeHexColor(row.header_grad_b),
+    banner_url: bannerPayload.banner_url,
+    banner_gradient: bannerPayload.banner_gradient,
+    banner_style: bannerPayload.banner_style,
+    custom_status: statusPayload.custom_status,
+    status_emoji: statusPayload.status_emoji,
+    status_color: statusPayload.status_color,
+    status_expires_at: statusPayload.status_expires_at,
     likes: likeStats.likes,
     likedByMe: likeStats.liked,
     vibe_tags: sanitizeVibeTags(row.vibe_tags || []),
@@ -13689,6 +14049,13 @@ app.get("/profile/:username", requireLogin, async (req, res) => {
       "vibe_tags",
       "header_grad_a",
       "header_grad_b",
+      "banner_url",
+      "banner_gradient",
+      "banner_style",
+      "custom_status",
+      "status_emoji",
+      "status_color",
+      "status_expires_at",
     ];
 
     if (fromPg) {
@@ -13714,6 +14081,8 @@ app.get("/profile/:username", requireLogin, async (req, res) => {
     const includePrivate = req.session.user.id === row.id;
 
     const likeStats = await fetchProfileLikeStats(row.id, req.session.user.id);
+    const statusPayload = await resolveCustomStatus(row, { userId: row.id, username: row.username });
+    const bannerPayload = normalizeBannerPayload(row);
     const payload = {
       id: row.id,
       username: row.username,
@@ -13730,6 +14099,13 @@ app.get("/profile/:username", requireLogin, async (req, res) => {
       current_room: live?.room || null,
       header_grad_a: sanitizeHexColor(row.header_grad_a),
       header_grad_b: sanitizeHexColor(row.header_grad_b),
+      banner_url: bannerPayload.banner_url,
+      banner_gradient: bannerPayload.banner_gradient,
+      banner_style: bannerPayload.banner_style,
+      custom_status: statusPayload.custom_status,
+      status_emoji: statusPayload.status_emoji,
+      status_color: statusPayload.status_color,
+      status_expires_at: statusPayload.status_expires_at,
       likes: likeStats.likes,
       likedByMe: likeStats.liked,
       vibe_tags: sanitizeVibeTags(row.vibe_tags || []),

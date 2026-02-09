@@ -42,6 +42,33 @@ const DELETE_ANIM_MS = PREFERS_REDUCED_MOTION ? 1 : 200;
 const COUPLE_DEFAULT_GRADIENT_START = "#ff6a2b";
 const COUPLE_DEFAULT_GRADIENT_END = "#2b0f08";
 
+const BANNER_GRADIENTS = [
+  { id: "sunset", css: "linear-gradient(135deg, #ff6a2b, #ff3b8d)" },
+  { id: "ocean", css: "linear-gradient(135deg, #2b7cff, #00f5ff)" },
+  { id: "forest", css: "linear-gradient(135deg, #134e4a, #6ee7b7)" },
+  { id: "galaxy", css: "linear-gradient(135deg, #2b0f08, #8b00ff)" },
+  { id: "aurora", css: "linear-gradient(135deg, #00f260, #0575e6, #a044ff)" },
+  { id: "candy", css: "linear-gradient(135deg, #ff5bf1, #ff83ea, #ffd1ff)" },
+  { id: "neon", css: "linear-gradient(135deg, #00e5ff, #7c4dff)" },
+  { id: "fire", css: "linear-gradient(135deg, #ff4e50, #f9d423)" },
+];
+
+const STATUS_EMOJIS = ["🎮", "📚", "🎵", "💤", "🎨", "🏃", "☕", "🍕", "💼", "🎬"];
+const STATUS_COLORS = [
+  { name: "Green", value: "#10b981" },
+  { name: "Blue", value: "#3b82f6" },
+  { name: "Purple", value: "#8b5cf6" },
+  { name: "Pink", value: "#ec4899" },
+  { name: "Orange", value: "#f59e0b" },
+  { name: "Red", value: "#ef4444" },
+];
+const STATUS_EXPIRY_OPTIONS = [
+  1800000,
+  3600000,
+  14400000,
+  86400000,
+];
+
 
 function safeJsonParse(raw, fallback) {
   try {
@@ -6249,6 +6276,7 @@ const modalRole = document.getElementById("modalRole");
 const modalMood = document.getElementById("modalMood");
 const profileVibes = document.getElementById("profileVibes");
 const profileSheetHero = document.getElementById("profileSheetHero");
+const profileBanner = document.getElementById("profileBanner");
 const profileSheetBg = document.getElementById("profileSheetBg");
 const profileSheetAvatar = document.getElementById("profileSheetAvatar");
 const profileSheetAvatarActions = document.getElementById("profileSheetAvatarActions");
@@ -6295,6 +6323,9 @@ const infoRoom = document.getElementById("infoRoom");
 const infoStatus = document.getElementById("infoStatus");
 const profileMoodValue = document.getElementById("profileMood");
 const profileStatusValue = document.getElementById("profileStatus");
+const profileCustomStatus = document.getElementById("profileCustomStatus");
+const profileCustomStatusEmoji = document.getElementById("profileCustomStatusEmoji");
+const profileCustomStatusText = document.getElementById("profileCustomStatusText");
 
 // tabs/views
 const tabProfile = document.getElementById("tabProfile");
@@ -6317,6 +6348,7 @@ const mediaMsg = document.getElementById("mediaMsg");
 const profileActionMsg = document.getElementById("profileActionMsg");
 const customizeMsg = document.getElementById("customizeMsg");
 const profileSections = document.getElementById("profileSections");
+const profileBadges = document.getElementById("profileBadges");
 const profileModerationSection = document.getElementById("profileModerationSection");
 const profileModerationOpenBtn = document.getElementById("profileModerationOpenBtn");
 const levelPanel = document.getElementById("levelPanel");
@@ -8681,6 +8713,7 @@ const prefersReducedMotion = window.matchMedia ? window.matchMedia("(prefers-red
 let headerGradientPreviewFrame = 0;
 let headerGradientPreviewNext = null;
 let currentProfileHeaderRole = "";
+let currentProfileBanner = null;
 function saveBadgePrefsToStorage(){
   try{ localStorage.setItem("dmBadgePrefs", JSON.stringify(badgePrefs)); }
   catch{}
@@ -8750,6 +8783,29 @@ function buildProfileHeaderGradient(colorA, colorB){
   const highlight = rgb ? `radial-gradient(900px 260px at 70% 30%, rgba(${rgb.r},${rgb.g},${rgb.b},0.28), transparent 60%)` : "";
   const layers = [highlight, `linear-gradient(135deg, ${a}, ${b})`].filter(Boolean);
   return layers.join(", ");
+}
+function applyProfileBanner(banner){
+  if (!profileBanner || !profileSheetBg) return;
+  const bannerUrl = banner?.banner_url || null;
+  const bannerGradient = banner?.banner_gradient || null;
+  const bannerStyle = banner?.banner_style || "cover";
+  const hasBanner = !!(bannerUrl || bannerGradient);
+  currentProfileBanner = hasBanner ? { banner_url: bannerUrl, banner_gradient: bannerGradient, banner_style: bannerStyle } : null;
+  if (!hasBanner) {
+    profileBanner.style.display = "none";
+    profileBanner.style.backgroundImage = "";
+    profileBanner.style.backgroundRepeat = "";
+    profileBanner.style.backgroundPosition = "";
+    profileBanner.style.backgroundSize = "";
+    profileSheetBg.style.opacity = "";
+    return;
+  }
+  profileBanner.style.display = "";
+  profileBanner.style.backgroundImage = bannerGradient ? bannerGradient : `url("${bannerUrl}")`;
+  profileBanner.style.backgroundPosition = "center";
+  profileBanner.style.backgroundRepeat = bannerStyle === "pattern" ? "repeat" : "no-repeat";
+  profileBanner.style.backgroundSize = bannerStyle === "pattern" ? "auto" : bannerStyle;
+  profileSheetBg.style.opacity = "0";
 }
 function applyProfileHeaderOverlay(role){
   if(!profileSheetOverlay) return;
@@ -13926,6 +13982,8 @@ customizeCards.forEach((card) => {
       updateCoupleGradientFieldVisibility();
       setCustomizePage("profile");
       updateProfileAppearancePreview();
+      renderBannerSettings();
+      renderStatusSettings();
       return;
     }
     // Handle Effects card - opens modal with preview
@@ -14761,6 +14819,239 @@ async function saveProfileAppearanceSettings() {
   } catch (err) {
     setMsgline(profileActionMsg, "Could not save profile appearance.");
     return false;
+  }
+}
+
+function renderBannerSettings() {
+  const container = document.getElementById("profileBannerSettings");
+  if (!container) return;
+  container.innerHTML = `
+    <label>Profile Banner</label>
+    <div class="small muted">Pick a gradient banner for your profile header.</div>
+    <div class="row" style="gap:8px; align-items:center; margin-top:8px;">
+      <span class="small">Style</span>
+      <select id="bannerStyleSelect">
+        <option value="cover">Cover</option>
+        <option value="contain">Contain</option>
+        <option value="pattern">Pattern</option>
+      </select>
+    </div>
+    <div id="bannerGradientPicker" class="gradientGrid">
+      ${BANNER_GRADIENTS.map((g) => `
+        <div class="gradientOption" data-id="${g.id}" style="background: ${g.css}"></div>
+      `).join("")}
+    </div>
+    <button id="saveBannerBtn" class="btn btnPrimary" type="button">Save Banner</button>
+  `;
+
+  const gradientOptions = Array.from(container.querySelectorAll(".gradientOption"));
+  gradientOptions.forEach((opt) => {
+    opt.addEventListener("click", () => {
+      const wasSelected = opt.classList.contains("selected");
+      gradientOptions.forEach((o) => o.classList.remove("selected"));
+      if (!wasSelected) opt.classList.add("selected");
+    });
+  });
+
+  container.querySelector("#saveBannerBtn")?.addEventListener("click", saveBannerSettings);
+  loadBannerSettings();
+}
+
+async function loadBannerSettings() {
+  const container = document.getElementById("profileBannerSettings");
+  if (!container) return;
+  const styleSelect = container.querySelector("#bannerStyleSelect");
+  try {
+    const res = await fetch("/api/profile/banner", { credentials: "include" });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    if (styleSelect && data?.banner_style) {
+      styleSelect.value = data.banner_style;
+    }
+    const gradientId = BANNER_GRADIENTS.find((g) => g.css === data?.banner_gradient)?.id;
+    container.querySelectorAll(".gradientOption").forEach((opt) => {
+      opt.classList.toggle("selected", opt.dataset.id === gradientId);
+    });
+  } catch (err) {
+    console.warn("Failed to load banner settings:", err);
+  }
+}
+
+async function saveBannerSettings() {
+  const container = document.getElementById("profileBannerSettings");
+  if (!container) return;
+  const selected = container.querySelector(".gradientOption.selected");
+  const gradientId = selected?.dataset.id;
+  const gradient = BANNER_GRADIENTS.find((g) => g.id === gradientId);
+  const bannerStyle = container.querySelector("#bannerStyleSelect")?.value || "cover";
+
+  try {
+    const res = await fetch("/api/profile/banner", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        banner_gradient: gradient?.css ?? null,
+        banner_style: bannerStyle,
+      })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    showToast("✅ Banner saved!");
+    const profileData = await loadMyProfile();
+    if (profileData) fillProfileUI(profileData, true);
+  } catch (err) {
+    console.error("Failed to save banner:", err);
+    showToast("❌ Failed to save banner");
+  }
+}
+
+function renderStatusSettings() {
+  const container = document.getElementById("profileStatusSettings");
+  if (!container) return;
+  container.innerHTML = `
+    <label>Custom Status</label>
+    <div class="small muted">Share a short status on your profile.</div>
+    <div class="field">
+      <label>Emoji</label>
+      <div class="emojiPicker">
+        ${STATUS_EMOJIS.map((e) => `<span class="emojiOption">${e}</span>`).join("")}
+      </div>
+    </div>
+    <div class="field">
+      <label>Status Text</label>
+      <input type="text" id="statusTextInput" maxlength="100" placeholder="What are you up to?">
+    </div>
+    <div class="field">
+      <label>Color</label>
+      <div class="colorPicker">
+        ${STATUS_COLORS.map((c) => `
+          <div class="colorOption" style="background: ${c.value}" data-color="${c.value}"></div>
+        `).join("")}
+      </div>
+    </div>
+    <div class="field">
+      <label>Auto-clear after</label>
+      <select id="statusExpirySelect">
+        <option value="">Don't clear</option>
+        <option value="1800000">30 minutes</option>
+        <option value="3600000">1 hour</option>
+        <option value="14400000">4 hours</option>
+        <option value="86400000">24 hours</option>
+      </select>
+    </div>
+    <div class="row" style="gap:8px; flex-wrap:wrap;">
+      <button id="saveStatusBtn" class="btn btnPrimary" type="button">Save Status</button>
+      <button id="clearStatusBtn" class="btn secondary" type="button">Clear Status</button>
+    </div>
+  `;
+
+  container.querySelectorAll(".emojiOption").forEach((opt) => {
+    opt.addEventListener("click", () => {
+      container.querySelectorAll(".emojiOption").forEach((o) => o.classList.remove("selected"));
+      opt.classList.add("selected");
+    });
+  });
+
+  container.querySelectorAll(".colorOption").forEach((opt) => {
+    opt.addEventListener("click", () => {
+      container.querySelectorAll(".colorOption").forEach((o) => o.classList.remove("selected"));
+      opt.classList.add("selected");
+    });
+  });
+
+  container.querySelector("#saveStatusBtn")?.addEventListener("click", saveStatusSettings);
+  container.querySelector("#clearStatusBtn")?.addEventListener("click", clearStatusSettings);
+  loadStatusSettings();
+}
+
+async function loadStatusSettings() {
+  const container = document.getElementById("profileStatusSettings");
+  if (!container) return;
+  try {
+    const res = await fetch("/api/profile/status", { credentials: "include" });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    const textInput = container.querySelector("#statusTextInput");
+    if (textInput) textInput.value = data?.custom_status || "";
+    const emojiValue = data?.status_emoji;
+    container.querySelectorAll(".emojiOption").forEach((opt) => {
+      opt.classList.toggle("selected", opt.textContent === emojiValue);
+    });
+    const colorValue = data?.status_color;
+    container.querySelectorAll(".colorOption").forEach((opt) => {
+      opt.classList.toggle("selected", opt.dataset.color === colorValue);
+    });
+    const expirySelect = container.querySelector("#statusExpirySelect");
+    if (expirySelect) {
+      const expiresAt = Number(data?.status_expires_at) || null;
+      const diff = expiresAt ? Math.max(0, expiresAt - Date.now()) : 0;
+      const match = STATUS_EXPIRY_OPTIONS.find((opt) => Math.abs(opt - diff) < 60000);
+      expirySelect.value = match ? String(match) : "";
+    }
+  } catch (err) {
+    console.warn("Failed to load status settings:", err);
+  }
+}
+
+async function saveStatusSettings() {
+  const container = document.getElementById("profileStatusSettings");
+  if (!container) return;
+  const emoji = container.querySelector(".emojiOption.selected")?.textContent;
+  const text = container.querySelector("#statusTextInput")?.value || "";
+  const color = container.querySelector(".colorOption.selected")?.dataset.color;
+  const expiryMs = parseInt(container.querySelector("#statusExpirySelect")?.value, 10) || 0;
+  const expiresAt = expiryMs ? Date.now() + expiryMs : null;
+
+  try {
+    const res = await fetch("/api/profile/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        custom_status: text,
+        status_emoji: emoji,
+        status_color: color,
+        status_expires_at: expiresAt,
+      })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    showToast("✅ Status updated!");
+    const profileData = await loadMyProfile();
+    if (profileData) fillProfileUI(profileData, true);
+  } catch (err) {
+    console.error("Failed to save status:", err);
+    showToast("❌ Failed to save status");
+  }
+}
+
+async function clearStatusSettings() {
+  const container = document.getElementById("profileStatusSettings");
+  if (!container) return;
+  try {
+    const res = await fetch("/api/profile/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        custom_status: null,
+        status_emoji: null,
+        status_color: null,
+        status_expires_at: null,
+      })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    container.querySelectorAll(".emojiOption").forEach((opt) => opt.classList.remove("selected"));
+    container.querySelectorAll(".colorOption").forEach((opt) => opt.classList.remove("selected"));
+    const textInput = container.querySelector("#statusTextInput");
+    if (textInput) textInput.value = "";
+    const expirySelect = container.querySelector("#statusExpirySelect");
+    if (expirySelect) expirySelect.value = "";
+    showToast("✅ Status cleared!");
+    const profileData = await loadMyProfile();
+    if (profileData) fillProfileUI(profileData, true);
+  } catch (err) {
+    console.error("Failed to clear status:", err);
+    showToast("❌ Failed to clear status");
   }
 }
 
@@ -19540,6 +19831,13 @@ async function loadMyProfile(){
   me.gender = p.gender || "";
   me.header_grad_a = p.header_grad_a || null;
   me.header_grad_b = p.header_grad_b || null;
+  me.banner_url = p.banner_url || null;
+  me.banner_gradient = p.banner_gradient || null;
+  me.banner_style = p.banner_style || "cover";
+  me.custom_status = p.custom_status || null;
+  me.status_emoji = p.status_emoji || null;
+  me.status_color = p.status_color || null;
+  me.status_expires_at = p.status_expires_at || null;
   me.avatar = p.avatar || null;
 
   applyProgressionPayload(p);
@@ -20106,6 +20404,90 @@ function renderCouplesFlair(p) {
   };
 }
 
+function renderCustomStatus(p) {
+  if (!profileCustomStatus) return;
+  const customStatus = String(p?.custom_status || "").trim();
+  const statusEmoji = String(p?.status_emoji || "").trim();
+  const expiresAt = Number(p?.status_expires_at) || null;
+  if ((expiresAt && Date.now() >= expiresAt) || (!customStatus && !statusEmoji)) {
+    profileCustomStatus.style.display = "none";
+    return;
+  }
+  profileCustomStatus.style.display = "inline-flex";
+  if (profileCustomStatusEmoji) {
+    profileCustomStatusEmoji.textContent = statusEmoji || "";
+    profileCustomStatusEmoji.style.display = statusEmoji ? "" : "none";
+  }
+  if (profileCustomStatusText) {
+    profileCustomStatusText.textContent = customStatus || "";
+  }
+  const color = sanitizeHexColorInput(p?.status_color, "");
+  if (color) {
+    profileCustomStatus.style.background = color;
+    profileCustomStatus.style.color = "#fff";
+  } else {
+    profileCustomStatus.style.background = "var(--panel)";
+    profileCustomStatus.style.color = "var(--text)";
+  }
+}
+
+async function renderUserBadges(username, { showAll = false, cachedBadges } = {}) {
+  if (!profileBadges) return;
+  const safeName = String(username || "").trim();
+  if (!safeName) {
+    profileBadges.innerHTML = "";
+    return;
+  }
+
+  let badges = Array.isArray(cachedBadges) ? cachedBadges : null;
+  if (!badges) {
+    try {
+      const res = await fetch(`/api/profile/badges/${encodeURIComponent(safeName)}`, { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      const payload = await res.json();
+      badges = Array.isArray(payload) ? payload : [];
+    } catch (err) {
+      console.error("Failed to load badges:", err);
+      profileBadges.innerHTML = `<div class="small muted">Badges unavailable.</div>`;
+      return;
+    }
+  }
+
+  const displayBadges = showAll ? badges : badges.slice(0, 3);
+  const badgeCards = displayBadges.map((badge) => {
+    const rarityRaw = String(badge?.rarity || "common").toLowerCase();
+    const rarity = ["common", "rare", "epic", "legendary"].includes(rarityRaw) ? rarityRaw : "common";
+    const name = escapeHtml(String(badge?.name || "Badge"));
+    const description = escapeHtml(String(badge?.description || ""));
+    const emoji = escapeHtml(String(badge?.emoji || "🏅"));
+    return `
+      <div class="badge rarity-${rarity}" title="${description}">
+        <span class="badgeEmoji">${emoji}</span>
+        <span class="badgeName">${name}</span>
+      </div>
+    `;
+  }).join("");
+
+  const viewAllButton = (!showAll && badges.length > 3)
+    ? `<button class="btn secondary" data-action="view-all-badges">View all ${badges.length}</button>`
+    : "";
+
+  profileBadges.innerHTML = `
+    <h3>Badges (${badges.length})</h3>
+    <div class="badgeGrid">
+      ${badgeCards}
+      ${viewAllButton}
+    </div>
+  `;
+
+  const viewAllBtn = profileBadges.querySelector("[data-action='view-all-badges']");
+  if (viewAllBtn) {
+    viewAllBtn.addEventListener("click", () => {
+      renderUserBadges(safeName, { showAll: true, cachedBadges: badges });
+    });
+  }
+}
+
 function fillProfileUI(p, isSelf){
   currentProfileIsSelf = !!isSelf;
   preloadRoleSymbols([p?.username].filter(Boolean));
@@ -20200,6 +20582,7 @@ function fillProfileUI(p, isSelf){
   if (infoStatus) infoStatus.textContent = statusDisplay || "—";
   if (profileMoodValue) profileMoodValue.textContent = p.mood ? p.mood : "—";
   if (profileStatusValue) profileStatusValue.textContent = statusDisplay || "—";
+  renderCustomStatus(p);
 
   bioRender.innerHTML = p.bio ? renderBBCode(p.bio) : "(no bio)";
   renderLevelProgress(p, isSelf);
@@ -20215,6 +20598,7 @@ function fillProfileUI(p, isSelf){
   fillProfileSheetHeader(p, isSelf);
   syncProfileEditUi();
   applyProfileSectionVisibility(isSelf);
+  renderUserBadges(p?.username);
   if (levelPanel){
     levelPanel.style.display = "none";
     const title = levelPanel.previousElementSibling;
@@ -20228,6 +20612,7 @@ function fillProfileSheetHeader(p, isSelf){
 
   currentProfileHeaderRole = p?.role || "";
   applyProfileHeaderGradient(p?.header_grad_a, p?.header_grad_b, currentProfileHeaderRole);
+  applyProfileBanner(p);
   applyIdentityGlow(profileSheetHero, p);
   profileSheetHero.dataset.username = p?.username || "";
 
