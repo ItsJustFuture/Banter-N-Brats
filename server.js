@@ -2581,7 +2581,7 @@ function sanitizeVibeTags(raw) {
     if (out.length >= VIBE_TAG_LIMIT) break;
     // Handle both string and object tags (extract label from objects)
     let val;
-    if (typeof v === 'object' && v !== null) {
+    if (typeof v === "object" && v !== null) {
       val = String(v.label || v.id || "").trim();
     } else {
       val = String(v || "").trim();
