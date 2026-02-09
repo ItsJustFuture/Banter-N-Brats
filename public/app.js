@@ -6023,6 +6023,8 @@ const editProfileAvatar = document.getElementById("editProfileAvatar");
 const editProfileMood = document.getElementById("editProfileMood");
 const editProfileAge = document.getElementById("editProfileAge");
 const editProfileGender = document.getElementById("editProfileGender");
+const editProfileDemographicsAge = document.getElementById("editProfileDemographicsAge");
+const editProfileDemographicsGender = document.getElementById("editProfileDemographicsGender");
 const editProfileBio = document.getElementById("editProfileBio");
 const editProfileUsername = document.getElementById("editProfileUsername");
 const editProfileChangeUsernameBtn = document.getElementById("editProfileChangeUsernameBtn");
@@ -6040,6 +6042,9 @@ const roleSymbolModColor = document.getElementById("roleSymbolModColor");
 const roleSymbolAnimToggle = document.getElementById("roleSymbolAnimToggle");
 const roleSymbolSaveBtn = document.getElementById("roleSymbolSaveBtn");
 const roleSymbolMsg = document.getElementById("roleSymbolMsg");
+const roleSymbolPreviewRow = document.getElementById("roleSymbolPreviewRow");
+const roleSymbolPreviewIcon = document.getElementById("roleSymbolPreviewIcon");
+const roleSymbolPreviewLabel = document.getElementById("roleSymbolPreviewLabel");
 const profilePreviewCard = document.getElementById("profilePreviewCard");
 const profilePreviewHeader = document.getElementById("profilePreviewHeader");
 const profilePreviewAvatar = document.getElementById("profilePreviewAvatar");
@@ -6362,11 +6367,11 @@ function toggleBioHelperPanel(){
   }
 }
 
-function insertBioTag(tag){
-  if(!editBio) return;
-  const start = editBio.selectionStart ?? editBio.value.length;
-  const end = editBio.selectionEnd ?? start;
-  const selection = editBio.value.slice(start, end);
+function insertBioTag(tag, target = editBio){
+  if(!target) return;
+  const start = target.selectionStart ?? target.value.length;
+  const end = target.selectionEnd ?? start;
+  const selection = target.value.slice(start, end);
   let before = "";
   let after = "";
   let body = selection;
@@ -6406,9 +6411,10 @@ function insertBioTag(tag){
   }
 
   const snippet = `${before}${body || ""}${after}`;
-  editBio.setRangeText(snippet, start, end, "end");
-  scheduleBioPreview();
-  editBio.focus();
+  target.setRangeText(snippet, start, end, "end");
+  if (target === editBio) scheduleBioPreview();
+  if (target === editProfileBio) updateEditProfilePreview();
+  target.focus();
 }
 
 if(bioHelperButtons){
@@ -13858,7 +13864,12 @@ customizeCards.forEach((card) => {
   });
 });
 customizeBackBtns.forEach((btn) => {
-  btn.addEventListener("click", () => setCustomizePage(null));
+  btn.addEventListener("click", () => {
+    if (btn.dataset.back === "profile") {
+      revertProfileAppearanceChanges();
+    }
+    setCustomizePage(null);
+  });
 });
 customizeSearch?.addEventListener("input", () => {
   const value = customizeSearch.value;
@@ -14294,8 +14305,8 @@ async function saveEditProfile(){
 // Load edit profile data into the new customization tab form
 function loadEditProfileData() {
   const editProfileMoodCustomize = document.getElementById("editProfileMood");
-  const editProfileAgeCustomize = document.getElementById("editProfileAge");
-  const editProfileGenderCustomize = document.getElementById("editProfileGender");
+  const editProfileAgeCustomize = editProfileDemographicsAge || document.getElementById("editProfileAge");
+  const editProfileGenderCustomize = editProfileDemographicsGender || document.getElementById("editProfileGender");
   const editProfileBioCustomize = document.getElementById("editProfileBio");
   const editProfileUsernameCustomize = document.getElementById("editProfileUsername");
 
@@ -14304,10 +14315,12 @@ function loadEditProfileData() {
   void loadRoleSymbolSettings();
   
   if (editProfileMoodCustomize) editProfileMoodCustomize.value = me?.mood || "";
-  if (editProfileAgeCustomize) editProfileAgeCustomize.value = me?.age || "";
+  if (editProfileAgeCustomize) editProfileAgeCustomize.value = me?.age ?? "";
   if (editProfileGenderCustomize) editProfileGenderCustomize.value = me?.gender || "";
   if (editProfileBioCustomize) editProfileBioCustomize.value = me?.bio || "";
   if (editProfileUsernameCustomize) editProfileUsernameCustomize.value = "";
+  if (editProfileAvatar) editProfileAvatar.value = "";
+  if (removeAvatarBtn) removeAvatarBtn.style.display = me?.avatar ? "" : "none";
   
   editProfileSelectedVibeTags = [...(me?.vibe_tags || [])];
   renderEditProfileVibeOptionsCustomize();
@@ -14363,18 +14376,22 @@ function updateEditProfilePreview() {
     previewMood.textContent = editProfileMoodCustomize.value || "Your mood";
   }
   if (previewBio && editProfileBioCustomize) {
-    const bioText = editProfileBioCustomize.value || "Your bio will appear here...";
-    previewBio.textContent = bioText;
+    const bioText = String(editProfileBioCustomize.value || "").trim();
+    if (bioText) {
+      previewBio.innerHTML = renderBBCode(bioText);
+    } else {
+      previewBio.textContent = "Your bio will appear here...";
+    }
   }
   if (previewAvatar && me?.avatar) {
     previewAvatar.style.backgroundImage = `url(${me.avatar})`;
   }
   // Apply header gradient if available
-  if (previewSheetBg && me?.header_gradient) {
-    const [colorA, colorB] = me.header_gradient;
-    if (colorA && colorB) {
-      previewSheetBg.style.background = buildProfileHeaderGradient(colorA, colorB);
-    }
+  if (previewSheetBg) {
+    const grad = getHeaderGradientInputValues();
+    previewSheetBg.style.background = buildProfileHeaderGradient(grad.a, grad.b);
+    previewSheetBg.style.backgroundRepeat = "no-repeat";
+    previewSheetBg.style.backgroundSize = "cover";
   }
 }
 
@@ -14382,13 +14399,12 @@ function updateEditProfilePreview() {
 function updateProfileAppearancePreview() {
   const previewBg = document.getElementById("profileAppearancePreviewBg");
   const previewAvatar = document.getElementById("profileAppearancePreviewAvatar");
-  const headerColorA = document.getElementById("headerColorA");
-  const headerColorB = document.getElementById("headerColorB");
   
-  if (previewBg && headerColorA && headerColorB) {
-    const colorA = headerColorA.value || "#ff6a2b";
-    const colorB = headerColorB.value || "#2b0f08";
-    previewBg.style.background = `linear-gradient(135deg, ${colorA}, ${colorB})`;
+  if (previewBg) {
+    const grad = getHeaderGradientInputValues();
+    previewBg.style.background = buildProfileHeaderGradient(grad.a, grad.b);
+    previewBg.style.backgroundRepeat = "no-repeat";
+    previewBg.style.backgroundSize = "cover";
   }
   
   if (previewAvatar && me?.avatar) {
@@ -14524,6 +14540,11 @@ editProfileModalClose?.addEventListener("click", closeEditProfileModal);
 editProfileCancelBtn?.addEventListener("click", closeEditProfileModal);
 editProfileSaveBtn?.addEventListener("click", saveEditProfile);
 roleSymbolSaveBtn?.addEventListener("click", saveRoleSymbolSettings);
+roleSymbolVipGem?.addEventListener("change", renderRoleSymbolPreview);
+roleSymbolVipColor?.addEventListener("change", renderRoleSymbolPreview);
+roleSymbolModGem?.addEventListener("change", renderRoleSymbolPreview);
+roleSymbolModColor?.addEventListener("change", renderRoleSymbolPreview);
+roleSymbolAnimToggle?.addEventListener("change", renderRoleSymbolPreview);
 
 // Handle username change separately
 editProfileChangeUsernameBtn?.addEventListener("click", async () => {
@@ -14553,7 +14574,8 @@ editProfileChangeUsernameBtn?.addEventListener("click", async () => {
     editProfileUsernameMsg.textContent = "";
     editProfileUsernameMsg.appendChild(usernameText);
     editProfileUsername.value = "";
-    await loadMyProfile();
+    const profileData = await loadMyProfile();
+    if (profileData) fillProfileUI(profileData, true);
     await loadProgression();
     // Update preview with new username
     updateProfilePreview();
@@ -14597,6 +14619,7 @@ const confirmUsernameChangeBtn = document.getElementById("confirmUsernameChangeB
 const removeAvatarBtn = document.getElementById("removeAvatarBtn");
 const editBioHelperToggle = document.getElementById("editBioHelperToggle");
 const editBioHelper = document.getElementById("editBioHelper");
+const editBioHelperButtons = document.getElementById("editBioHelperButtons");
 
 // Wire up new modal buttons for Profile Appearance
 const saveProfileAppearanceBtn = document.getElementById("saveProfileAppearanceBtn");
@@ -14610,10 +14633,61 @@ const cancelEffectsBtn = document.getElementById("cancelEffectsBtn");
 const saveLayoutBtn = document.getElementById("saveLayoutBtn");
 const cancelLayoutBtn = document.getElementById("cancelLayoutBtn");
 
+function buildProfileFormData(profile, options = {}) {
+  const safeProfile = profile ?? {};
+  const formData = new FormData();
+  formData.append("mood", safeProfile.mood ?? "");
+  formData.append("age", safeProfile.age ?? "");
+  formData.append("gender", safeProfile.gender ?? "");
+  formData.append("bio", safeProfile.bio ?? "");
+  formData.append("vibeTags", JSON.stringify(safeProfile.vibe_tags ?? []));
+  if (options.headerColorA != null) {
+    formData.append("headerColorA", options.headerColorA);
+  }
+  if (options.headerColorB != null) {
+    formData.append("headerColorB", options.headerColorB);
+  }
+  if (options.avatarFile) {
+    formData.append("avatar", options.avatarFile);
+  }
+  return formData;
+}
+
+function revertProfileAppearanceChanges() {
+  syncHeaderGradientInputs(me?.header_grad_a, me?.header_grad_b);
+  updateProfileAppearancePreview();
+}
+
+async function saveProfileAppearanceSettings() {
+  if (!me?.username) return false;
+  const grad = getHeaderGradientInputValues();
+  const formData = buildProfileFormData(me, {
+    headerColorA: grad.a,
+    headerColorB: grad.b,
+  });
+  setMsgline(profileActionMsg, "Saving profile appearance...");
+  try {
+    const res = await fetch("/profile", { method: "POST", body: formData });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      setMsgline(profileActionMsg, data.message || "Could not save profile appearance.");
+      return false;
+    }
+    const profileData = await loadMyProfile();
+    if (profileData) fillProfileUI(profileData, true);
+    setMsgline(profileActionMsg, "✓ Profile appearance saved!");
+    setTimeout(() => setMsgline(profileActionMsg, ""), 2400);
+    return true;
+  } catch (err) {
+    setMsgline(profileActionMsg, "Could not save profile appearance.");
+    return false;
+  }
+}
+
 saveEditProfileBtn?.addEventListener("click", async () => {
   const editProfileMoodCustomize = document.getElementById("editProfileMood");
-  const editProfileAgeCustomize = document.getElementById("editProfileAge");
-  const editProfileGenderCustomize = document.getElementById("editProfileGender");
+  const editProfileAgeCustomize = editProfileDemographicsAge || document.getElementById("editProfileAge");
+  const editProfileGenderCustomize = editProfileDemographicsGender || document.getElementById("editProfileGender");
   const editProfileBioCustomize = document.getElementById("editProfileBio");
   const editProfileAvatarCustomize = document.getElementById("editProfileAvatar");
   const editProfileMsg = document.getElementById("editProfileMsg");
@@ -14622,22 +14696,20 @@ saveEditProfileBtn?.addEventListener("click", async () => {
   editProfileMsg.textContent = "Saving...";
   
   try {
-    const formData = new FormData();
-    if (editProfileMoodCustomize) formData.append("mood", editProfileMoodCustomize.value);
-    if (editProfileAgeCustomize) formData.append("age", editProfileAgeCustomize.value);
-    if (editProfileGenderCustomize) formData.append("gender", editProfileGenderCustomize.value);
-    if (editProfileBioCustomize) formData.append("bio", editProfileBioCustomize.value);
-    formData.append("vibe_tags", JSON.stringify(editProfileSelectedVibeTags));
-    
-    const avatarFile = editProfileAvatarCustomize?.files?.[0];
-    if (avatarFile) {
-      formData.append("avatar", avatarFile);
-    }
-    
-    const res = await fetch("/api/me", {
-      method: "POST",
-      body: formData,
+    const grad = getHeaderGradientInputValues();
+    const formData = buildProfileFormData({
+      mood: editProfileMoodCustomize?.value ?? "",
+      age: editProfileAgeCustomize?.value ?? "",
+      gender: editProfileGenderCustomize?.value ?? "",
+      bio: editProfileBioCustomize?.value ?? "",
+      vibe_tags: editProfileSelectedVibeTags || []
+    }, {
+      headerColorA: grad.a,
+      headerColorB: grad.b,
+      avatarFile: editProfileAvatarCustomize?.files?.[0]
     });
+
+    const res = await fetch("/profile", { method: "POST", body: formData });
     
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
@@ -14646,7 +14718,8 @@ saveEditProfileBtn?.addEventListener("click", async () => {
     }
     
     editProfileMsg.textContent = "✓ Profile saved!";
-    await loadMyProfile();
+    const profileData = await loadMyProfile();
+    if (profileData) fillProfileUI(profileData, true);
     updateEditProfilePreview();
     
     setTimeout(() => {
@@ -14658,18 +14731,42 @@ saveEditProfileBtn?.addEventListener("click", async () => {
   }
 });
 
+removeAvatarBtn?.addEventListener("click", async () => {
+  if (!me?.username) return;
+  if (!confirm("Remove your avatar?")) return;
+  const editProfileMsg = document.getElementById("editProfileMsg");
+  if (editProfileMsg) editProfileMsg.textContent = "Removing avatar...";
+  try {
+    const res = await fetch("/profile/avatar", { method: "DELETE" });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      if (editProfileMsg) editProfileMsg.textContent = text || "Could not remove avatar.";
+      return;
+    }
+    if (editProfileAvatar) editProfileAvatar.value = "";
+    const profileData = await loadMyProfile();
+    if (profileData) fillProfileUI(profileData, true);
+    updateEditProfilePreview();
+    if (removeAvatarBtn) removeAvatarBtn.style.display = "none";
+    if (editProfileMsg) editProfileMsg.textContent = "Avatar removed.";
+  } catch (err) {
+    if (editProfileMsg) editProfileMsg.textContent = "Could not remove avatar.";
+  }
+});
+
 cancelEditProfileBtn?.addEventListener("click", () => {
   setCustomizePage(null);
 });
 
 // Wire up Profile Appearance modal buttons
 cancelProfileAppearanceBtn?.addEventListener("click", () => {
+  revertProfileAppearanceChanges();
   setCustomizePage(null);
 });
 
-saveProfileAppearanceBtn?.addEventListener("click", () => {
-  // Settings are saved in real-time, just close the modal
-  setCustomizePage(null);
+saveProfileAppearanceBtn?.addEventListener("click", async () => {
+  const saved = await saveProfileAppearanceSettings();
+  if (saved) setCustomizePage(null);
 });
 
 // Wire up Effects modal buttons
@@ -14725,7 +14822,8 @@ confirmUsernameChangeBtn?.addEventListener("click", async () => {
     editProfileMsg.textContent = "";
     editProfileMsg.appendChild(usernameText);
     editProfileUsernameCustomize.value = "";
-    await loadMyProfile();
+    const profileData = await loadMyProfile();
+    if (profileData) fillProfileUI(profileData, true);
     await loadProgression();
     updateEditProfilePreview();
     
@@ -14741,6 +14839,14 @@ confirmUsernameChangeBtn?.addEventListener("click", async () => {
 });
 
 // Bio helper toggle
+if (editBioHelperButtons) {
+  editBioHelperButtons.addEventListener("click", (ev) => {
+    const target = ev.target;
+    if (!(target instanceof HTMLElement)) return;
+    const tag = target.dataset?.bioTag;
+    if (tag) insertBioTag(tag, editProfileBio);
+  });
+}
 editBioHelperToggle?.addEventListener("click", () => {
   if (editBioHelper) {
     editBioHelper.hidden = !editBioHelper.hidden;
@@ -19340,7 +19446,7 @@ memberPillFriends?.addEventListener('click', () => setMembersViewMode('friends')
 async function loadMyProfile(){
   const priorRole = me?.role;
   const res=await fetch("/profile");
-  if(!res.ok){ hardHideProfileModal(); return; }
+  if(!res.ok){ hardHideProfileModal(); return null; }
   const p=await res.json();
   updateRoleCache(p.username, p.role);
   modalTargetUserId = Number(p?.id) || null;
@@ -19348,6 +19454,13 @@ async function loadMyProfile(){
   me.role = p.role;
   me.level = p.level || me.level;
   me.vibe_tags = sanitizeVibeTagsClient(p.vibe_tags);
+  me.mood = p.mood || "";
+  me.bio = p.bio || "";
+  me.age = p.age ?? null;
+  me.gender = p.gender || "";
+  me.header_grad_a = p.header_grad_a || null;
+  me.header_grad_b = p.header_grad_b || null;
+  me.avatar = p.avatar || null;
 
   applyProgressionPayload(p);
 
@@ -19365,6 +19478,7 @@ async function loadMyProfile(){
   if (priorRole && priorRole !== p.role) {
     pushNotification({ type: "system", text: `Role updated to ${p.role}.` });
   }
+  return p;
 }
 
 let roleSymbolSettingsInitialized = false;
@@ -19424,6 +19538,7 @@ function updateRoleSymbolSettingsVisibility(role) {
   if (roleSymbolAnimRow) {
     roleSymbolAnimRow.style.display = roleRank(normalizedRole) >= roleRank("Admin") ? "" : "none";
   }
+  renderRoleSymbolPreview();
 }
 
 async function loadRoleSymbolSettings() {
@@ -19440,6 +19555,7 @@ async function loadRoleSymbolSettings() {
     if (roleSymbolAnimToggle) roleSymbolAnimToggle.checked = prefs.enable_animations !== 0;
     refreshAllRoleIcons();
     setMsgline(roleSymbolMsg, "");
+    renderRoleSymbolPreview();
   } catch (err) {
     console.warn("Failed to load role symbol settings:", err);
     setMsgline(roleSymbolMsg, "Could not load role symbol settings.");
@@ -19472,11 +19588,83 @@ async function saveRoleSymbolSettings() {
     const updated = normalizeRoleSymbolPrefs(await res.json());
     updateRoleSymbolCache(me.username, updated);
     refreshAllRoleIcons();
+    renderRoleSymbolPreview();
     setMsgline(roleSymbolMsg, "✓ Role symbol settings saved!");
   } catch (err) {
     console.warn("Failed to save role symbol settings:", err);
     setMsgline(roleSymbolMsg, "Failed to save role symbol settings.");
   }
+}
+
+function getRoleSymbolPreviewPrefs() {
+  return normalizeRoleSymbolPrefs({
+    vip_gemstone: roleSymbolVipGem?.value,
+    vip_color_variant: roleSymbolVipColor?.value,
+    moderator_gemstone: roleSymbolModGem?.value,
+    moderator_color_variant: roleSymbolModColor?.value,
+    enable_animations: roleSymbolAnimToggle?.checked ? 1 : 0
+  });
+}
+
+function buildRoleSymbolPreviewIcon(role, prefs) {
+  const normalizedRole = normalizeRole(role || "User");
+  const wrapper = document.createElement("span");
+  wrapper.className = "roleIconWrapper";
+  wrapper.dataset.role = normalizedRole.toLowerCase();
+  wrapper.dataset.roleName = normalizedRole;
+  wrapper.setAttribute("role", "img");
+  if (["Owner", "Co-owner", "Admin"].includes(normalizedRole) && prefs.enable_animations !== 0) {
+    wrapper.classList.add("roleIconAnimated");
+  }
+  if (normalizedRole === "VIP" || normalizedRole === "Moderator") {
+    const gemKey = normalizedRole === "VIP" ? prefs.vip_gemstone : prefs.moderator_gemstone;
+    const colorKey = normalizedRole === "VIP" ? prefs.vip_color_variant : prefs.moderator_color_variant;
+    const gem = ROLE_GEM_DEFS[gemKey];
+    const color = ROLE_SYMBOL_COLOR_VARIANTS[colorKey]?.color;
+    if (gem) {
+      if (color) wrapper.style.color = color;
+      const colorName = ROLE_SYMBOL_COLOR_VARIANTS[colorKey]?.name;
+      const colorSuffix = colorName ? ` (${colorName})` : "";
+      wrapper.setAttribute("aria-label", `${normalizedRole} gemstone ${gem.name}${colorSuffix}`);
+      wrapper.appendChild(createRoleGemSvg(gem.file, color));
+      return wrapper;
+    }
+  }
+  wrapper.classList.add("roleIconEmoji");
+  wrapper.textContent = roleIcon(normalizedRole);
+  wrapper.setAttribute("aria-label", `${normalizedRole} role icon`);
+  return wrapper;
+}
+
+function renderRoleSymbolPreview() {
+  if (!roleSymbolPreviewRow || !roleSymbolPreviewIcon || !roleSymbolPreviewLabel) return;
+  if (!roleSymbolSettingsSection || roleSymbolSettingsSection.style.display === "none") {
+    roleSymbolPreviewRow.style.display = "none";
+    return;
+  }
+  const showVip = roleSymbolVipField && roleSymbolVipField.style.display !== "none";
+  const showMod = roleSymbolModField && roleSymbolModField.style.display !== "none";
+  const showAnim = roleSymbolAnimRow && roleSymbolAnimRow.style.display !== "none";
+  if (!showVip && !showMod && !showAnim) {
+    roleSymbolPreviewRow.style.display = "none";
+    return;
+  }
+  const prefs = getRoleSymbolPreviewPrefs();
+  const previewRole = showVip ? "VIP" : showMod ? "Moderator" : normalizeRole(me?.role || "User");
+  roleSymbolPreviewRow.style.display = "";
+  roleSymbolPreviewIcon.innerHTML = "";
+  roleSymbolPreviewIcon.appendChild(buildRoleSymbolPreviewIcon(previewRole, prefs));
+  let label = `${previewRole} icon`;
+  if (previewRole === "VIP") {
+    const gem = ROLE_GEM_DEFS[prefs.vip_gemstone];
+    const color = ROLE_SYMBOL_COLOR_VARIANTS[prefs.vip_color_variant];
+    if (gem && color) label = `${gem.name} • ${color.name}`;
+  } else if (previewRole === "Moderator") {
+    const gem = ROLE_GEM_DEFS[prefs.moderator_gemstone];
+    const color = ROLE_SYMBOL_COLOR_VARIANTS[prefs.moderator_color_variant];
+    if (gem && color) label = `${gem.name} • ${color.name}`;
+  }
+  roleSymbolPreviewLabel.textContent = label;
 }
 
 function setMsgline(el, text){
