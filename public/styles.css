@@ -14208,3 +14208,79 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
     width: 100%;
   }
 }
+
+/* ===== ROLE SYMBOLS ===== */
+.roleIco {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+}
+
+.roleIconWrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.roleIconSvg {
+  width: 1em;
+  height: 1em;
+  display: block;
+}
+
+.roleIconEmoji {
+  font-size: 1em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roleIconAnimated {
+    animation: none !important;
+  }
+}
+
+.roleIconWrapper.roleIconAnimated[data-role="owner"] {
+  animation: ownerGlow 3s ease-in-out infinite;
+}
+
+@keyframes ownerGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px rgba(124, 255, 74, 0.6));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 6px rgba(124, 255, 74, 0.9));
+    transform: scale(1.05);
+  }
+}
+
+.roleIconWrapper.roleIconAnimated[data-role="co-owner"] {
+  animation: coownerShimmer 4s ease-in-out infinite;
+}
+
+@keyframes coownerShimmer {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px rgba(138, 43, 226, 0.5)) brightness(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 5px rgba(255, 79, 163, 0.7)) brightness(1.15);
+  }
+}
+
+.roleIconWrapper.roleIconAnimated[data-role="admin"] {
+  animation: adminShield 5s linear infinite;
+}
+
+@keyframes adminShield {
+  0% {
+    filter: drop-shadow(0 0 3px rgba(255, 140, 0, 0.6)) hue-rotate(0deg);
+  }
+  50% {
+    filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.8)) hue-rotate(15deg);
+  }
+  100% {
+    filter: drop-shadow(0 0 3px rgba(255, 140, 0, 0.6)) hue-rotate(0deg);
+  }
+}

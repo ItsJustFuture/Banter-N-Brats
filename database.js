@@ -13,6 +13,14 @@ if (!fs.existsSync(dbDir)) {
 }
 const db = new sqlite3.Database(DB_FILE);
 
+const DEFAULT_ROLE_SYMBOL_PREFS = {
+  vip_gemstone: "diamond",
+  vip_color_variant: "blue",
+  moderator_gemstone: "onyx",
+  moderator_color_variant: "blue",
+  enable_animations: 1,
+};
+
 function run(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.run(sql, params, function (err) {
@@ -1019,11 +1027,75 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
   await run(`CREATE INDEX IF NOT EXISTS idx_delivery_receipts_message ON message_delivery_receipts(message_id)`);
   await run(`CREATE INDEX IF NOT EXISTS idx_delivery_receipts_user ON message_delivery_receipts(user_id)`);
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS user_role_symbols (
+      username TEXT PRIMARY KEY,
+      vip_gemstone TEXT DEFAULT 'diamond',
+      vip_color_variant TEXT DEFAULT 'blue',
+      moderator_gemstone TEXT DEFAULT 'onyx',
+      moderator_color_variant TEXT DEFAULT 'blue',
+      enable_animations INTEGER NOT NULL DEFAULT 1,
+      updated_at INTEGER NOT NULL
+    )
+  `);
+  await run(`CREATE INDEX IF NOT EXISTS idx_role_symbols_username ON user_role_symbols(username)`);
+
 
 // --- Fixed role assignments
   await run("UPDATE users SET role='Owner' WHERE lower(username)='iri'");
   await run("UPDATE users SET role='Co-owner' WHERE lower(username) IN ('lola henderson','amelia')");
   await run("UPDATE users SET role='Admin' WHERE lower(username)='ally'");
+}
+
+async function getRoleSymbolPrefs(username) {
+  const safeName = String(username || "").trim();
+  if (!safeName) return { ...DEFAULT_ROLE_SYMBOL_PREFS };
+  const rows = await all(
+    `SELECT vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations
+     FROM user_role_symbols WHERE username = ? LIMIT 1`,
+    [safeName]
+  );
+  const row = rows?.[0];
+  if (!row) return { ...DEFAULT_ROLE_SYMBOL_PREFS };
+  return {
+    vip_gemstone: row.vip_gemstone || DEFAULT_ROLE_SYMBOL_PREFS.vip_gemstone,
+    vip_color_variant: row.vip_color_variant || DEFAULT_ROLE_SYMBOL_PREFS.vip_color_variant,
+    moderator_gemstone: row.moderator_gemstone || DEFAULT_ROLE_SYMBOL_PREFS.moderator_gemstone,
+    moderator_color_variant: row.moderator_color_variant || DEFAULT_ROLE_SYMBOL_PREFS.moderator_color_variant,
+    enable_animations: row.enable_animations ?? DEFAULT_ROLE_SYMBOL_PREFS.enable_animations,
+  };
+}
+
+async function updateRoleSymbolPrefs(username, prefs = {}) {
+  const safeName = String(username || "").trim();
+  if (!safeName) return null;
+  const merged = {
+    ...DEFAULT_ROLE_SYMBOL_PREFS,
+    ...(prefs || {}),
+  };
+  const now = Date.now();
+  await run(
+    `INSERT INTO user_role_symbols (
+      username, vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(username) DO UPDATE SET
+       vip_gemstone = excluded.vip_gemstone,
+       vip_color_variant = excluded.vip_color_variant,
+       moderator_gemstone = excluded.moderator_gemstone,
+       moderator_color_variant = excluded.moderator_color_variant,
+       enable_animations = excluded.enable_animations,
+       updated_at = excluded.updated_at`,
+    [
+      safeName,
+      merged.vip_gemstone,
+      merged.vip_color_variant,
+      merged.moderator_gemstone,
+      merged.moderator_color_variant,
+      merged.enable_animations,
+      now,
+    ]
+  );
+  return merged;
 }
 
 async function seedDevUser({ username, password, role }) {
@@ -1056,4 +1128,6 @@ module.exports = {
   runSqliteMigrations,
   DB_FILE,
   seedDevUser,
+  getRoleSymbolPrefs,
+  updateRoleSymbolPrefs,
 };

@@ -351,7 +351,14 @@ const { Server } = require("socket.io");
 const { createAdapter } = require("@socket.io/redis-adapter");
 const { createClient } = require("redis");
 
-const { db, migrationsReady, seedDevUser, DB_FILE } = require("./database");
+const {
+  db,
+  migrationsReady,
+  seedDevUser,
+  DB_FILE,
+  getRoleSymbolPrefs,
+  updateRoleSymbolPrefs,
+} = require("./database");
 const { VIBE_TAGS, VIBE_TAG_LIMIT } = require("./vibe-tags");
 
 const MEMORY_SYSTEM_ENABLED = process.env.MEMORY_SYSTEM_ENABLED === "1";
@@ -939,6 +946,19 @@ const pgInitPromise = PG_ENABLED ? (async () => {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
+    `);
+
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS user_role_symbols (
+        username TEXT PRIMARY KEY,
+        vip_gemstone TEXT DEFAULT 'diamond',
+        vip_color_variant TEXT DEFAULT 'blue',
+        moderator_gemstone TEXT DEFAULT 'onyx',
+        moderator_color_variant TEXT DEFAULT 'blue',
+        enable_animations INTEGER NOT NULL DEFAULT 1,
+        updated_at BIGINT NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS idx_role_symbols_username ON user_role_symbols(username);
     `);
 
     await pgPool.query(`
@@ -2888,6 +2908,119 @@ const ROLE_DISPLAY = {
   "Co-owner": "Co-Owner",
   Owner: "Owner",
 };
+
+const ROLE_SYMBOL_DEFAULTS = {
+  vip_gemstone: "diamond",
+  vip_color_variant: "blue",
+  moderator_gemstone: "onyx",
+  moderator_color_variant: "blue",
+  enable_animations: 1,
+};
+
+const VIP_GEM_KEYS = [
+  "diamond",
+  "ruby",
+  "emerald",
+  "sapphire",
+  "amethyst",
+  "topaz",
+  "opal",
+  "pearl",
+];
+
+const MODERATOR_GEM_KEYS = [
+  "onyx",
+  "citrine",
+  "garnet",
+  "aquamarine",
+  "peridot",
+  "obsidian",
+  "tanzanite",
+  "quartz",
+];
+
+const ROLE_SYMBOL_COLOR_KEYS = ["blue", "pink", "gold", "purple", "green", "red"];
+
+function validateRoleSymbolInput(payload = {}) {
+  if (payload.vip_gemstone && !VIP_GEM_KEYS.includes(payload.vip_gemstone)) {
+    return "Invalid VIP gemstone";
+  }
+  if (payload.vip_color_variant && !ROLE_SYMBOL_COLOR_KEYS.includes(payload.vip_color_variant)) {
+    return "Invalid VIP color variant";
+  }
+  if (payload.moderator_gemstone && !MODERATOR_GEM_KEYS.includes(payload.moderator_gemstone)) {
+    return "Invalid moderator gemstone";
+  }
+  if (payload.moderator_color_variant && !ROLE_SYMBOL_COLOR_KEYS.includes(payload.moderator_color_variant)) {
+    return "Invalid moderator color variant";
+  }
+  return null;
+}
+
+function normalizeRoleSymbolPrefs(prefs = {}) {
+  const vipGem = VIP_GEM_KEYS.includes(prefs.vip_gemstone)
+    ? prefs.vip_gemstone
+    : ROLE_SYMBOL_DEFAULTS.vip_gemstone;
+  const vipColor = ROLE_SYMBOL_COLOR_KEYS.includes(prefs.vip_color_variant)
+    ? prefs.vip_color_variant
+    : ROLE_SYMBOL_DEFAULTS.vip_color_variant;
+  const modGem = MODERATOR_GEM_KEYS.includes(prefs.moderator_gemstone)
+    ? prefs.moderator_gemstone
+    : ROLE_SYMBOL_DEFAULTS.moderator_gemstone;
+  const modColor = ROLE_SYMBOL_COLOR_KEYS.includes(prefs.moderator_color_variant)
+    ? prefs.moderator_color_variant
+    : ROLE_SYMBOL_DEFAULTS.moderator_color_variant;
+  const enableAnimations = prefs.enable_animations === 0 || prefs.enable_animations === "0" || prefs.enable_animations === false ? 0 : 1;
+  return {
+    vip_gemstone: vipGem,
+    vip_color_variant: vipColor,
+    moderator_gemstone: modGem,
+    moderator_color_variant: modColor,
+    enable_animations: enableAnimations,
+  };
+}
+
+async function pgGetRoleSymbolPrefs(username) {
+  const safeName = String(username || "").trim();
+  if (!safeName) return { ...ROLE_SYMBOL_DEFAULTS };
+  const { rows } = await pgPool.query(
+    `SELECT vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations
+     FROM user_role_symbols WHERE lower(username)=lower($1) LIMIT 1`,
+    [safeName]
+  );
+  const row = rows?.[0];
+  if (!row) return { ...ROLE_SYMBOL_DEFAULTS };
+  return normalizeRoleSymbolPrefs(row);
+}
+
+async function pgUpsertRoleSymbolPrefs(username, prefs) {
+  const safeName = String(username || "").trim();
+  if (!safeName) return { ...ROLE_SYMBOL_DEFAULTS };
+  const normalized = normalizeRoleSymbolPrefs(prefs || {});
+  const now = Date.now();
+  await pgPool.query(
+    `INSERT INTO user_role_symbols (
+      username, vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (username) DO UPDATE SET
+       vip_gemstone = EXCLUDED.vip_gemstone,
+       vip_color_variant = EXCLUDED.vip_color_variant,
+       moderator_gemstone = EXCLUDED.moderator_gemstone,
+       moderator_color_variant = EXCLUDED.moderator_color_variant,
+       enable_animations = EXCLUDED.enable_animations,
+       updated_at = EXCLUDED.updated_at`,
+    [
+      safeName,
+      normalized.vip_gemstone,
+      normalized.vip_color_variant,
+      normalized.moderator_gemstone,
+      normalized.moderator_color_variant,
+      normalized.enable_animations,
+      now,
+    ]
+  );
+  return normalized;
+}
 
 function extractMentionId(raw) {
   const text = String(raw || "").trim();
@@ -9831,6 +9964,113 @@ app.post("/api/me/prefs", strictLimiter, requireLogin, async (req, res) => {
     });
   });
 });
+
+app.get("/api/role-symbols", requireLogin, async (req, res) => {
+  const userId = req.session.user?.id;
+  const username = req.session.user?.username;
+  try {
+    if (await pgUserExists(userId)) {
+      const prefs = await pgGetRoleSymbolPrefs(username);
+      return res.json(prefs);
+    }
+  } catch (e) {
+    console.warn("[role-symbols][pg] read failed, falling back to sqlite:", e?.message || e);
+  }
+
+  try {
+    const prefs = await getRoleSymbolPrefs(username);
+    return res.json(normalizeRoleSymbolPrefs(prefs));
+  } catch (err) {
+    console.error("[role-symbols][sqlite] read failed:", err?.message || err);
+    return res.status(500).json({ error: "Failed to fetch preferences" });
+  }
+});
+
+app.post(
+  "/api/role-symbols",
+  strictLimiter,
+  requireLogin,
+  express.json({ limit: "16kb" }),
+  async (req, res) => {
+    const userId = req.session.user?.id;
+    const username = req.session.user?.username;
+    const payload = req.body || {};
+    const validationError = validateRoleSymbolInput(payload);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+    const prefs = normalizeRoleSymbolPrefs(payload);
+
+    try {
+      if (await pgUserExists(userId)) {
+        const updated = await pgUpsertRoleSymbolPrefs(username, prefs);
+        updateRoleSymbolPrefs(username, updated).catch(() => {});
+        return res.json(updated);
+      }
+    } catch (e) {
+      console.warn("[role-symbols][pg] update failed, falling back to sqlite:", e?.message || e);
+    }
+
+    try {
+      const updated = await updateRoleSymbolPrefs(username, prefs);
+      return res.json(updated || prefs);
+    } catch (err) {
+      console.error("[role-symbols][sqlite] update failed:", err?.message || err);
+      return res.status(500).json({ error: "Failed to save preferences" });
+    }
+  }
+);
+
+app.post(
+  "/api/role-symbols/batch",
+  strictLimiter,
+  requireLogin,
+  express.json({ limit: "16kb" }),
+  async (req, res) => {
+    const rawList = Array.isArray(req.body?.usernames) ? req.body.usernames : [];
+    const normalized = rawList
+      .map((name) => String(name || "").trim())
+      .filter(Boolean);
+    const unique = Array.from(new Set(normalized)).slice(0, 50);
+    if (!unique.length) {
+      return res.status(400).json({ error: "Invalid usernames array" });
+    }
+    const lowered = unique.map((name) => name.toLowerCase());
+
+    if (PG_READY && pgPool) {
+      try {
+        const { rows } = await pgPool.query(
+          `SELECT username, vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations
+           FROM user_role_symbols WHERE lower(username) = ANY($1::text[])`,
+          [lowered]
+        );
+        const byKey = new Map(
+          (rows || []).map((row) => [String(row.username || "").toLowerCase(), normalizeRoleSymbolPrefs(row)])
+        );
+        const results = unique.map((name) => ({
+          username: name,
+          prefs: byKey.get(name.toLowerCase()) || { ...ROLE_SYMBOL_DEFAULTS },
+        }));
+        return res.json(results);
+      } catch (e) {
+        console.warn("[role-symbols][pg] batch failed, falling back to sqlite:", e?.message || e);
+      }
+    }
+
+    try {
+      const results = await Promise.all(
+        unique.map(async (name) => ({
+          username: name,
+          prefs: normalizeRoleSymbolPrefs(await getRoleSymbolPrefs(name)),
+        }))
+      );
+      return res.json(results);
+    } catch (err) {
+      console.error("[role-symbols][sqlite] batch failed:", err?.message || err);
+      return res.status(500).json({ error: "Failed to fetch preferences" });
+    }
+  }
+);
 
 app.post("/api/profile/customization", strictLimiter, requireLogin, async (req, res) => {
   const userId = req.session.user.id;
