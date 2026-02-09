@@ -14635,10 +14635,10 @@ const cancelLayoutBtn = document.getElementById("cancelLayoutBtn");
 
 function buildProfileFormData(profile, options = {}) {
   const formData = new FormData();
-  formData.append("mood", profile?.mood || "");
+  formData.append("mood", profile?.mood ?? "");
   formData.append("age", profile?.age ?? "");
-  formData.append("gender", profile?.gender || "");
-  formData.append("bio", profile?.bio || "");
+  formData.append("gender", profile?.gender ?? "");
+  formData.append("bio", profile?.bio ?? "");
   formData.append("vibeTags", JSON.stringify(profile?.vibe_tags || []));
   if (Object.prototype.hasOwnProperty.call(options, "headerColorA")) {
     formData.append("headerColorA", options.headerColorA);
@@ -14697,10 +14697,10 @@ saveEditProfileBtn?.addEventListener("click", async () => {
   try {
     const grad = getHeaderGradientInputValues();
     const formData = buildProfileFormData({
-      mood: editProfileMoodCustomize?.value || "",
+      mood: editProfileMoodCustomize?.value ?? "",
       age: editProfileAgeCustomize?.value ?? "",
-      gender: editProfileGenderCustomize?.value || "",
-      bio: editProfileBioCustomize?.value || "",
+      gender: editProfileGenderCustomize?.value ?? "",
+      bio: editProfileBioCustomize?.value ?? "",
       vibe_tags: editProfileSelectedVibeTags || []
     }, {
       headerColorA: grad.a,
