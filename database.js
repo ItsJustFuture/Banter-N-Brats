@@ -21,6 +21,10 @@ const DEFAULT_ROLE_SYMBOL_PREFS = {
   enable_animations: 1,
 };
 
+function normalizeRoleSymbolUsername(username) {
+  return String(username || "").trim().toLowerCase();
+}
+
 function run(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.run(sql, params, function (err) {
@@ -1038,6 +1042,7 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
       updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
     )
   `);
+  await run(`CREATE INDEX IF NOT EXISTS idx_role_symbols_username_lower ON user_role_symbols(lower(username))`);
 
 
 // --- Fixed role assignments
@@ -1047,14 +1052,23 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
 }
 
 async function getRoleSymbolPrefs(username) {
-  const safeName = String(username || "").trim().toLowerCase();
+  const rawName = String(username || "").trim();
+  const safeName = normalizeRoleSymbolUsername(rawName);
   if (!safeName) return { ...DEFAULT_ROLE_SYMBOL_PREFS };
-  const rows = await all(
+  let rows = await all(
     `SELECT vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations
-     FROM user_role_symbols WHERE lower(username) = lower(?) LIMIT 1`,
+     FROM user_role_symbols WHERE username = ? LIMIT 1`,
     [safeName]
   );
-  const row = rows?.[0];
+  let row = rows?.[0];
+  if (!row && rawName) {
+    rows = await all(
+      `SELECT vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations
+       FROM user_role_symbols WHERE lower(username) = lower(?) LIMIT 1`,
+      [rawName]
+    );
+    row = rows?.[0];
+  }
   if (!row) return { ...DEFAULT_ROLE_SYMBOL_PREFS };
   return {
     vip_gemstone: row.vip_gemstone || DEFAULT_ROLE_SYMBOL_PREFS.vip_gemstone,
@@ -1067,7 +1081,7 @@ async function getRoleSymbolPrefs(username) {
 
 async function updateRoleSymbolPrefs(username, prefs = {}) {
   const rawName = String(username || "").trim();
-  const safeName = rawName.toLowerCase();
+  const safeName = normalizeRoleSymbolUsername(rawName);
   if (!safeName) return null;
   const merged = {
     ...DEFAULT_ROLE_SYMBOL_PREFS,

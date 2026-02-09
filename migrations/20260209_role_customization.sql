@@ -8,3 +8,5 @@ CREATE TABLE IF NOT EXISTS user_role_symbols (
   enable_animations INTEGER NOT NULL DEFAULT 1,
   updated_at BIGINT NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
+
+CREATE INDEX IF NOT EXISTS idx_role_symbols_username_lower ON user_role_symbols(lower(username));

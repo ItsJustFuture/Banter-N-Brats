@@ -958,6 +958,7 @@ const pgInitPromise = PG_ENABLED ? (async () => {
         enable_animations INTEGER NOT NULL DEFAULT 1,
         updated_at BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
       );
+      CREATE INDEX IF NOT EXISTS idx_role_symbols_username_lower ON user_role_symbols (lower(username));
     `);
 
     await pgPool.query(`
@@ -2980,12 +2981,13 @@ function normalizeRoleSymbolPrefs(prefs = {}) {
 }
 
 async function pgGetRoleSymbolPrefs(username) {
-  const safeName = normKey(username);
+  const rawName = normalizeUsername(username);
+  const safeName = normKey(rawName);
   if (!safeName) return { ...ROLE_SYMBOL_DEFAULTS };
   const { rows } = await pgPool.query(
     `SELECT vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations
      FROM user_role_symbols WHERE lower(username)=lower($1) LIMIT 1`,
-    [safeName]
+    [rawName]
   );
   const row = rows?.[0];
   if (!row) return { ...ROLE_SYMBOL_DEFAULTS };
@@ -2993,7 +2995,7 @@ async function pgGetRoleSymbolPrefs(username) {
 }
 
 async function pgUpsertRoleSymbolPrefs(username, prefs) {
-  const rawName = String(username || "").trim();
+  const rawName = normalizeUsername(username);
   const safeName = normKey(rawName);
   if (!safeName) return { ...ROLE_SYMBOL_DEFAULTS };
   const normalized = normalizeRoleSymbolPrefs(prefs || {});
