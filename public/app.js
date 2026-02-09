@@ -8788,7 +8788,9 @@ function buildProfileHeaderGradient(colorA, colorB){
 function escapeCssUrl(raw) {
   const value = String(raw || "");
   if (!value) return "";
-  const encoded = encodeURI(value).replace(/["'(),\s]/g, (match) => encodeURIComponent(match));
+  const encoded = encodeURI(value).replace(/["'(),\s]/g, (match) =>
+    `%${match.charCodeAt(0).toString(16).toUpperCase()}`
+  );
   return `url("${encoded}")`;
 }
 function applyProfileBanner(banner){

@@ -2526,7 +2526,7 @@ const HEX_COLOR_RE = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const BANNER_STYLE_VALUES = new Set(["cover", "contain", "pattern"]);
 const BANNER_GRADIENT_MAX_LENGTH = 220;
 const BANNER_URL_MAX_LENGTH = 400;
-const SAFE_UPLOAD_PATH_RE = /^\/uploads\/[A-Za-z0-9._/-]+$/;
+const SAFE_UPLOAD_PATH_RE = /^\/uploads\/[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/;
 const UNSAFE_CSS_URL_RE = /["'(),\s]/;
 const STATUS_EMOJI_MAX_LENGTH = 16;
 const STATUS_TEXT_MAX_LENGTH = 100;
@@ -2573,10 +2573,10 @@ function sanitizeBannerUrl(raw) {
     if (value.includes("..")) return null;
     const allowed = ALLOWED_BANNER_PATH_PREFIXES.some((prefix) => value.startsWith(prefix));
     if (!allowed) return null;
-    if (!SAFE_UPLOAD_PATH_RE.test(value)) return null;
     const normalized = path.posix.normalize(value);
-    if (normalized !== value || !normalized.startsWith("/uploads/")) return null;
-    return value.slice(0, BANNER_URL_MAX_LENGTH);
+    if (!normalized.startsWith("/uploads/")) return null;
+    if (!SAFE_UPLOAD_PATH_RE.test(normalized)) return null;
+    return normalized.slice(0, BANNER_URL_MAX_LENGTH);
   }
   try {
     const parsed = new URL(value);
