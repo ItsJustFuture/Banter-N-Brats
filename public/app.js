@@ -2370,6 +2370,13 @@ function canUseTextEffect(effectId){
   return roleRank(me?.role || "User") >= roleRank("VIP");
 }
 
+function normalizeTextEffectSelection(effectId){
+  const key = String(effectId || "none").trim();
+  if (!TEXT_EFFECT_MAP.has(key)) return { effectId: "none", gated: false };
+  if (!canUseTextEffect(key)) return { effectId: "none", gated: true };
+  return { effectId: key, gated: false };
+}
+
 function applyTextEffect(element, effectId){
   if (!element) return;
   Array.from(element.classList).forEach((cls) => {
@@ -21700,9 +21707,9 @@ function syncTextCustomizationInputs(){
     textCustomizationStyle.value = textStyleDraft.fontStyle || TEXT_STYLE_DEFAULTS.fontStyle;
   }
   if (textCustomizationEffect) {
-    const nextEffect = textStyleDraft.effectId || TEXT_STYLE_DEFAULTS.effectId;
-    textStyleDraft.effectId = canUseTextEffect(nextEffect) ? nextEffect : TEXT_STYLE_DEFAULTS.effectId;
-    textCustomizationEffect.value = textStyleDraft.effectId;
+    const { effectId } = normalizeTextEffectSelection(textStyleDraft.effectId || TEXT_STYLE_DEFAULTS.effectId);
+    textStyleDraft.effectId = effectId;
+    textCustomizationEffect.value = effectId;
   }
   if (textCustomizationIntensity) {
     textCustomizationIntensity.value = textStyleDraft.neon?.intensity || TEXT_STYLE_DEFAULTS.neon.intensity;
@@ -21971,13 +21978,12 @@ function buildTextCustomizationModal(){
   textCustomizationEffect?.addEventListener("change", () => {
     if (!textStyleDraft) return;
     const nextEffect = textCustomizationEffect.value;
-    if (nextEffect && !canUseTextEffect(nextEffect)) {
+    const { effectId, gated } = normalizeTextEffectSelection(nextEffect);
+    if (gated) {
       showToast("This text effect requires VIP status. Upgrade to unlock premium effects.");
-      textCustomizationEffect.value = "none";
-      textStyleDraft.effectId = "none";
-    } else {
-      textStyleDraft.effectId = nextEffect || "none";
     }
+    textCustomizationEffect.value = effectId;
+    textStyleDraft.effectId = effectId;
     updateTextCustomizationPreview();
   });
 
