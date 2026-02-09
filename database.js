@@ -1055,28 +1055,33 @@ async function getRoleSymbolPrefs(username) {
   const rawName = String(username || "").trim();
   const safeName = normalizeRoleSymbolUsername(rawName);
   if (!safeName) return { ...DEFAULT_ROLE_SYMBOL_PREFS };
-  let rows = await all(
-    `SELECT vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations
-     FROM user_role_symbols WHERE username = ? LIMIT 1`,
-    [safeName]
-  );
-  let row = rows?.[0];
-  if (!row && rawName) {
-    rows = await all(
-      `SELECT vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations
-       FROM user_role_symbols WHERE lower(username) = lower(?) LIMIT 1`,
-      [rawName]
-    );
-    row = rows?.[0];
+  const selectSql = `SELECT vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations
+     FROM user_role_symbols`;
+  const rows = await all(`${selectSql} WHERE username = ? LIMIT 1`, [safeName]);
+  const row = rows?.[0];
+  if (row) {
+    return {
+      vip_gemstone: row.vip_gemstone || DEFAULT_ROLE_SYMBOL_PREFS.vip_gemstone,
+      vip_color_variant: row.vip_color_variant || DEFAULT_ROLE_SYMBOL_PREFS.vip_color_variant,
+      moderator_gemstone: row.moderator_gemstone || DEFAULT_ROLE_SYMBOL_PREFS.moderator_gemstone,
+      moderator_color_variant: row.moderator_color_variant || DEFAULT_ROLE_SYMBOL_PREFS.moderator_color_variant,
+      enable_animations: row.enable_animations ?? DEFAULT_ROLE_SYMBOL_PREFS.enable_animations,
+    };
   }
-  if (!row) return { ...DEFAULT_ROLE_SYMBOL_PREFS };
-  return {
-    vip_gemstone: row.vip_gemstone || DEFAULT_ROLE_SYMBOL_PREFS.vip_gemstone,
-    vip_color_variant: row.vip_color_variant || DEFAULT_ROLE_SYMBOL_PREFS.vip_color_variant,
-    moderator_gemstone: row.moderator_gemstone || DEFAULT_ROLE_SYMBOL_PREFS.moderator_gemstone,
-    moderator_color_variant: row.moderator_color_variant || DEFAULT_ROLE_SYMBOL_PREFS.moderator_color_variant,
-    enable_animations: row.enable_animations ?? DEFAULT_ROLE_SYMBOL_PREFS.enable_animations,
-  };
+  if (rawName) {
+    const fallbackRows = await all(`${selectSql} WHERE lower(username) = lower(?) LIMIT 1`, [rawName]);
+    const fallbackRow = fallbackRows?.[0];
+    if (fallbackRow) {
+      return {
+        vip_gemstone: fallbackRow.vip_gemstone || DEFAULT_ROLE_SYMBOL_PREFS.vip_gemstone,
+        vip_color_variant: fallbackRow.vip_color_variant || DEFAULT_ROLE_SYMBOL_PREFS.vip_color_variant,
+        moderator_gemstone: fallbackRow.moderator_gemstone || DEFAULT_ROLE_SYMBOL_PREFS.moderator_gemstone,
+        moderator_color_variant: fallbackRow.moderator_color_variant || DEFAULT_ROLE_SYMBOL_PREFS.moderator_color_variant,
+        enable_animations: fallbackRow.enable_animations ?? DEFAULT_ROLE_SYMBOL_PREFS.enable_animations,
+      };
+    }
+  }
+  return { ...DEFAULT_ROLE_SYMBOL_PREFS };
 }
 
 async function updateRoleSymbolPrefs(username, prefs = {}) {

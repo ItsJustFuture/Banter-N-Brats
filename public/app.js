@@ -7372,7 +7372,12 @@ function getRoleGemDefsContainer() {
     if (target) target.appendChild(roleGemDefsRootSvg);
   }
 
-  return roleGemDefsRootSvg.querySelector("defs");
+  let defs = roleGemDefsRootSvg.querySelector("defs");
+  if (!defs) {
+    defs = document.createElementNS(svgNs, "defs");
+    roleGemDefsRootSvg.appendChild(defs);
+  }
+  return defs;
 }
 
 function roleIcon(role){
