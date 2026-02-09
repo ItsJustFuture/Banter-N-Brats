@@ -10228,6 +10228,7 @@ function enforceTextEffectAccess(customization, role) {
     return style;
   };
   return {
+    ...customization,
     ...(customization.userNameStyle ? { userNameStyle: sanitizeStyle(customization.userNameStyle) } : {}),
     ...(customization.messageTextStyle ? { messageTextStyle: sanitizeStyle(customization.messageTextStyle) } : {}),
   };
