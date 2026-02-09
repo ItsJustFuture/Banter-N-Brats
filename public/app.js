@@ -3004,11 +3004,54 @@ function inferThemeTags(name, mode, extra = []){
   }
   return Array.from(tags);
 }
+
+function inferThemeCategory(name, mode, tags = []){
+  const lowerName = name.toLowerCase();
+  const tagSet = new Set(tags.map(t => t.toLowerCase()));
+  
+  // Category 1: Neon & Vibrant
+  if (tagSet.has('neon') || lowerName.includes('neon') || lowerName.includes('cyberpunk') || 
+      lowerName.includes('vaporwave') || lowerName.includes('arcade')) {
+    return 'neon-vibrant';
+  }
+  
+  // Category 2: Nature & Seasonal
+  if (tagSet.has('nature') || tagSet.has('seasonal') || tagSet.has('floral') || 
+      tagSet.has('spring') || tagSet.has('summer') || tagSet.has('autumn') || tagSet.has('winter') ||
+      tagSet.has('holiday') || lowerName.includes('blossom') || lowerName.includes('forest') ||
+      lowerName.includes('garden') || lowerName.includes('tropical') || lowerName.includes('harvest') ||
+      lowerName.includes('valentine') || lowerName.includes('christmas') || lowerName.includes('spooky')) {
+    return 'nature-seasonal';
+  }
+  
+  // Category 3: Retro & Gaming
+  if (tagSet.has('retro') || tagSet.has('gaming') || lowerName.includes('retro') || 
+      lowerName.includes('pixel') || lowerName.includes('arcade') || lowerName.includes('rpg') ||
+      lowerName.includes('fps') || lowerName.includes('racing') || lowerName.includes('y2k') ||
+      lowerName.includes('grunge')) {
+    return 'retro-gaming';
+  }
+  
+  // Category 4: Light (all light mode themes not already categorized)
+  if (mode === 'Light') {
+    return 'light';
+  }
+  
+  // Category 5: Dark (all dark mode themes not already categorized)
+  if (mode === 'Dark') {
+    return 'dark';
+  }
+  
+  // Default to 'all'
+  return 'all';
+}
+
 function createTheme(name, mode, options = {}){
   const id = options.id || themeIdFromName(name);
   const access = options.access || "vip";
   const goldPrice = Number(options.goldPrice || 0);
   const isPurchasable = Boolean(options.isPurchasable || goldPrice);
+  const category = options.category || inferThemeCategory(name, mode, options.tags || []);
   return {
     id,
     name,
@@ -3018,6 +3061,7 @@ function createTheme(name, mode, options = {}){
     goldPrice: goldPrice || null,
     isNew: Boolean(options.isNew),
     tags: inferThemeTags(name, mode, options.tags || []),
+    category,
   };
 }
 // Theme registry: add new themes here (metadata drives filtering, pinning, and gold unlocks).
@@ -9512,14 +9556,18 @@ function createThemeCard(theme){
 function buildFilterList(){
   const base = [
     { id: "all", label: "All" },
+    { id: "light", label: "Light" },
+    { id: "dark", label: "Dark" },
+    { id: "neon-vibrant", label: "Neon & Vibrant" },
+    { id: "nature-seasonal", label: "Nature & Seasonal" },
+    { id: "retro-gaming", label: "Retro & Gaming" },
     { id: "pinned", label: "Pinned" },
     { id: "favorites", label: "Favorites" },
     { id: "recents", label: "Recents" },
     { id: "unlocked", label: "Unlocked" },
     { id: "vip", label: "VIP" },
   ];
-  const tags = THEME_TAGS.map((tag) => ({ id: tag.toLowerCase(), label: tag }));
-  return [...base, ...tags];
+  return base;
 }
 function renderFilterPills(container){
   if (!container) return;
@@ -9561,10 +9609,16 @@ function applyThemeFilters(themes){
     case "vip":
       results = results.filter((theme) => theme.access === "vip");
       break;
+    case "light":
+    case "dark":
+    case "neon-vibrant":
+    case "nature-seasonal":
+    case "retro-gaming":
+      results = results.filter((theme) => theme.category === themeActiveFilter);
+      break;
+    case "all":
     default:
-      if (themeActiveFilter !== "all") {
-        results = results.filter((theme) => (theme.tags || []).map((t) => t.toLowerCase()).includes(themeActiveFilter));
-      }
+      // Show all themes
       break;
   }
   return results;
