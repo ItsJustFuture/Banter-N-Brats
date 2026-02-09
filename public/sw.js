@@ -112,8 +112,8 @@ self.addEventListener('fetch', (event) => {
                 { headers: { 'Content-Type': 'text/html' } }
               );
             }
-            // For other requests, let it fail
-            throw new Error(`Failed to fetch ${url.pathname} and no cached version available`);
+            // For other requests, return a descriptive error
+            throw new Error(`Failed to fetch ${url.pathname}: network unavailable and no cached version exists. Please check your internet connection.`);
           });
       })
   );
