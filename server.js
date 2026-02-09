@@ -956,7 +956,7 @@ const pgInitPromise = PG_ENABLED ? (async () => {
         moderator_gemstone TEXT DEFAULT 'onyx',
         moderator_color_variant TEXT DEFAULT 'blue',
         enable_animations INTEGER NOT NULL DEFAULT 1,
-        updated_at BIGINT NOT NULL DEFAULT 0
+        updated_at BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
       );
       CREATE INDEX IF NOT EXISTS idx_role_symbols_username ON user_role_symbols(username);
     `);
