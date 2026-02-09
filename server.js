@@ -2573,7 +2573,10 @@ function sanitizeBannerUrl(raw) {
     if (value.includes("..")) return null;
     const allowed = ALLOWED_BANNER_PATH_PREFIXES.some((prefix) => value.startsWith(prefix));
     if (!allowed) return null;
-    return SAFE_UPLOAD_PATH_RE.test(value) ? value.slice(0, BANNER_URL_MAX_LENGTH) : null;
+    if (!SAFE_UPLOAD_PATH_RE.test(value)) return null;
+    const normalized = path.posix.normalize(value);
+    if (normalized !== value || !normalized.startsWith("/uploads/")) return null;
+    return value.slice(0, BANNER_URL_MAX_LENGTH);
   }
   try {
     const parsed = new URL(value);

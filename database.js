@@ -1152,7 +1152,7 @@ async function updateUserBanner(username, { banner_url, banner_gradient, banner_
   const safeName = String(username || "").trim();
   if (!safeName) return null;
   await run(
-    `UPDATE users SET banner_url = ?, banner_gradient = ?, banner_style = ? WHERE username = ? COLLATE NOCASE`,
+    `UPDATE users SET banner_url = ?, banner_gradient = ?, banner_style = ? WHERE username COLLATE NOCASE = ?`,
     [banner_url ?? null, banner_gradient ?? null, banner_style ?? "cover", safeName]
   );
   return true;
@@ -1167,7 +1167,7 @@ async function updateUserStatus(username, { custom_status, status_emoji, status_
       status_emoji = ?,
       status_color = ?,
       status_expires_at = ?
-    WHERE username = ? COLLATE NOCASE`,
+    WHERE username COLLATE NOCASE = ?`,
     [
       custom_status ?? null,
       status_emoji ?? null,
@@ -1186,7 +1186,7 @@ async function getUserBadges(username) {
     `SELECT ub.*, bd.name, bd.description, bd.emoji, bd.rarity, bd.category
      FROM user_badges ub
      JOIN badge_definitions bd ON ub.badge_id = bd.badge_id
-     WHERE ub.username = ? COLLATE NOCASE
+     WHERE ub.username COLLATE NOCASE = ?
      ORDER BY ub.earned_at DESC`,
     [safeName]
   );
@@ -1194,7 +1194,7 @@ async function getUserBadges(username) {
 }
 
 async function awardBadge(username, badge_id) {
-  const safeName = String(username || "").trim().toLowerCase();
+  const safeName = String(username || "").trim();
   const safeBadge = String(badge_id || "").trim();
   if (!safeName || !safeBadge) return null;
   await run(
