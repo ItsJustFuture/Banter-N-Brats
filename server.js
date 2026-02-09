@@ -2982,7 +2982,7 @@ function normalizeRoleSymbolPrefs(prefs = {}) {
 
 async function pgGetRoleSymbolPrefs(username) {
   const rawName = normalizeUsername(username);
-  const safeName = normKey(rawName);
+  const safeName = rawName.toLowerCase();
   if (!safeName) return { ...ROLE_SYMBOL_DEFAULTS };
   const { rows } = await pgPool.query(
     `SELECT vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations
@@ -2996,7 +2996,7 @@ async function pgGetRoleSymbolPrefs(username) {
 
 async function pgUpsertRoleSymbolPrefs(username, prefs) {
   const rawName = normalizeUsername(username);
-  const safeName = normKey(rawName);
+  const safeName = rawName.toLowerCase();
   if (!safeName) return { ...ROLE_SYMBOL_DEFAULTS };
   const normalized = normalizeRoleSymbolPrefs(prefs || {});
   const now = Date.now();
