@@ -14634,12 +14634,13 @@ const saveLayoutBtn = document.getElementById("saveLayoutBtn");
 const cancelLayoutBtn = document.getElementById("cancelLayoutBtn");
 
 function buildProfileFormData(profile, options = {}) {
+  const safeProfile = profile || {};
   const formData = new FormData();
-  formData.append("mood", profile?.mood ?? "");
-  formData.append("age", profile?.age ?? "");
-  formData.append("gender", profile?.gender ?? "");
-  formData.append("bio", profile?.bio ?? "");
-  formData.append("vibeTags", JSON.stringify(profile?.vibe_tags ?? []));
+  formData.append("mood", safeProfile.mood ?? "");
+  formData.append("age", safeProfile.age ?? "");
+  formData.append("gender", safeProfile.gender ?? "");
+  formData.append("bio", safeProfile.bio ?? "");
+  formData.append("vibeTags", JSON.stringify(safeProfile.vibe_tags ?? []));
   if (Object.prototype.hasOwnProperty.call(options, "headerColorA")) {
     formData.append("headerColorA", options.headerColorA);
   }
@@ -14705,7 +14706,7 @@ saveEditProfileBtn?.addEventListener("click", async () => {
     }, {
       headerColorA: grad.a,
       headerColorB: grad.b,
-      avatarFile: editProfileAvatarCustomize?.files?.[0] ?? null
+      avatarFile: editProfileAvatarCustomize?.files?.[0]
     });
 
     const res = await fetch("/profile", { method: "POST", body: formData });
