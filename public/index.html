@@ -237,6 +237,20 @@
 <div class="msgline" id="faqMsg"></div>
 <div class="faqList" id="faqList"></div>
 </div>
+<div class="menuSection" data-menu-section="daily">
+<div class="menuSectionHeader">
+<div>
+<div class="title">Daily</div>
+<div class="small muted">Quick challenges for XP + gold.</div>
+<div class="small muted dailyCountdown" id="dailyCountdown"></div>
+</div>
+<div class="menuActions">
+<button class="btn secondary" id="dailyReloadBtn" type="button">Reload</button>
+</div>
+</div>
+<div class="msgline" id="dailyMsg"></div>
+<div class="dailyList" id="dailyList"></div>
+</div>
 <div class="menuSection" data-menu-section="leaderboards">
 <div class="menuSectionHeader">
 <div>
@@ -249,6 +263,7 @@
 </div>
 <div class="msgline" id="leaderboardsMsg"></div>
 <div class="small muted" id="leaderboardsUpdatedAt"></div>
+<div class="leaderboardContainer" id="leaderboardContainer"></div>
 <div class="leaderboardGrid">
 <div class="card leaderboardCard">
 <div class="sectionTitle">XP leaderboard</div>
@@ -767,20 +782,6 @@
 </div>
 </div>
 
-<div class="menuSection" data-menu-section="daily">
-  <div class="menuSectionHeader">
-    <div>
-      <div class="title">Daily</div>
-      <div class="small muted">Quick challenges for XP + gold.</div>
-      <div class="small muted dailyCountdown" id="dailyCountdown"></div>
-    </div>
-    <div class="menuActions">
-      <button class="btn secondary" id="dailyReloadBtn" type="button">Reload</button>
-    </div>
-  </div>
-  <div class="msgline" id="dailyMsg"></div>
-  <div class="dailyList" id="dailyList"></div>
-</div>
 </div>
 </div>
 </aside>
@@ -950,6 +951,7 @@
 <span class="statPill" id="profileSheetStars">⭐ 0</span>
 <span class="statPill" id="profileSheetLikes">♡ 0</span>
 </div>
+<div class="userLevelDisplay" id="userLevelDisplay"></div>
 </div>
 <div class="profileHeaderActions">
 <button aria-label="Moderation actions" class="iconBtn smallIcon" data-profile-action="profile:moderation-overlay" id="actionsBtn" style="display:none;" title="Moderation actions" type="button">🛡️</button>

@@ -361,6 +361,7 @@ const {
   updateUserBanner,
   updateUserStatus,
   getUserBadges,
+  awardBadge,
 } = require("./database");
 const { VIBE_TAGS, VIBE_TAG_LIMIT } = require("./vibe-tags");
 
@@ -926,6 +927,7 @@ const pgInitPromise = PG_ENABLED ? (async () => {
         room_category_collapsed TEXT NOT NULL DEFAULT '{}',
         gold INTEGER NOT NULL DEFAULT 0,
         xp INTEGER NOT NULL DEFAULT 0,
+        level INTEGER NOT NULL DEFAULT 1,
         lastMessageXpAt BIGINT,
         lastLoginXpAt BIGINT,
         lastOnlineXpAt BIGINT,
@@ -1363,6 +1365,39 @@ const pgInitPromise = PG_ENABLED ? (async () => {
       CREATE INDEX IF NOT EXISTS idx_daily_challenge_progress_day ON daily_challenge_progress(day_key);
     `);
 
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS daily_challenges (
+        id SERIAL PRIMARY KEY,
+        challenge_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        reward_type TEXT,
+        reward_value TEXT,
+        active_date TEXT NOT NULL,
+        UNIQUE(challenge_id, active_date)
+      );
+
+      CREATE TABLE IF NOT EXISTS user_challenge_progress (
+        username TEXT NOT NULL,
+        challenge_id TEXT NOT NULL,
+        completed_date TEXT NOT NULL,
+        progress INTEGER DEFAULT 0,
+        completed INTEGER DEFAULT 0,
+        PRIMARY KEY(username, challenge_id, completed_date)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_challenge_progress ON user_challenge_progress(username, completed_date);
+    `);
+    await pgPool.query(
+      `INSERT INTO daily_challenges (challenge_id, title, description, reward_type, reward_value, active_date)
+       VALUES
+         ('daily-messages-50', 'Chatterbox', 'Send 50 messages today', 'gold', '100', '2026-02-09'),
+         ('daily-chess-3', 'Chess Champion', 'Win 3 chess games today', 'badge', 'daily-chess-master', '2026-02-09'),
+         ('daily-theme', 'Theme Explorer', 'Try a new theme today', 'gold', '50', '2026-02-09'),
+         ('daily-dice-5', 'Lucky Roller', 'Play 5 dice games today', 'xp', '100', '2026-02-09')
+       ON CONFLICT (challenge_id, active_date) DO NOTHING`
+    );
+
 
 
     // Best-effort backfill of legacy SQLite likes into Postgres so leaderboards/profile counts stay consistent.
@@ -1412,6 +1447,7 @@ try {
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS room_category_collapsed TEXT NOT NULL DEFAULT '{}'`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS gold INTEGER NOT NULL DEFAULT 0`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS xp INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS level INTEGER NOT NULL DEFAULT 1`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS "lastMessageXpAt" BIGINT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS "lastLoginXpAt" BIGINT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS "lastOnlineXpAt" BIGINT`,
@@ -2845,6 +2881,7 @@ function pgRowToUser(row) {
     gender: row.gender || "",
     gold: row.gold ?? 0,
     xp: row.xp ?? 0,
+    level: row.level ?? levelInfo(row.xp ?? 0).level,
     dice_sixes: row.dice_sixes ?? 0,
     last_seen: row.last_seen ?? null,
     last_room: row.last_room || null,
@@ -2868,20 +2905,22 @@ function dbGet(sql, params = []) {
 
 async function syncGoldXpThemeToPg(uid) {
   // Pull from SQLite (source of truth for tick logic right now)
-  const row = await dbGet("SELECT gold, xp, theme, role, username FROM users WHERE id = ?", [uid]);
+  const row = await dbGet("SELECT gold, xp, level, theme, role, username FROM users WHERE id = ?", [uid]);
   if (!row) return;
 
   const theme = sanitizeThemeNameServer(row.theme);
+  const level = Number(row.level || levelInfo(row.xp || 0).level);
 
   // Push into Postgres (so /api/me/* can read from PG)
   await pgPool.query(
     `UPDATE users
        SET gold = $1,
-           xp = $2,
-           theme = $3,
-           role = COALESCE(role, $4)
-     WHERE id = $5`,
-    [Number(row.gold || 0), Number(row.xp || 0), theme, row.role || "User", uid]
+        xp = $2,
+        level = $3,
+        theme = $4,
+        role = COALESCE(role, $5)
+     WHERE id = $6`,
+    [Number(row.gold || 0), Number(row.xp || 0), level, theme, row.role || "User", uid]
   );
 }
 
@@ -4295,6 +4334,27 @@ async function chessFinalizeGame(game, { result, status, reason }) {
     last_move_at: game.last_move_at || Date.now(),
   });
 
+  try {
+    const xpAwards = [];
+    if (whiteId) xpAwards.push(applyXpGain(whiteId, 10, { reason: "chess game", emitToast: true }));
+    if (blackId) xpAwards.push(applyXpGain(blackId, 10, { reason: "chess game", emitToast: true }));
+    await Promise.allSettled(xpAwards);
+  } catch (e) {
+    console.warn("[chess][xp] award failed:", e?.message || e);
+  }
+
+  const winnerId = result === "white" ? whiteId : result === "black" ? blackId : null;
+  if (winnerId) {
+    fetchUsersByIds([winnerId])
+      .then((rows) => {
+        const winner = rows?.[0];
+        if (winner?.username) {
+          return updateUserChallengeProgress(winner.username, dayKeyNow(), "daily-chess-3", 1, winnerId);
+        }
+      })
+      .catch((e) => IS_DEV_MODE && console.warn("[daily challenges] chess progress failed", e?.message || e));
+  }
+
   return { game: updated, rated, ratedReason, whiteDelta, blackDelta };
 }
 
@@ -4744,6 +4804,7 @@ function buildXpUpdateFields(newXp, opts = {}, forPg = false) {
   const lastOnlineXpAt = opts.lastOnlineXpAt ?? null;
   const lastDailyLoginAt = opts.lastDailyLoginAt ?? null;
   const lastXpMessageAt = opts.lastXpMessageAt ?? null;
+  const level = opts.level ?? null;
 
   if (lastMessageXpAt != null) {
     sets.push(forPg ? `"lastMessageXpAt" = $${idx}` : "lastMessageXpAt = ?");
@@ -4768,6 +4829,12 @@ function buildXpUpdateFields(newXp, opts = {}, forPg = false) {
   if (lastXpMessageAt != null) {
     sets.push(forPg ? `"lastXpMessageAt" = $${idx}` : "lastXpMessageAt = ?");
     params.push(lastXpMessageAt);
+    idx += 1;
+  }
+  if (level != null) {
+    sets.push(forPg ? `level = $${idx}` : "level = ?");
+    params.push(level);
+    idx += 1;
   }
 
   return { sets, params };
@@ -5395,7 +5462,7 @@ const commandRegistry = {
     handler: async ({ args }) => {
       if (!args[0]) return { ok: false, message: "Missing user" };
       const target = await new Promise((resolve, reject) => findUserByMention(args[0], (e, u) => (e ? reject(e) : resolve(u))));
-      await dbRunAsync(`UPDATE users SET xp=0 WHERE id=?`, [target.id]);
+      await dbRunAsync(`UPDATE users SET xp=0, level=1 WHERE id=?`, [target.id]);
       return { ok: true, message: `Reset XP for ${target.username}` };
     },
   },
@@ -5412,7 +5479,7 @@ const commandRegistry = {
       const target = await new Promise((resolve, reject) => findUserByMention(parsed.userRaw, (e, u) => (e ? reject(e) : resolve(u))));
       let xpNeeded = 0;
       for (let i = 1; i < Math.floor(level); i++) xpNeeded += i * 100;
-      await dbRunAsync(`UPDATE users SET xp=? WHERE id=?`, [xpNeeded, target.id]);
+      await dbRunAsync(`UPDATE users SET xp=?, level=? WHERE id=?`, [xpNeeded, Math.floor(level), target.id]);
       return { ok: true, message: `Set level ${level} for ${target.username}` };
     },
   },
@@ -5544,7 +5611,7 @@ const commandRegistry = {
     example: "/wipelevels confirm",
     handler: async ({ args }) => {
       if (args[0] !== "confirm") return { ok: false, message: "Missing confirm" };
-      await dbRunAsync(`UPDATE users SET xp=0`);
+      await dbRunAsync(`UPDATE users SET xp=0, level=1`);
       return { ok: true, message: "All levels reset" };
     },
   },
@@ -5703,9 +5770,44 @@ function levelInfo(xpRaw) {
   return { level, xpIntoLevel: remaining, xpForNextLevel };
 }
 
-function emitLevelUp(userId, newLevel) {
+function getLevelRewards(level) {
+  const rewards = [];
+  if (level === 5) rewards.push({ type: "themes", count: 2 });
+  if (level === 10) rewards.push({ type: "feature", name: "Custom status colors" });
+  if (level === 25) rewards.push({ type: "badge", id: "level-25-master" });
+  if (level === 50) rewards.push({ type: "vip", duration: 30 * 24 * 60 * 60 * 1000 });
+  return rewards;
+}
+
+function emitLevelUp(userId, newLevel, rewards = []) {
   const sid = socketIdByUserId.get(userId);
-  if (sid) io.to(sid).emit("level up", { level: newLevel });
+  if (!sid) return;
+  io.to(sid).emit("level up", { level: newLevel });
+  io.to(sid).emit("levelUp", { newLevel, rewards });
+}
+
+function emitXpAwarded(userId, amount, newXp, reason = "") {
+  const sid = socketIdByUserId.get(userId);
+  if (!sid) return;
+  io.to(sid).emit("xpAwarded", { amount, newXP: newXp, reason });
+}
+
+async function processLevelRewards(userId, level, rewards = getLevelRewards(level)) {
+  if (!rewards.length) return;
+  const identity = await getUserIdentityForMemory(userId);
+  if (!identity?.username) return;
+  for (const reward of rewards) {
+    if (reward.type === "badge") {
+      await awardBadge(identity.username, reward.id);
+    }
+    // Process other reward types...
+  }
+}
+
+async function awardXP(username, amount, reason = "", opts = {}) {
+  const user = await findUserByUsername(username);
+  if (!user?.id) return null;
+  return await applyXpGain(user.id, amount, { ...opts, reason, emitToast: opts.emitToast !== false });
 }
 
 function liveRoleForUser(userId, fallbackRole = "User") {
@@ -5766,6 +5868,7 @@ async function persistXpState(userId, data) {
   const lastOnlineXpAt = data.lastOnlineXpAt ?? null;
   const lastDailyLoginAt = data.lastDailyLoginAt ?? null;
   const lastXpMessageAt = data.lastXpMessageAt ?? null;
+  const level = data.level ?? null;
 
   try {
     if (await pgUserExists(userId)) {
@@ -5795,14 +5898,19 @@ async function persistXpState(userId, data) {
         params.push(lastDailyLoginAt);
         idx += 1;
       }
-      if (lastXpMessageAt != null) {
-        sets.push(`"lastXpMessageAt" = $${idx}`);
-        params.push(lastXpMessageAt);
-        idx += 1;
-      }
-      params.push(userId);
-      await pgPool.query(`UPDATE users SET ${sets.join(", ")} WHERE id = $${idx}`, params);
+    if (lastXpMessageAt != null) {
+      sets.push(`"lastXpMessageAt" = $${idx}`);
+      params.push(lastXpMessageAt);
+      idx += 1;
     }
+    if (level != null) {
+      sets.push(`level = $${idx}`);
+      params.push(level);
+      idx += 1;
+    }
+    params.push(userId);
+    await pgPool.query(`UPDATE users SET ${sets.join(", ")} WHERE id = $${idx}`, params);
+  }
   } catch (e) {
     console.warn("[xp][pg persist]", e?.message || e);
   }
@@ -5828,6 +5936,10 @@ async function persistXpState(userId, data) {
   if (lastXpMessageAt != null) {
     sqliteSets.push("lastXpMessageAt = ?");
     sqliteParams.push(lastXpMessageAt);
+  }
+  if (level != null) {
+    sqliteSets.push("level = ?");
+    sqliteParams.push(level);
   }
 
   return await dbRunAsync(`UPDATE users SET ${sqliteSets.join(", ")} WHERE id = ?`, [...sqliteParams, userId]);
@@ -5877,7 +5989,7 @@ async function applyXpGain(userId, delta, opts = {}) {
         newXp = prevXp + amount;
         info = levelInfo(newXp);
 
-        const { sets, params } = buildXpUpdateFields(newXp, opts, true);
+        const { sets, params } = buildXpUpdateFields(newXp, { ...opts, level: info.level }, true);
         params.push(userId);
         await client.query(`UPDATE users SET ${sets.join(", ")} WHERE id = $${params.length}`, params);
         await client.query("COMMIT");
@@ -5891,7 +6003,7 @@ async function applyXpGain(userId, delta, opts = {}) {
 
       // Best-effort mirror to SQLite so fallback reads don't show stale XP.
       try {
-        const sqliteUpdate = buildXpUpdateFields(newXp, opts, false);
+        const sqliteUpdate = buildXpUpdateFields(newXp, { ...opts, level: info.level }, false);
         await dbRunAsync(
           `UPDATE users SET ${sqliteUpdate.sets.join(", ")} WHERE id = ?`,
           [...sqliteUpdate.params, userId]
@@ -5910,6 +6022,7 @@ async function applyXpGain(userId, delta, opts = {}) {
 
       await persistXpState(userId, {
         xp: newXp,
+        level: info.level,
         lastMessageXpAt: opts.lastMessageXpAt ?? opts.lastXpMessageAt ?? null,
         lastXpMessageAt: opts.lastXpMessageAt ?? null,
         lastLoginXpAt: opts.lastLoginXpAt ?? null,
@@ -5920,11 +6033,16 @@ async function applyXpGain(userId, delta, opts = {}) {
 
     // Emit level-up only after the committed XP write to avoid racey toasts.
     if (info && info.level > prevLevel) {
-      emitLevelUp(userId, info.level);
+      const rewards = getLevelRewards(info.level);
+      emitLevelUp(userId, info.level, rewards);
       void maybeCreateLevelMemories(userId, prevLevel, info.level);
+      void processLevelRewards(userId, info.level, rewards);
     }
     emitProgressionUpdate(userId);
     emitLeaderboardUpdateThrottled();
+    if (info && opts.emitToast) {
+      emitXpAwarded(userId, amount, newXp, opts.reason || "");
+    }
     return info ? { xp: newXp, ...info } : null;
   });
 }
@@ -5945,6 +6063,8 @@ async function awardMessageXp(userId, roleHint, roomName) {
     baseRow: row,
     lastMessageXpAt: now,
     lastXpMessageAt: now,
+    reason: "message",
+    emitToast: true,
   });
   if (result) console.log(`[xp][msg] +${delta} user=${userId} role=${role}`);
 }
@@ -5965,6 +6085,8 @@ async function awardLoginXp(userId, roleHint) {
     baseRow: row,
     lastLoginXpAt: now,
     lastDailyLoginAt: now,
+    reason: "daily login",
+    emitToast: true,
   });
   if (result) console.log(`[xp][login] +${delta} user=${userId} role=${role}`);
 }
@@ -8806,6 +8928,7 @@ app.post("/register", registerLimiter, async (req, res) => {
         theme: sanitizeThemeNameServer(user.theme),
         avatar: user.avatar || "",
         avatar_updated: user.avatar_updated ?? null,
+        level: 1,
       };
       req.session.save((saveErr) => {
         if (saveErr) return res.status(500).send("Session save failed");
@@ -8897,6 +9020,7 @@ app.post("/login", loginIpLimiter, async (req, res) => {
       }
 
       const theme = sanitizeThemeNameServer(pgUser.theme || DEFAULT_THEME);
+      const level = Number(pgUser.level || levelInfo(pgUser.xp || 0).level);
 
       // Mirror into SQLite if missing (some UI/profile/dice logic still reads SQLite)
       const srow = await dbGetAsync("SELECT id FROM users WHERE id = ?", [pgUser.id]).catch(() => null);
@@ -8929,6 +9053,7 @@ app.post("/login", loginIpLimiter, async (req, res) => {
           theme,
           avatar: avatarUrlFromRow(pgUser) || "",
           avatar_updated: pgUser.avatar_updated ?? pgUser.avatarUpdated ?? null,
+          level,
         };
         dbRunAsync("UPDATE users SET last_seen = ?, last_status = ? WHERE id = ?", [Date.now(), "Online", pgUser.id]).catch(() => {});
         initGoldTick(pgUser.id);
@@ -9017,6 +9142,7 @@ app.post("/login", loginIpLimiter, async (req, res) => {
     }
 
     const theme = sanitizeThemeNameServer(row.theme || DEFAULT_THEME);
+    const level = Number(row.level || levelInfo(row.xp || 0).level);
     if (!row.theme) await dbRunAsync("UPDATE users SET theme = ? WHERE id = ?", [theme, row.id]).catch(() => {});
 
     if (password.length < 12) {
@@ -9064,7 +9190,7 @@ app.post("/login", loginIpLimiter, async (req, res) => {
 
     req.session.regenerate((regenErr) => {
       if (regenErr) return res.status(500).send("Session failed");
-      req.session.user = { id: row.id, username: row.username, role: row.role, theme, avatar: avatarUrlFromRow(row) || "", avatar_updated: row.avatar_updated ?? row.avatarUpdated ?? null };
+      req.session.user = { id: row.id, username: row.username, role: row.role, theme, avatar: avatarUrlFromRow(row) || "", avatar_updated: row.avatar_updated ?? row.avatarUpdated ?? null, level };
       dbRunAsync("UPDATE users SET last_seen = ?, last_status = ? WHERE id = ?", [Date.now(), "Online", row.id]).catch(() => {});
       awardLoginXp(row.id, row.role);
       awardDailyLoginGold(row);
@@ -9209,6 +9335,7 @@ app.post("/password-upgrade", passwordUpgradeLimiter, async (req, res) => {
     const theme = sanitizeThemeNameServer(sessionRow?.theme || DEFAULT_THEME);
     const avatar = avatarUrlFromRow(sessionRow) || "";
     const avatarUpdated = sessionRow?.avatar_updated ?? sessionRow?.avatarUpdated ?? null;
+    const level = Number(sessionRow?.level || levelInfo(sessionRow?.xp || 0).level);
 
     clearPasswordUpgradeFailures(req);
     delete req.session.passwordUpgrade;
@@ -9222,6 +9349,7 @@ app.post("/password-upgrade", passwordUpgradeLimiter, async (req, res) => {
         theme,
         avatar,
         avatar_updated: avatarUpdated,
+        level,
       };
       dbRunAsync("UPDATE users SET last_seen = ?, last_status = ? WHERE id = ?", [Date.now(), "Online", userId]).catch(() => {});
       if (!pgUser && sqliteRow) {
@@ -9264,6 +9392,8 @@ app.get("/me", async (req, res) => {
                 username,
                 role,
                 theme,
+                xp,
+                level,
                 avatar,
                 avatar_updated,
                 avatar_bytes
@@ -9278,12 +9408,13 @@ app.get("/me", async (req, res) => {
     // If not in Postgres yet, fallback to SQLite and (optionally) sync
     if (!row) {
       const srow = await dbGet(
-        "SELECT id, username FROM users WHERE id = ?",
+        "SELECT id, username, role, theme, xp, level, avatar FROM users WHERE id = ?",
         [req.session.user.id]
       );
       if (!srow) return res.json(null);
 
       const theme = sanitizeThemeNameServer(srow.theme);
+      const level = Number(srow.level || levelInfo(srow.xp || 0).level);
       if (!srow.theme) db.run("UPDATE users SET theme = ? WHERE id = ?", [theme, srow.id]);
 
       // Try to mirror minimal fields into Postgres if the user exists there by id
@@ -9304,12 +9435,14 @@ app.get("/me", async (req, res) => {
         theme,
         avatar: computedAvatar || prevAvatar,
         avatar_updated: srow.avatar_updated ?? srow.avatarUpdated ?? prevAvatarUpdated,
+        level,
       };
       return res.json(req.session.user);
     }
 
     const theme = sanitizeThemeNameServer(row.theme);
     if (!row.theme) await pgPool.query("UPDATE users SET theme = $1 WHERE id = $2", [theme, row.id]);
+    const level = Number(row.level || levelInfo(row.xp || 0).level);
 
     const computedAvatar = avatarUrlFromRow(row) || "";
     req.session.user = {
@@ -9319,6 +9452,7 @@ app.get("/me", async (req, res) => {
       theme,
       avatar: computedAvatar || prevAvatar,
       avatar_updated: row.avatar_updated ?? row.avatarUpdated ?? prevAvatarUpdated,
+      level,
     };
     return res.json(req.session.user);
   } catch (e) {
@@ -9419,6 +9553,148 @@ function dayKeyNow() {
   const m = String(d.getUTCMonth() + 1).padStart(2, "0");
   const da = String(d.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${da}`;
+}
+
+const GAMIFICATION_CHALLENGE_TARGETS = {
+  "daily-messages-50": 50,
+  "daily-chess-3": 3,
+  "daily-theme": 1,
+  "daily-dice-5": 5,
+};
+
+function getGamificationChallengeTarget(challengeId) {
+  return GAMIFICATION_CHALLENGE_TARGETS[challengeId] || 1;
+}
+
+async function fetchDailyChallengesForDate(dayKey) {
+  if (!dayKey) return [];
+  if (await pgUsersEnabled()) {
+    try {
+      const { rows } = await pgPool.query(
+        `SELECT * FROM daily_challenges WHERE active_date = $1`,
+        [dayKey]
+      );
+      return rows || [];
+    } catch (e) {
+      console.warn("[daily challenges][pg] failed, falling back to sqlite:", e?.message || e);
+    }
+  }
+  return await dbAllAsync(
+    "SELECT * FROM daily_challenges WHERE active_date = ?",
+    [dayKey]
+  );
+}
+
+async function fetchUserChallengeProgress(username, dayKey, userId) {
+  const safeName = String(username || "").trim();
+  if (!safeName || !dayKey) return [];
+  if (userId && (await pgUserExists(userId))) {
+    try {
+      const { rows } = await pgPool.query(
+        `SELECT challenge_id, progress, completed
+           FROM user_challenge_progress
+          WHERE username = $1 AND completed_date = $2`,
+        [safeName, dayKey]
+      );
+      return rows || [];
+    } catch (e) {
+      console.warn("[daily challenges][pg progress] failed, falling back to sqlite:", e?.message || e);
+    }
+  }
+  return await dbAllAsync(
+    `SELECT challenge_id, progress, completed
+       FROM user_challenge_progress
+      WHERE username = ? AND completed_date = ?`,
+    [safeName, dayKey]
+  );
+}
+
+async function updateUserChallengeProgress(username, dayKey, challengeId, delta, userId) {
+  const safeName = String(username || "").trim();
+  const safeId = String(challengeId || "").trim();
+  const amt = Math.max(0, Math.floor(Number(delta) || 0));
+  if (!safeName || !safeId || !dayKey || !amt) return;
+  const target = getGamificationChallengeTarget(safeId);
+  if (userId && (await pgUserExists(userId))) {
+    try {
+      const { rows } = await pgPool.query(
+        `SELECT progress, completed
+           FROM user_challenge_progress
+          WHERE username = $1 AND challenge_id = $2 AND completed_date = $3`,
+        [safeName, safeId, dayKey]
+      );
+      const current = Number(rows?.[0]?.progress || 0);
+      const claimed = Number(rows?.[0]?.completed || 0);
+      const next = Math.max(0, current + amt);
+      const capped = target > 0 ? Math.min(next, target) : next;
+      if (rows?.length) {
+        await pgPool.query(
+          `UPDATE user_challenge_progress
+              SET progress = $1
+            WHERE username = $2 AND challenge_id = $3 AND completed_date = $4`,
+          [capped, safeName, safeId, dayKey]
+        );
+      } else {
+        await pgPool.query(
+          `INSERT INTO user_challenge_progress (username, challenge_id, completed_date, progress, completed)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [safeName, safeId, dayKey, capped, claimed]
+        );
+      }
+      return;
+    } catch (e) {
+      console.warn("[daily challenges][pg update] failed, falling back to sqlite:", e?.message || e);
+    }
+  }
+  const row = await dbGetAsync(
+    `SELECT progress, completed
+       FROM user_challenge_progress
+      WHERE username = ? AND challenge_id = ? AND completed_date = ?`,
+    [safeName, safeId, dayKey]
+  ).catch(() => null);
+  const current = Number(row?.progress || 0);
+  const claimed = Number(row?.completed || 0);
+  const next = Math.max(0, current + amt);
+  const capped = target > 0 ? Math.min(next, target) : next;
+  if (row) {
+    await dbRunAsync(
+      `UPDATE user_challenge_progress
+          SET progress = ?
+        WHERE username = ? AND challenge_id = ? AND completed_date = ?`,
+      [capped, safeName, safeId, dayKey]
+    );
+  } else {
+    await dbRunAsync(
+      `INSERT INTO user_challenge_progress (username, challenge_id, completed_date, progress, completed)
+       VALUES (?, ?, ?, ?, ?)`,
+      [safeName, safeId, dayKey, capped, claimed]
+    );
+  }
+}
+
+async function markUserChallengeClaimed(username, dayKey, challengeId, userId) {
+  const safeName = String(username || "").trim();
+  const safeId = String(challengeId || "").trim();
+  if (!safeName || !safeId || !dayKey) return;
+  if (userId && (await pgUserExists(userId))) {
+    try {
+      await pgPool.query(
+        `UPDATE user_challenge_progress
+            SET completed = 1
+          WHERE username = $1 AND challenge_id = $2 AND completed_date = $3`,
+        [safeName, safeId, dayKey]
+      );
+      return;
+    } catch (e) {
+      console.warn("[daily challenges][pg claim] failed, falling back to sqlite:", e?.message || e);
+    }
+  }
+  await dbRunAsync(
+    `UPDATE user_challenge_progress
+        SET completed = 1
+      WHERE username = ? AND challenge_id = ? AND completed_date = ?`,
+    [safeName, safeId, dayKey]
+  );
 }
 
 const MAX_DAILY_CHALLENGES = 5;
@@ -9656,12 +9932,80 @@ app.post("/api/challenges/claim", strictLimiter, requireLogin, express.json({ li
     await saveDailyProgress(userId, dk, progress, claimed, prog.pg);
 
     // reward
-    try { await applyXpGain(userId, challenge.rewardXp || 0, { reason: "daily_challenge" }); } catch {}
+    try { await applyXpGain(userId, challenge.rewardXp || 0, { reason: "daily_challenge", emitToast: true }); } catch {}
     try { await creditGold(userId, challenge.rewardGold || 0, `daily_challenge:${id}`); } catch {}
 
     res.json({ ok: true, claimed: true });
   } catch (e) {
     res.status(500).json({ ok: false, error: "failed_to_claim" });
+  }
+});
+
+app.get("/api/challenges/daily", requireLogin, async (req, res) => {
+  try {
+    const today = dayKeyNow();
+    const challenges = await fetchDailyChallengesForDate(today);
+    const progressRows = await fetchUserChallengeProgress(req.session.user.username, today, req.session.user.id);
+    const progressMap = new Map(progressRows.map((row) => [row.challenge_id, row]));
+    const enriched = challenges.map((challenge) => {
+      const progressRow = progressMap.get(challenge.challenge_id);
+      const progress = Number(progressRow?.progress || 0);
+      const target = getGamificationChallengeTarget(challenge.challenge_id);
+      return {
+        ...challenge,
+        progress,
+        completed: progress >= target,
+        claimed: Number(progressRow?.completed || 0) === 1,
+      };
+    });
+    res.json(enriched);
+  } catch (err) {
+    console.error("Error fetching challenges:", err);
+    res.status(500).json({ error: "Failed to fetch challenges" });
+  }
+});
+
+app.post("/api/challenges/:challengeId/claim", strictLimiter, requireLogin, async (req, res) => {
+  try {
+    const { challengeId } = req.params;
+    const today = dayKeyNow();
+    const challenges = await fetchDailyChallengesForDate(today);
+    const challenge = challenges.find((row) => row.challenge_id === challengeId);
+
+    if (!challenge) {
+      return res.status(404).json({ error: "Challenge not found" });
+    }
+
+    const progressRows = await fetchUserChallengeProgress(req.session.user.username, today, req.session.user.id);
+    const progressRow = progressRows.find((row) => row.challenge_id === challengeId);
+    const progress = Number(progressRow?.progress || 0);
+    const target = getGamificationChallengeTarget(challengeId);
+
+    if (progress < target) {
+      return res.status(400).json({ error: "Challenge not completed" });
+    }
+
+    if (Number(progressRow?.completed || 0) === 1) {
+      return res.status(400).json({ error: "Challenge already claimed" });
+    }
+
+    await markUserChallengeClaimed(req.session.user.username, today, challengeId, req.session.user.id);
+
+    if (challenge.reward_type === "gold") {
+      await creditGold(req.session.user.id, parseInt(challenge.reward_value, 10), `daily_challenge:${challengeId}`);
+    } else if (challenge.reward_type === "xp") {
+      await applyXpGain(req.session.user.id, parseInt(challenge.reward_value, 10), {
+        reason: "Daily challenge",
+        emitToast: true,
+      });
+    } else if (challenge.reward_type === "badge") {
+      await awardBadge(req.session.user.username, challenge.reward_value);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error claiming challenge:", err);
+    res.status(500).json({ error: "Failed to claim reward" });
   }
 });
 
@@ -9834,6 +10178,8 @@ app.post("/api/me/theme", strictLimiter, requireLogin, async (req, res) => {
     db.run("UPDATE users SET theme = ? WHERE id = ?", [theme, req.session.user.id]);
 
     req.session.user.theme = theme;
+    updateUserChallengeProgress(req.session.user.username, dayKeyNow(), "daily-theme", 1, req.session.user.id)
+      .catch((err) => IS_DEV_MODE && console.warn("[daily challenges] theme progress failed", err?.message || err));
     return res.json({ theme });
   } catch (e) {
     console.error(e);
@@ -10765,6 +11111,46 @@ async function fetchChessLeaderboard(limit = 50, offset = 0) {
   );
   return rows || [];
 }
+
+app.get("/api/leaderboards/:type", requireLogin, async (req, res) => {
+  try {
+    const { type } = req.params;
+    const { timeframe = "all" } = req.query;
+    if (type === "xp") {
+      const payload = await buildLeaderboardPayload();
+      return res.json((payload?.xp || []).slice(0, 100));
+    }
+    if (type === "messages") {
+      const now = Date.now();
+      const windowByFrame = {
+        day: 24 * 60 * 60 * 1000,
+        week: 7 * 24 * 60 * 60 * 1000,
+        month: 30 * 24 * 60 * 60 * 1000,
+      };
+      const rangeMs = windowByFrame[String(timeframe || "all").toLowerCase()] || 0;
+      const since = rangeMs ? now - rangeMs : null;
+      const rows = await dbAllAsync(
+        `SELECT username, COUNT(*) as count FROM messages
+         ${since ? "WHERE ts > ?" : ""}
+         GROUP BY username ORDER BY count DESC LIMIT 100`,
+        since ? [since] : []
+      );
+      return res.json(rows || []);
+    }
+    if (type === "chess") {
+      const rows = await fetchChessLeaderboard(100, 0);
+      const payload = (rows || []).map((row) => ({
+        username: row.username,
+        chess_elo: Number(row.chess_elo || 0),
+      }));
+      return res.json(payload);
+    }
+    return res.status(400).json({ error: "Invalid leaderboard type" });
+  } catch (err) {
+    console.error("Error fetching leaderboard:", err);
+    return res.status(500).json({ error: "Failed to fetch leaderboard" });
+  }
+});
 
 app.get("/api/leaderboard", requireLogin, async (_req, res) => sendLeaderboard(res));
 app.get("/api/leaderboards", requireLogin, async (_req, res) => sendLeaderboard(res));
@@ -16811,6 +17197,7 @@ io.on("connection", async (socket) => {
     status: sessUser.status || "Online",
     mood: sessUser.mood || "",
     avatar: sessUser.avatar || "",
+    level: Number(sessUser.level || 1),
     vibe_tags: Array.isArray(sessUser.vibe_tags) ? sessUser.vibe_tags : [],
     chatFx: sanitizeChatFx(sessUser.chatFx),
     textStyle: sanitizeTextStyle(sessUser.textStyle),
@@ -17223,6 +17610,10 @@ enforceVipGate(desired, (allowed) => {
           socket.to(room).emit("dice:result", { ...payloadBase, deltaGold });
           emitProgressionUpdate(uid);
           emitLuckUpdate(uid, finalLuck, luckState.nextStreak);
+          applyXpGain(uid, 5, { reason: "dice game", emitToast: true })
+            .catch((err) => IS_DEV_MODE && console.warn("[xp][dice]", err?.message || err));
+          updateUserChallengeProgress(socket.user.username, dayKeyNow(), "daily-dice-5", 1, uid)
+            .catch((err) => IS_DEV_MODE && console.warn("[daily challenges] dice progress failed", err?.message || err));
 
           emitRoomSystem(
             room,
@@ -17348,6 +17739,10 @@ enforceVipGate(desired, (allowed) => {
             socket.to(room).emit("dice:result", { ...payloadBase, deltaGold });
             emitProgressionUpdate(uid);
             emitLuckUpdate(uid, finalLuck, luckState.nextStreak);
+            applyXpGain(uid, 5, { reason: "dice game", emitToast: true })
+              .catch((err) => IS_DEV_MODE && console.warn("[xp][dice]", err?.message || err));
+            updateUserChallengeProgress(socket.user.username, dayKeyNow(), "daily-dice-5", 1, uid)
+              .catch((err) => IS_DEV_MODE && console.warn("[daily challenges] dice progress failed", err?.message || err));
 
             emitRoomSystem(
               room,
@@ -18771,6 +19166,8 @@ if (!room) {
                   safeBumpDailyProgress(socket.user.id, dayKeyNow(), DAILY_CHALLENGE_IDS.roomMessages, 1);
                   if (Number.isInteger(replyPk)) safeBumpDailyProgress(socket.user.id, dayKeyNow(), DAILY_CHALLENGE_IDS.replies, 1);
                   if (attachmentUrl) safeBumpDailyProgress(socket.user.id, dayKeyNow(), DAILY_CHALLENGE_IDS.attachments, 1);
+                  updateUserChallengeProgress(socket.user.username, dayKeyNow(), "daily-messages-50", 1, socket.user.id)
+                    .catch((err) => IS_DEV_MODE && console.warn("[daily challenges] message progress failed", err?.message || err));
                   try {
                     emitSmartMentionPings({
                       room,

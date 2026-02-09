@@ -11249,6 +11249,275 @@ body.comfortMode[data-theme="Iris & Lola Neon"] .chat::after{
 }
 .badge.done{ background: rgba(120,255,180,0.18); border-color: rgba(120,255,180,0.30); }
 
+/* Level Display */
+.userLevelDisplay{ margin-top: 10px; }
+.userLevel {
+  margin: 12px 0;
+}
+
+.levelBadge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #f59e0b, #ea580c);
+  color: white;
+  font-weight: 700;
+  border-radius: 16px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.xpBar {
+  width: 100%;
+  height: 8px;
+  background: var(--surfaceAlt);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.xpFill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  transition: width 0.5s ease;
+}
+
+.xpText {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* XP Toast */
+.xpToast {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  background: var(--surface);
+  border: 2px solid #10b981;
+  border-radius: 12px;
+  padding: 12px 20px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  z-index: 10000;
+  opacity: 0;
+  transform: translateX(100px);
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.xpToast.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.xpAmount {
+  font-weight: 700;
+  color: #10b981;
+  font-size: 16px;
+}
+
+.xpReason {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Level Up Modal */
+.levelUpModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  animation: fadeIn 0.3s;
+}
+
+.levelUpContent {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 32px;
+  text-align: center;
+  max-width: 400px;
+  animation: scaleIn 0.3s;
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.levelUpTitle {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.levelUpNumber {
+  font-size: 64px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #f59e0b, #ea580c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 16px 0;
+}
+
+.levelUpRewards {
+  margin: 20px 0;
+}
+
+.reward {
+  padding: 8px;
+  background: var(--surfaceAlt);
+  border-radius: 8px;
+  margin: 8px 0;
+}
+
+/* Daily Challenges */
+.challengeList {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.challengeCard {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+.challengeCard.completed {
+  border-color: #10b981;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), transparent);
+}
+
+.challengeHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.challengeTitle {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.checkmark {
+  color: #10b981;
+  font-size: 20px;
+}
+
+.challengeDesc {
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.challengeProgress {
+  margin: 12px 0;
+}
+
+.progressBar {
+  width: 100%;
+  height: 6px;
+  background: var(--surfaceAlt);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  transition: width 0.5s ease;
+}
+
+.progressText {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.challengeReward {
+  font-size: 14px;
+  color: var(--accent);
+  margin: 12px 0;
+}
+
+/* Leaderboard */
+.leaderboardContainer .leaderboardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.leaderboardContainer .leaderboardSelect {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--fg);
+}
+
+.leaderboardContainer .leaderboardList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leaderboardContainer .leaderboardEntry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+
+.leaderboardContainer .leaderboardEntry:hover {
+  border-color: var(--accent);
+  transform: translateX(4px);
+}
+
+.leaderboardContainer .leaderboardEntry.rank-1 {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.1), transparent);
+  border-color: #eab308;
+}
+
+.leaderboardContainer .leaderboardEntry.rank-2 {
+  background: linear-gradient(135deg, rgba(168, 162, 158, 0.1), transparent);
+  border-color: #a8a29e;
+}
+
+.leaderboardContainer .leaderboardEntry.rank-3 {
+  background: linear-gradient(135deg, rgba(205, 127, 50, 0.1), transparent);
+  border-color: #cd7f32;
+}
+
+.leaderboardContainer .rank {
+  font-weight: 700;
+  font-size: 18px;
+  min-width: 30px;
+}
+
+.leaderboardContainer .username {
+  flex: 1;
+  font-weight: 600;
+}
+
+.leaderboardContainer .score {
+  font-size: 14px;
+  color: var(--muted);
+}
+
 /* --- Ambient effects (very subtle; respects reduce motion in JS) --- */
 body.ambientfx.ambient-main{ }
 body.ambientfx.ambient-diceroom{ }
