@@ -8789,7 +8789,7 @@ function escapeCssUrl(raw) {
   const value = String(raw || "");
   if (!value) return "";
   const encoded = value.replace(/["'(),\s]/g, (match) =>
-    `%${match.charCodeAt(0).toString(16).toUpperCase()}`
+    `%${match.charCodeAt(0).toString(16).padStart(2, "0").toUpperCase()}`
   );
   return `url("${encoded}")`;
 }

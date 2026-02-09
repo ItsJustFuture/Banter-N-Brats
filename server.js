@@ -2577,8 +2577,6 @@ function sanitizeBannerUrl(raw) {
     const normalized = path.posix.normalize(value);
     if (!normalized.startsWith(PRIMARY_BANNER_PATH_PREFIX)) return null;
     if (!SAFE_UPLOAD_PATH_RE.test(normalized)) return null;
-    const segments = normalized.slice(PRIMARY_BANNER_PATH_PREFIX.length).split("/").filter(Boolean);
-    if (segments.some((segment) => segment === "." || segment === "..")) return null;
     return normalized.slice(0, BANNER_URL_MAX_LENGTH);
   }
   try {
