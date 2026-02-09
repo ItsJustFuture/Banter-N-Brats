@@ -2783,6 +2783,10 @@ const leaderboardState = {
   lastError: false,
   wsCooldownUntil: 0
 };
+const gamificationLeaderboardState = {
+  type: "xp",
+  timeframe: "all"
+};
 const chessState = {
   isOpen: false,
   contextType: null,
@@ -6224,6 +6228,7 @@ const leaderboardGold = document.getElementById("leaderboardGold");
 const leaderboardDice = document.getElementById("leaderboardDice");
 const leaderboardLikes = document.getElementById("leaderboardLikes");
 const leaderboardChess = document.getElementById("leaderboardChess");
+const leaderboardContainer = document.getElementById("leaderboardContainer");
 const leaderboardsMsg = document.getElementById("leaderboardsMsg");
 const leaderboardsUpdatedAt = document.getElementById("leaderboardsUpdatedAt");
 const refreshLeaderboardsBtn = document.getElementById("refreshLeaderboardsBtn");
@@ -6402,6 +6407,7 @@ const profileBadges = document.getElementById("profileBadges");
 const profileModerationSection = document.getElementById("profileModerationSection");
 const profileModerationOpenBtn = document.getElementById("profileModerationOpenBtn");
 const levelPanel = document.getElementById("levelPanel");
+const userLevelDisplay = document.getElementById("userLevelDisplay");
 const levelBadge = document.getElementById("levelBadge");
 const xpText = document.getElementById("xpText");
 const xpProgress = document.getElementById("xpProgress");
@@ -11359,6 +11365,27 @@ function levelInfoClient(xpRaw){
   return { level, xpIntoLevel: remaining, xpForNextLevel };
 }
 
+function renderUserLevel(username, xp, level, { showXp = true } = {}) {
+  const totalXp = Math.max(0, Math.floor(Number(xp) || 0));
+  const calc = levelInfoClient(totalXp);
+  const levelVal = Number(level || calc.level || 1);
+  const xpInto = calc.xpIntoLevel;
+  const xpForNext = calc.xpForNextLevel || 100;
+  const xpToNext = Math.max(0, xpForNext - xpInto);
+  const progress = showXp && xpForNext ? Math.min(100, Math.max(0, (xpInto / xpForNext) * 100)) : 0;
+  const xpTextValue = showXp ? `${totalXp} XP • ${xpToNext} to next level` : "XP hidden";
+
+  return `
+    <div class="userLevel">
+      <div class="levelBadge">LVL ${levelVal}</div>
+      <div class="xpBar">
+        <div class="xpFill" style="width: ${progress}%"></div>
+      </div>
+      <div class="xpText">${xpTextValue}</div>
+    </div>
+  `;
+}
+
 function deriveProfileLevel(info){
   const levelVal = Number(info?.level);
   if (Number.isFinite(levelVal) && levelVal > 0) return levelVal;
@@ -11381,6 +11408,10 @@ function renderLevelProgress(data, isSelf){
     xpProgress.style.width = `${pct}%`;
   }
   if (xpNote) xpNote.style.display = hasXp ? "block" : "none";
+  if (userLevelDisplay) {
+    const xpTotal = typeof info.xp === "number" ? info.xp : (isSelf ? progression?.xp : 0);
+    userLevelDisplay.innerHTML = renderUserLevel(info.username || "", xpTotal, levelVal, { showXp: hasXp });
+  }
 }
 
 function applyProgressionPayload(payload){
@@ -11410,6 +11441,63 @@ function showLevelToast(level){
   levelToastText.textContent = `Level ${level}!`;
   levelToast.classList.add("show");
   levelToastTimer = setTimeout(() => levelToast.classList.remove("show"), 3200);
+}
+
+function showXPToast(amount, reason) {
+  const toastEl = document.createElement("div");
+  toastEl.className = "xpToast";
+  toastEl.innerHTML = `
+    <span class="xpAmount">+${amount} XP</span>
+    ${reason ? `<span class="xpReason">${escapeHtml(reason)}</span>` : ""}
+  `;
+  document.body.appendChild(toastEl);
+
+  setTimeout(() => {
+    toastEl.classList.add("show");
+  }, 10);
+
+  setTimeout(() => {
+    toastEl.classList.remove("show");
+    setTimeout(() => toastEl.remove(), 300);
+  }, 3000);
+}
+
+function showLevelUpModal(newLevel, rewards = []) {
+  const modal = document.createElement("div");
+  modal.className = "levelUpModal";
+  modal.innerHTML = `
+    <div class="levelUpContent">
+      <div class="levelUpTitle">Level Up!</div>
+      <div class="levelUpNumber">${newLevel}</div>
+      ${rewards.length > 0 ? `
+        <div class="levelUpRewards">
+          <h4>Rewards:</h4>
+          ${rewards.map((r) => `<div class="reward">${formatReward(r)}</div>`).join("")}
+        </div>
+      ` : ""}
+      <button class="btn btnPrimary" type="button">Awesome!</button>
+    </div>
+  `;
+  const btn = modal.querySelector("button");
+  btn?.addEventListener("click", () => modal.remove());
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) modal.remove();
+  });
+  document.body.appendChild(modal);
+}
+
+function updateUserXPDisplay(newXP) {
+  const xpValue = Number(newXP);
+  if (!Number.isFinite(xpValue)) return;
+  const calc = levelInfoClient(xpValue);
+  progression = {
+    ...progression,
+    xp: xpValue,
+    level: calc.level,
+    xpIntoLevel: calc.xpIntoLevel,
+    xpForNextLevel: calc.xpForNextLevel,
+  };
+  renderLevelProgress(progression, true);
 }
 
 function refreshModTargetOptions(users = lastUsers){
@@ -17070,17 +17158,14 @@ function startDailyCountdown(){
 async function ensureDailyLoaded(){
   if(!getFeatureFlag("dailyChallenges", true)) return;
   startDailyCountdown();
+  const todayKey = getUtcDayKey();
   try{
-    const r = await fetch("/api/challenges/today");
-    const j = await r.json();
-    if(!j?.ok) throw new Error("bad");
-    if(dailyLoadedForKey === j.dayKey) {
-      renderDaily(j);
-      return;
+    const ok = await renderDailyChallenges();
+    if (!ok) throw new Error("bad");
+    if(dailyLoadedForKey !== todayKey){
+      dailyLoadedForKey = todayKey;
+      dailyCountdownRefreshKey = todayKey;
     }
-    dailyLoadedForKey = j.dayKey;
-    dailyCountdownRefreshKey = j.dayKey;
-    renderDaily(j);
   }catch(e){
     if(dailyMsg) dailyMsg.textContent = "Failed to load daily challenges.";
   }
@@ -17136,6 +17221,181 @@ function renderDaily(data){
       }
     });
     dailyList.appendChild(item);
+  }
+}
+
+function formatReward(reward = {}){
+  if (!reward) return "";
+  const type = reward.type || reward.reward_type || "";
+  const rawValue = reward.value ?? reward.reward_value ?? reward.count ?? reward.name ?? reward.id;
+  const valueNum = Number(rawValue);
+  const safeValue = escapeHtml(rawValue == null ? "" : String(rawValue));
+  switch(String(type || "").toLowerCase()){
+    case "gold":
+      return `${Number.isFinite(valueNum) ? valueNum : safeValue} Gold`;
+    case "xp":
+      return `${Number.isFinite(valueNum) ? valueNum : safeValue} XP`;
+    case "badge":
+      return `Badge: ${safeValue}`;
+    case "themes":
+      return `${Number(reward.count || rawValue || 0)} Themes`;
+    case "feature":
+      return reward.name ? `Feature: ${escapeHtml(String(reward.name))}` : "Feature unlock";
+    case "vip": {
+      const days = reward.duration ? Math.round(Number(reward.duration || 0) / 86400000) : 0;
+      return days ? `VIP (${days} days)` : "VIP access";
+    }
+    default:
+      return safeValue || "Reward";
+  }
+}
+
+function getTargetForChallenge(challengeId) {
+  const targets = {
+    "daily-messages-50": 50,
+    "daily-chess-3": 3,
+    "daily-theme": 1,
+    "daily-dice-5": 5
+  };
+  return targets[challengeId] || 1;
+}
+
+async function renderDailyChallenges() {
+  if (!dailyList) return false;
+  try {
+    const res = await fetch("/api/challenges/daily", { credentials: "include" });
+    if (!res.ok) throw new Error("bad");
+    const challenges = await res.json();
+
+    dailyList.innerHTML = `
+      <h3>Daily Challenges</h3>
+      <div class="challengeList">
+        ${(challenges || []).map((c) => {
+          const target = getTargetForChallenge(c.challenge_id);
+          const progress = Math.max(0, Number(c.progress || 0));
+          const pct = target > 0 ? Math.min(100, (progress / target) * 100) : 0;
+          const completed = !!c.completed;
+          const claimed = !!c.claimed;
+          return `
+          <div class="challengeCard ${completed ? "completed" : ""}">
+            <div class="challengeHeader">
+              <span class="challengeTitle">${escapeHtml(c.title || "")}</span>
+              ${completed ? '<span class="checkmark">✓</span>' : ""}
+            </div>
+            <p class="challengeDesc">${escapeHtml(c.description || "")}</p>
+            <div class="challengeProgress">
+              <div class="progressBar">
+                <div class="progressFill" style="width: ${pct}%"></div>
+              </div>
+              <span class="progressText">${progress} / ${target}</span>
+            </div>
+            <div class="challengeReward">
+              Reward: ${formatReward({ type: c.reward_type, value: c.reward_value })}
+            </div>
+            ${completed ? `
+              <button class="btn btnPrimary" type="button" data-claim-challenge="${escapeHtml(c.challenge_id)}" ${claimed ? "disabled" : ""}>
+                ${claimed ? "Claimed" : "Claim Reward"}
+              </button>
+            ` : ""}
+          </div>
+        `;
+        }).join("")}
+      </div>
+    `;
+
+    dailyList.querySelectorAll("[data-claim-challenge]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.claimChallenge;
+        if (!id) return;
+        await claimChallenge(id);
+      });
+    });
+    if (dailyMsg) dailyMsg.textContent = "";
+    return true;
+  } catch (err) {
+    console.error("Failed to load challenges:", err);
+    if (dailyMsg) dailyMsg.textContent = "Failed to load daily challenges.";
+    return false;
+  }
+}
+
+async function claimChallenge(challengeId) {
+  try {
+    const res = await fetch(`/api/challenges/${encodeURIComponent(challengeId)}/claim`, {
+      method: "POST",
+      credentials: "include"
+    });
+    if (!res.ok) throw new Error("bad");
+    showToast("✅ Reward claimed!");
+    await renderDailyChallenges();
+    await loadProgression();
+  } catch (err) {
+    console.error("Failed to claim challenge:", err);
+    showToast("❌ Failed to claim reward");
+  }
+}
+
+function getLeaderboardTitle(type) {
+  switch (type) {
+    case "xp": return "XP Leaders";
+    case "messages": return "Top Chatters";
+    case "chess": return "Chess Masters";
+    default: return "Leaderboard";
+  }
+}
+
+function formatLeaderboardScore(entry, type) {
+  if (!entry) return "";
+  switch (type) {
+    case "xp":
+      return `${Number(entry.xp || 0)} XP (Lvl ${Number(entry.level || 1)})`;
+    case "messages":
+      return `${Number(entry.count || 0)} messages`;
+    case "chess":
+      return `${Number(entry.chess_elo || 0)} ELO`;
+    default:
+      return "";
+  }
+}
+
+async function renderGamificationLeaderboard(type = gamificationLeaderboardState.type, timeframe = gamificationLeaderboardState.timeframe) {
+  if (!leaderboardContainer) return;
+  const safeType = type || "xp";
+  const safeTimeframe = timeframe || "all";
+  try {
+    const res = await fetch(`/api/leaderboards/${encodeURIComponent(safeType)}?timeframe=${encodeURIComponent(safeTimeframe)}`, {
+      credentials: "include"
+    });
+    if (!res.ok) throw new Error("bad");
+    const data = await res.json();
+
+    leaderboardContainer.innerHTML = `
+      <div class="leaderboardHeader">
+        <h3>${getLeaderboardTitle(safeType)}</h3>
+        <select id="leaderboardType" class="leaderboardSelect">
+          <option value="xp" ${safeType === "xp" ? "selected" : ""}>XP Leaders</option>
+          <option value="messages" ${safeType === "messages" ? "selected" : ""}>Top Chatters</option>
+          <option value="chess" ${safeType === "chess" ? "selected" : ""}>Chess Masters</option>
+        </select>
+      </div>
+      <div class="leaderboardList">
+        ${(data || []).map((entry, index) => `
+          <div class="leaderboardEntry rank-${index + 1}">
+            <span class="rank">${index + 1}</span>
+            <span class="username">${escapeHtml(entry.username || "")}</span>
+            <span class="score">${formatLeaderboardScore(entry, safeType)}</span>
+          </div>
+        `).join("")}
+      </div>
+    `;
+
+    const typeSelect = leaderboardContainer.querySelector("#leaderboardType");
+    typeSelect?.addEventListener("change", (e) => {
+      gamificationLeaderboardState.type = e.target.value;
+      renderGamificationLeaderboard(e.target.value, safeTimeframe);
+    });
+  } catch (err) {
+    console.error("Failed to load leaderboard:", err);
   }
 }
 
@@ -17247,6 +17507,7 @@ async function fetchLeaderboards({ force=false, reason="manual" } = {}){
     renderLeaderboard(leaderboardDice, data?.dice, (item, idx) => ({ label: `${idx + 1}. ${item.username}`, meta: `${Number(item.sixes || 0)}× ${diceFace(6)}` }));
     renderLeaderboard(leaderboardLikes, data?.likes, (item, idx) => ({ label: `${idx + 1}. ${item.username}`, meta: `${Number(item.likes || 0)} likes` }));
     renderChessLeaderboard(leaderboardChess, chessData?.rows || []);
+    await renderGamificationLeaderboard();
     leaderboardState.lastFetchAt = Date.now();
     leaderboardState.lastError = false;
     if (leaderboardsMsg) leaderboardsMsg.textContent = "";
@@ -24081,6 +24342,15 @@ socket.on("mod:case_event", (payload = {}) => {
     stickToBottomIfWanted();
     (names || []).forEach((name) => setPresenceClass(name, "typing"));
     updatePresenceAuras();
+  });
+  socket.on("xpAwarded", ({ amount, newXP, reason }) => {
+    if (Number(amount) > 0) showXPToast(amount, reason);
+    if (newXP != null) updateUserXPDisplay(newXP);
+  });
+  socket.on("levelUp", ({ newLevel, rewards }) => {
+    if (newLevel) progression.level = newLevel;
+    showLevelUpModal(newLevel, rewards || []);
+    renderLevelProgress(progression, true);
   });
   socket.on("level up", ({ level }) => {
     if(level) progression.level = level;

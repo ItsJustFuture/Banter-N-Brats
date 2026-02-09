@@ -1,7 +1,7 @@
 // Service Worker for Banter & Brats PWA
 // Provides offline support and asset caching
 
-const CACHE_VERSION = 'banter-brats-v8';
+const CACHE_VERSION = 'banter-brats-v9';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 
