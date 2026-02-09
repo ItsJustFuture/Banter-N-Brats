@@ -1233,7 +1233,7 @@
 </div>
 <div class="field">
 <label>Mood</label>
-<input id="editMood" placeholder="e.g. chilling"/>
+<input id="editMood" placeholder="e.g. chilling" maxlength="100"/>
 </div>
 <div class="field">
 <label>Username</label>
@@ -1261,7 +1261,7 @@
 </div>
 </div>
 <div class="field">
-<label>Vibe tags (pick up to <span id="vibeTagLimit">3</span>)</label>
+<label>Vibe tags (pick up to <span id="vibeTagLimit"></span>)</label>
 <div class="pillRow" id="vibeTagOptions"></div>
 <div class="small">Adds a few personality badges to your profile.</div>
 </div>
@@ -1270,7 +1270,7 @@
 <label>Bio (BBCode supported)</label>
 <button class="pillBtn small" id="bioHelperToggle" type="button">BBCode help &amp; preview</button>
 </div>
-<textarea id="editBio" placeholder="[b]bold[/b] [i]italics[/i] [url=https://...]link[/url] [quote]...[/quote]"></textarea>
+<textarea id="editBio" placeholder="[b]bold[/b] [i]italics[/i] [url=https://...]link[/url] [quote]...[/quote]" maxlength="500"></textarea>
 <div class="bioHelper" hidden="" id="bioHelper">
 <div class="bioHelperRow" id="bioHelperButtons">
 <button class="pillBtn tiny" data-bio-tag="b" type="button">[b][/b]</button>
@@ -1388,14 +1388,9 @@
 <div class="cardHint">Header gradient and aura options.</div>
 <div class="cardPreview profilePreview"></div>
 </button>
-<button class="customizeCard" data-category="effects" data-search="effects animations polish comfort" type="button">
-<div class="cardTitle">Effects</div>
-<div class="cardHint">Animation toggles and effect presets.</div>
-<div class="cardPreview effectsPreview"></div>
-</button>
-<button class="customizeCard" data-category="layout" data-search="layout accessibility scale contrast sound" type="button">
+<button class="customizeCard" data-category="layout" data-search="layout accessibility scale contrast sound comfort" type="button">
 <div class="cardTitle">Layout &amp; Accessibility</div>
-<div class="cardHint">Scaling, clarity, motion controls, and sound settings.</div>
+<div class="cardHint">Scaling, clarity, motion controls, comfort mode, and sound settings.</div>
 <div class="cardPreview layoutPreview"></div>
 </button>
 </div>
@@ -1579,11 +1574,6 @@
 <details class="customizeSection" data-section="profile-advanced">
 <summary>Advanced</summary>
 <div class="panelBox" id="profileAppearanceAdvanced">
-<div class="field" data-customize-item="" data-search="accent color">
-<label>Profile accent color</label>
-<input id="chatFxAccent" placeholder="#RRGGBB" type="text"/>
-<div class="small muted">Override your theme's accent color. Leave blank to use theme default.</div>
-</div>
 <div class="field" data-customize-item="" data-search="couple gradient line visual" id="coupleGradientField" style="display:none;">
 <label>Couple profile link gradient</label>
 <div class="small muted">Customize the gradient line connecting your profile pictures in couple displays.</div>
@@ -1606,91 +1596,12 @@
 </div>
 </div>
 <button id="resetProfileAppearanceBtn" class="secondaryBtn" type="button">Reset profile appearance</button>
-<div class="customizeSubpage neonModal" data-category="effects" id="customizeEffectsPage" style="display:none;">
-<div class="customizeHeader">
-<button aria-label="Back" class="iconBtn customizeBackBtn" data-back="effects" type="button">←</button>
-<div>
-<div class="title">✨ Effects</div>
-<div class="small muted">Control animations, visual polish, and effect presets.</div>
-</div>
-</div>
-<div class="editProfileLayout">
-<aside class="editProfilePreview">
-<div class="previewShell">
-<div class="small" style="margin-bottom:10px;"><strong>Effect Preview</strong> - See animations & polish</div>
-<div class="effectsPreviewCard" style="padding:20px; background: var(--card-bg, rgba(255,255,255,0.05)); border-radius: 12px;">
-<div class="effectsPreviewIcon" style="text-align:center; font-size: 48px; margin-bottom:16px;">✨</div>
-<div class="effectsPreviewText" style="text-align:center;">
-<div style="margin-bottom:8px;">Animations: <strong id="effectsPreviewAnimStatus">On</strong></div>
-<div style="margin-bottom:8px;">Comfort Mode: <strong id="effectsPreviewComfortStatus">Off</strong></div>
-<div>Polish Pack: <strong id="effectsPreviewPolishStatus">Off</strong></div>
-</div>
-</div>
-<div class="previewActions">
-<button class="btn btnPrimary" id="saveEffectsBtn" type="button">✓ Done</button>
-<button class="btn btnSecondary" id="cancelEffectsBtn" type="button">Cancel</button>
-</div>
-</div>
-</aside>
-<div class="editProfileControls">
-<div class="customizeSection">
-<div class="sectionTitle">Basic</div>
-<div class="panelBox" id="effectsBasic">
-<div class="field" data-customize-item="" data-search="animations">
-<div class="toggleRow">
-<label class="switch">
-<input id="chatFxPolishAnimations" type="checkbox"/>
-<span class="slider"></span>
-</label>
-<div class="toggleLabel">Animations</div>
-</div>
-<div class="small muted">Enable smooth transitions and animated effects throughout the app.</div>
-</div>
-<div class="field" data-customize-item="" data-search="comfort mode">
-<div class="toggleRow">
-<label class="switch">
-<input id="prefComfortMode" type="checkbox"/>
-<span class="slider"></span>
-</label>
-<div class="toggleLabel">Comfort mode</div>
-</div>
-<div class="small muted" id="prefComfortHelp">Softens glows, confetti, and motion-heavy animations.</div>
-</div>
-<div class="field" data-customize-item="" data-search="preset">
-<label>Effect preset</label>
-<select id="effectsPreset">
-<option value="">Custom</option>
-<option value="soft">Soft</option>
-<option value="neon">Neon</option>
-<option value="minimal">Minimal</option>
-</select>
-</div>
-</div>
-</div>
-<details class="customizeSection" data-section="effects-advanced">
-<summary>Advanced</summary>
-<div class="panelBox" id="effectsAdvanced">
-<div class="field" data-customize-item="" data-search="polish pack">
-<div class="toggleRow">
-<label class="switch">
-<input id="chatFxPolishPack" type="checkbox"/>
-<span class="slider"></span>
-</label>
-<div class="toggleLabel">Enable Polish Pack</div>
-</div>
-<div class="small muted">Unlock additional visual effects like avatar auras and enhanced animations.</div>
-</div>
-</div>
-</details>
-</div>
-</div>
-</div>
 <div class="customizeSubpage neonModal" data-category="layout" id="customizeLayoutPage" style="display:none;">
 <div class="customizeHeader">
 <button aria-label="Back" class="iconBtn customizeBackBtn" data-back="layout" type="button">←</button>
 <div>
 <div class="title">⚙️ Layout &amp; Accessibility</div>
-<div class="small muted">Adjust UI scale, sound settings, and badge colors.</div>
+<div class="small muted">Adjust UI scale, comfort mode, sound settings, and accessibility preferences.</div>
 </div>
 </div>
 <div class="editProfileLayout">
@@ -1700,6 +1611,7 @@
 <div class="layoutPreviewCard" style="padding:20px; background: var(--card-bg, rgba(255,255,255,0.05)); border-radius: 12px;">
 <div class="layoutPreviewIcon" style="text-align:center; font-size: 48px; margin-bottom:16px;">⚙️</div>
 <div class="layoutPreviewText" style="text-align:center;">
+<div style="margin-bottom:8px;">Comfort Mode: <strong id="layoutPreviewComfortStatus">Off</strong></div>
 <div style="margin-bottom:8px;">UI Scale: <strong id="layoutPreviewScaleStatus">100%</strong></div>
 <div style="margin-bottom:8px;">Sound: <strong id="layoutPreviewSoundStatus">Off</strong></div>
 <div>Motion: <strong id="layoutPreviewMotionStatus">Normal</strong></div>
@@ -1715,6 +1627,16 @@
 <div class="customizeSection">
 <div class="sectionTitle">Basic</div>
 <div class="panelBox" id="layoutBasic">
+<div class="field" data-customize-item="" data-search="comfort mode">
+<div class="toggleRow">
+<label class="switch">
+<input id="prefComfortMode" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">Comfort mode</div>
+</div>
+<div class="small muted">Softens glows, confetti, and motion-heavy animations.</div>
+</div>
 <div class="field" data-customize-item="" data-search="ui scale">
 <label>UI scale</label>
 <div class="uiScaleRow">
@@ -1886,7 +1808,7 @@
 </div>
 <div class="field">
 <label for="editProfileMood">Mood</label>
-<input id="editProfileMood" placeholder="e.g. chilling, gaming, coding..." type="text"/>
+<input id="editProfileMood" placeholder="e.g. chilling, gaming, coding..." type="text" maxlength="100"/>
 <div class="small muted">Short status visible on your profile.</div>
 </div>
 <div class="field">
@@ -1966,7 +1888,7 @@
 <div class="sectionTitle">Vibe Tags</div>
 <div class="panelBox">
 <div class="field">
-<label>Select up to <span id="editVibeTagLimit">3</span> vibe tags</label>
+<label>Select up to <span id="editVibeTagLimit"></span> vibe tags</label>
 <div class="pillRow" id="editVibeTagOptions"></div>
 <div class="small muted">Show your personality with badges on your profile.</div>
 </div>
@@ -1980,7 +1902,7 @@
 <label for="editProfileBio">About You (BBCode supported)</label>
 <button class="pillBtn small" id="editBioHelperToggle" type="button">BBCode help</button>
 </div>
-<textarea id="editProfileBio" placeholder="Tell others about yourself... [b]bold[/b] [i]italics[/i] [url=https://...]link[/url]" rows="6"></textarea>
+<textarea id="editProfileBio" placeholder="Tell others about yourself... [b]bold[/b] [i]italics[/i] [url=https://...]link[/url]" rows="6" maxlength="500"></textarea>
 <div class="bioHelper" hidden="" id="editBioHelper">
 <div class="bioHelperRow" id="editBioHelperButtons">
 <button class="pillBtn tiny" data-bio-tag="b" type="button">[b]Bold[/b]</button>
@@ -2391,7 +2313,7 @@
           </div>
           <div class="field">
             <label for="editProfileMood">Mood</label>
-            <input id="editProfileMood" placeholder="e.g. chilling" maxlength="60"/>
+            <input id="editProfileMood" placeholder="e.g. chilling" maxlength="100"/>
             <div class="small muted">A short status message that appears on your profile.</div>
           </div>
           <div class="row" style="gap:10px;">
@@ -2415,11 +2337,11 @@
           </div>
           <div class="field">
             <label for="editProfileBio">Bio (BBCode supported)</label>
-            <textarea id="editProfileBio" rows="4" maxlength="2000" placeholder="[b]bold[/b] [i]italics[/i] [url=https://...]link[/url]"></textarea>
+            <textarea id="editProfileBio" rows="4" maxlength="500" placeholder="[b]bold[/b] [i]italics[/i] [url=https://...]link[/url]"></textarea>
             <div class="small muted">Use BBCode for formatting. Links require full URLs.</div>
           </div>
           <div class="field">
-            <label>Vibe tags (pick up to <span id="editProfileVibeLimit">3</span>)</label>
+            <label>Vibe tags (pick up to <span id="editProfileVibeLimit"></span>)</label>
             <div class="pillRow" id="editProfileVibeOptions"></div>
             <div class="small muted">Select personality badges to display on your profile.</div>
           </div>

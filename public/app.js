@@ -3004,11 +3004,56 @@ function inferThemeTags(name, mode, extra = []){
   }
   return Array.from(tags);
 }
+
+function inferThemeCategory(name, mode, tags = []){
+  const lowerName = name.toLowerCase();
+  const tagSet = new Set(tags.map(t => t.toLowerCase()));
+  
+  // Category 1: Neon & Vibrant
+  if (tagSet.has('neon') || lowerName.includes('neon') || lowerName.includes('cyberpunk') || 
+      lowerName.includes('vaporwave') || lowerName.includes('arcade')) {
+    return 'neon-vibrant';
+  }
+  
+  // Category 2: Nature & Seasonal
+  if (tagSet.has('nature') || tagSet.has('seasonal') || tagSet.has('floral') || 
+      tagSet.has('spring') || tagSet.has('summer') || tagSet.has('autumn') || tagSet.has('winter') ||
+      tagSet.has('holiday') || lowerName.includes('blossom') || lowerName.includes('forest') ||
+      lowerName.includes('garden') || lowerName.includes('tropical') || lowerName.includes('harvest') ||
+      lowerName.includes('valentine') || lowerName.includes('christmas') || lowerName.includes('spooky')) {
+    return 'nature-seasonal';
+  }
+  
+  // Category 3: Retro & Gaming
+  if (tagSet.has('retro') || tagSet.has('gaming') || lowerName.includes('retro') || 
+      lowerName.includes('pixel') || lowerName.includes('arcade') || lowerName.includes('rpg') ||
+      lowerName.includes('fps') || lowerName.includes('racing') || lowerName.includes('y2k') ||
+      lowerName.includes('grunge')) {
+    return 'retro-gaming';
+  }
+  
+  // Category 4: Light (all light mode themes not already categorized)
+  if (mode === 'Light') {
+    return 'light';
+  }
+  
+  // Category 5: Dark (all dark mode themes not already categorized)
+  if (mode === 'Dark') {
+    return 'dark';
+  }
+  
+  // Default to 'all'
+  return 'all';
+}
+
 function createTheme(name, mode, options = {}){
   const id = options.id || themeIdFromName(name);
   const access = options.access || "vip";
   const goldPrice = Number(options.goldPrice || 0);
   const isPurchasable = Boolean(options.isPurchasable || goldPrice);
+  // Compute tags first so category inference can use the full tag set
+  const tags = inferThemeTags(name, mode, options.tags || []);
+  const category = options.category || inferThemeCategory(name, mode, tags);
   return {
     id,
     name,
@@ -3017,7 +3062,8 @@ function createTheme(name, mode, options = {}){
     isPurchasable,
     goldPrice: goldPrice || null,
     isNew: Boolean(options.isNew),
-    tags: inferThemeTags(name, mode, options.tags || []),
+    tags,
+    category,
   };
 }
 // Theme registry: add new themes here (metadata drives filtering, pinning, and gold unlocks).
@@ -7376,7 +7422,7 @@ const STATUS_ALIASES = {
 };
 let VIBE_TAG_DEFS = [];
 let VIBE_TAG_OPTIONS = [];
-let VIBE_TAG_LIMIT = 3;
+let VIBE_TAG_LIMIT = 5; // Default to 5, will be updated by server if different
 const VIBE_TAG_LOOKUP = new Map();
 function normalizeStatusLabel(status, fallback=""){
   const raw = String(status || "").trim();
@@ -7437,9 +7483,16 @@ function getVibeDef(tag){
 }
 
 function formatVibeChipLabel(tag){
-  const def = getVibeDef(tag);
+  // Handle both string tags and object tags
+  let tagStr;
+  if (typeof tag === 'object' && tag !== null) {
+    tagStr = tag.label || tag.id || "";
+  } else {
+    tagStr = String(tag || "");
+  }
+  const def = getVibeDef(tagStr);
   if(def?.emoji && def?.label) return `${def.emoji} ${def.label}`;
-  return String(tag || "").trim();
+  return tagStr.trim();
 }
 
 function sanitizeVibeTagsClient(raw){
@@ -7448,8 +7501,14 @@ function sanitizeVibeTagsClient(raw){
   const hasOptions = VIBE_TAG_OPTIONS.length > 0;
   arr.forEach((v) => {
     if (out.length >= VIBE_TAG_LIMIT) return;
-    const val = String(v || "").trim();
-    if (!val) return;
+    // Handle both string and object tags (extract label from objects)
+    let val;
+    if (typeof v === 'object' && v !== null) {
+      val = String(v.label || v.id || "").trim();
+    } else {
+      val = String(v || "").trim();
+    }
+    if (!val || val === "[object Object]") return;
     if(hasOptions){
       const hit = VIBE_TAG_OPTIONS.find((opt) => opt.toLowerCase() === val.toLowerCase());
       if (hit && !out.includes(hit)) out.push(hit);
@@ -9499,14 +9558,18 @@ function createThemeCard(theme){
 function buildFilterList(){
   const base = [
     { id: "all", label: "All" },
+    { id: "light", label: "Light" },
+    { id: "dark", label: "Dark" },
+    { id: "neon-vibrant", label: "Neon & Vibrant" },
+    { id: "nature-seasonal", label: "Nature & Seasonal" },
+    { id: "retro-gaming", label: "Retro & Gaming" },
     { id: "pinned", label: "Pinned" },
     { id: "favorites", label: "Favorites" },
     { id: "recents", label: "Recents" },
     { id: "unlocked", label: "Unlocked" },
     { id: "vip", label: "VIP" },
   ];
-  const tags = THEME_TAGS.map((tag) => ({ id: tag.toLowerCase(), label: tag }));
-  return [...base, ...tags];
+  return base;
 }
 function renderFilterPills(container){
   if (!container) return;
@@ -9548,10 +9611,16 @@ function applyThemeFilters(themes){
     case "vip":
       results = results.filter((theme) => theme.access === "vip");
       break;
+    case "light":
+    case "dark":
+    case "neon-vibrant":
+    case "nature-seasonal":
+    case "retro-gaming":
+      results = results.filter((theme) => theme.category === themeActiveFilter);
+      break;
+    case "all":
     default:
-      if (themeActiveFilter !== "all") {
-        results = results.filter((theme) => (theme.tags || []).map((t) => t.toLowerCase()).includes(themeActiveFilter));
-      }
+      // Show all themes
       break;
   }
   return results;
@@ -14783,7 +14852,6 @@ function closeEditProfileModal(){
 function renderEditProfileVibeOptions(){
   if (!editProfileVibeOptions) return;
   editProfileVibeOptions.innerHTML = "";
-  const VIBE_TAG_LIMIT = 3;
   if (editProfileVibeLimit) editProfileVibeLimit.textContent = VIBE_TAG_LIMIT;
   
   if (!VIBE_TAG_DEFS || !Array.isArray(VIBE_TAG_DEFS)) return;
@@ -14933,18 +15001,19 @@ function renderEditProfileVibeOptionsCustomize() {
   const editVibeTagOptions = document.getElementById("editVibeTagOptions");
   if (!editVibeTagOptions) return;
   editVibeTagOptions.innerHTML = "";
-  const VIBE_TAG_LIMIT = 3;
   const editVibeTagLimit = document.getElementById("editVibeTagLimit");
   if (editVibeTagLimit) editVibeTagLimit.textContent = VIBE_TAG_LIMIT;
   
   if (!VIBE_TAG_DEFS || !Array.isArray(VIBE_TAG_DEFS)) return;
   
-  VIBE_TAG_DEFS.forEach(tag => {
+  // VIBE_TAG_DEFS contains objects with {id, label, emoji}, not strings
+  VIBE_TAG_DEFS.forEach(def => {
+    const tag = def.label; // Extract label from the object
     const isSelected = editProfileSelectedVibeTags.includes(tag);
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = isSelected ? "pillBtn active" : "pillBtn";
-    btn.textContent = tag;
+    btn.textContent = formatVibeChipLabel(tag); // Use the formatted label
     btn.addEventListener("click", () => {
       if (isSelected) {
         editProfileSelectedVibeTags = editProfileSelectedVibeTags.filter(t => t !== tag);
@@ -15037,14 +15106,19 @@ function updateEffectsPreview() {
 
 // Update Layout Preview
 function updateLayoutPreview() {
+  const comfortStatus = document.getElementById("layoutPreviewComfortStatus");
   const scaleStatus = document.getElementById("layoutPreviewScaleStatus");
   const soundStatus = document.getElementById("layoutPreviewSoundStatus");
   const motionStatus = document.getElementById("layoutPreviewMotionStatus");
   
+  const prefComfortMode = document.getElementById("prefComfortMode");
   const uiScaleRange = document.getElementById("uiScaleRange");
   const prefSoundEnabled = document.getElementById("prefSoundEnabled");
   const reduceMotionToggle = document.getElementById("reduceMotionToggle");
   
+  if (comfortStatus && prefComfortMode) {
+    comfortStatus.textContent = prefComfortMode.checked ? "On" : "Off";
+  }
   if (scaleStatus && uiScaleRange) {
     const scale = Math.round(parseFloat(uiScaleRange.value) * 100);
     scaleStatus.textContent = `${scale}%`;
@@ -21582,6 +21656,7 @@ function wireComfortMode(){
     applyComfortMode(prefComfortMode.checked, { persistLocal: true, persistServer: true });
     if (reduceMotionToggle) reduceMotionToggle.checked = prefComfortMode.checked;
     updateEffectsPreview(); // Update effects modal preview
+    updateLayoutPreview(); // Update layout preview when comfort mode changes
   });
 }
 
@@ -21658,23 +21733,27 @@ function syncChatFxControls(fx){
 
 function readChatFxFormRaw(){
   if (!chatFxPrefEls) return { ...CHAT_FX_DEFAULTS };
+  // Merge with existing chatFxPrefs to preserve values for removed inputs
+  const base = chatFxPrefs ? { ...chatFxPrefs } : { ...CHAT_FX_DEFAULTS };
   return {
-    font: chatFxPrefEls.font?.value || CHAT_FX_DEFAULTS.font,
-    nameFont: chatFxPrefEls.nameFont?.value || CHAT_FX_DEFAULTS.nameFont,
-    accent: (chatFxPrefEls.accent?.value || "").trim(),
-    textColor: (chatFxPrefEls.textColor?.value || "").trim(),
-    nameColor: (chatFxPrefEls.nameColor?.value || "").trim(),
-    autoContrast: !!chatFxPrefEls.autoContrast?.checked,
-    textBold: !!chatFxPrefEls.textBold?.checked,
-    textItalic: !!chatFxPrefEls.textItalic?.checked,
-    textGlow: chatFxPrefEls.textGlow?.value || CHAT_FX_DEFAULTS.textGlow,
-    textGradientEnabled: !!chatFxPrefEls.textGradientEnabled?.checked,
-    textGradientA: (chatFxPrefEls.textGradientA?.value || "").trim(),
-    textGradientB: (chatFxPrefEls.textGradientB?.value || "").trim(),
-    textGradientAngle: Number(chatFxPrefEls.textGradientAngle?.value),
-    polishPack: !!chatFxPrefEls.polishPack?.checked,
-    polishAuras: !!chatFxPrefEls.polishAuras?.checked,
-    polishAnimations: !!chatFxPrefEls.polishAnimations?.checked
+    ...base, // Start with existing prefs
+    // Only update values from inputs that exist
+    font: chatFxPrefEls.font?.value || base.font,
+    nameFont: chatFxPrefEls.nameFont?.value || base.nameFont,
+    accent: chatFxPrefEls.accent ? (chatFxPrefEls.accent.value || "").trim() : base.accent,
+    textColor: chatFxPrefEls.textColor ? (chatFxPrefEls.textColor.value || "").trim() : base.textColor,
+    nameColor: chatFxPrefEls.nameColor ? (chatFxPrefEls.nameColor.value || "").trim() : base.nameColor,
+    autoContrast: chatFxPrefEls.autoContrast ? !!chatFxPrefEls.autoContrast.checked : base.autoContrast,
+    textBold: chatFxPrefEls.textBold ? !!chatFxPrefEls.textBold.checked : base.textBold,
+    textItalic: chatFxPrefEls.textItalic ? !!chatFxPrefEls.textItalic.checked : base.textItalic,
+    textGlow: chatFxPrefEls.textGlow?.value || base.textGlow,
+    textGradientEnabled: chatFxPrefEls.textGradientEnabled ? !!chatFxPrefEls.textGradientEnabled.checked : base.textGradientEnabled,
+    textGradientA: chatFxPrefEls.textGradientA ? (chatFxPrefEls.textGradientA.value || "").trim() : base.textGradientA,
+    textGradientB: chatFxPrefEls.textGradientB ? (chatFxPrefEls.textGradientB.value || "").trim() : base.textGradientB,
+    textGradientAngle: chatFxPrefEls.textGradientAngle ? Number(chatFxPrefEls.textGradientAngle.value) : base.textGradientAngle,
+    polishPack: chatFxPrefEls.polishPack ? !!chatFxPrefEls.polishPack.checked : base.polishPack,
+    polishAuras: chatFxPrefEls.polishAuras ? !!chatFxPrefEls.polishAuras.checked : base.polishAuras,
+    polishAnimations: chatFxPrefEls.polishAnimations ? !!chatFxPrefEls.polishAnimations.checked : base.polishAnimations
   };
 }
 
