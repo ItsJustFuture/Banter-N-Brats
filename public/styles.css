@@ -58,6 +58,12 @@
   --overlay-scrim: rgba(0, 0, 0, 0.6);
   --bubble: var(--messageOtherBg);
   --bubbleSelf: var(--messageSelfBg);
+  --bubble-radius: 8px;
+  --bubble-border: 0px;
+  --bubble-glow: 0;
+  --bubble-blur: 0px;
+  --bubble-glass: 0;
+  --bubble-extra-shadow: 0 0 0 transparent;
   --dm-bubble-bg: var(--bubble);
   --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
   --dm-bubble-radius: var(--radiusLg);
@@ -4445,14 +4451,15 @@ body.sys-density-minimized .chat-main{
     var(--fx-base);
   box-shadow:
     0 0 calc(var(--fx-glow, 0) * 6px) color-mix(in srgb, var(--fx-accent, var(--accent)) 45%, transparent),
-    0 0 calc(var(--fx-glow, 0) * 14px) color-mix(in srgb, var(--fx-accent, var(--accent)) 28%, transparent);
+    0 0 calc(var(--fx-glow, 0) * 14px) color-mix(in srgb, var(--fx-accent, var(--accent)) 28%, transparent),
+    var(--bubble-extra-shadow, 0 0 0 transparent);
 }
 .chat-main .msg--main .bubble{
-  --fx-radius: 8px;
-  --fx-border: 0;
-  --fx-glow: 0;
-  --fx-blur: 0;
-  --fx-glass: 0;
+  --fx-radius: var(--bubble-radius, 8px);
+  --fx-border: var(--bubble-border, 0px);
+  --fx-glow: var(--bubble-glow, 0);
+  --fx-blur: var(--bubble-blur, 0px);
+  --fx-glass: var(--bubble-glass, 0);
   --msg-accent-top-size: var(--msg-accent-height, 4px);
   --msg-accent-bottom-size: 0px;
   --fx-contrast-shadow: 0 1px 2px rgba(0,0,0,0.18);
@@ -4671,11 +4678,11 @@ body.sys-density-minimized .chat-main{
 }
 
 /* Reactions are OUTSIDE the bubble (inside .msgMain) */
-.chat-main .msgMain > .reacts{
+.chat-main .msgMain > .messageReactions{
   align-self:flex-end;
   margin:0 2px 2px 2px;
 }
-.chat-main .msgMain > .reacts:empty{ display:none; }
+.chat-main .msgMain > .messageReactions:empty{ display:none; }
 .metaLine{ display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
 .uName{ font-weight:900; font-size:13px; text-shadow:var(--text-shadow-soft); }
 .badge{
@@ -15173,4 +15180,209 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 .gradientOption.selected, .emojiOption.selected, .colorOption.selected {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* Message Reactions */
+.messageReactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.reactionBubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: var(--surfaceAlt, color-mix(in srgb, var(--panel) 80%, transparent));
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.reactionBubble:hover {
+  background: var(--accent);
+  transform: scale(1.1);
+}
+
+.reactionEmoji {
+  font-size: 16px;
+}
+
+.reactionCount {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.addReactionBtn {
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+
+.addReactionBtn:hover {
+  opacity: 1;
+  border-style: solid;
+}
+
+.reactionPicker {
+  position: fixed;
+  background: var(--surface, var(--panel));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  z-index: 10000;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  max-width: min(90vw, 320px);
+}
+
+.reactionPickerEmoji {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 24px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.reactionPickerEmoji:hover {
+  background: var(--surfaceAlt, color-mix(in srgb, var(--panel) 80%, transparent));
+  transform: scale(1.2);
+}
+
+/* Bubble Style Settings */
+#bubbleStyleSettings {
+  margin-top: 16px;
+}
+
+.bubbleStyleGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.bubbleStylePreview {
+  cursor: pointer;
+}
+
+.bubbleStylePreview.selected .previewBubble {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.previewBubble {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--messageOtherBg);
+  color: var(--messageOtherText);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Text Effects */
+.text-effect-neon {
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 75%, transparent), 0 0 18px color-mix(in srgb, var(--accent2) 65%, transparent);
+}
+
+.text-effect-gradient {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-effect-rainbow {
+  background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbow 3s linear infinite;
+}
+
+@keyframes rainbow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.text-effect-shimmer {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+}
+
+.text-effect-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 2s infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  100% { left: 100%; }
+}
+
+.text-effect-fire {
+  color: #ff6600;
+  text-shadow: 0 0 10px #ff6600, 0 0 20px #ff0000;
+  animation: flicker 0.15s infinite;
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.text-effect-glitch {
+  position: relative;
+  animation: glitch 0.3s infinite;
+}
+
+@keyframes glitch {
+  0%, 100% { transform: translate(0); }
+  33% { transform: translate(-2px, 2px); }
+  66% { transform: translate(2px, -2px); }
+}
+
+.text-effect-wave {
+  display: inline-block;
+  animation: wave 1s ease-in-out infinite;
+}
+
+@keyframes wave {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.text-effect-3d-pop {
+  text-shadow:
+    1px 1px 0 rgba(0,0,0,0.2),
+    2px 2px 0 rgba(0,0,0,0.15),
+    3px 3px 0 rgba(0,0,0,0.1);
+}
+
+.text-effect-outline {
+  -webkit-text-stroke: 1px var(--fg, var(--text));
+  -webkit-text-fill-color: transparent;
+}
+
+.text-effect-shadow {
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
 }

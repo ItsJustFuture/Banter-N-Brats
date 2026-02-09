@@ -2619,6 +2619,7 @@ const CHAT_FX_DEFAULTS = Object.freeze({
 const TEXT_STYLE_DEFAULTS = Object.freeze({
   mode: "color",
   color: null,
+  effectId: "none",
   neon: {
     presetId: null,
     color: null,
@@ -2635,6 +2636,20 @@ const TEXT_STYLE_DEFAULTS = Object.freeze({
 const TEXT_STYLE_MODES = new Set(["color", "neon", "gradient"]);
 const TEXT_STYLE_INTENSITIES = new Set(["low", "med", "high", "ultra"]);
 const TEXT_STYLE_GRADIENT_INTENSITIES = new Set(["soft", "normal", "bold"]);
+const TEXT_EFFECT_IDS = new Set([
+  "none",
+  "neon",
+  "gradient",
+  "rainbow",
+  "shimmer",
+  "fire",
+  "glitch",
+  "wave",
+  "3d-pop",
+  "outline",
+  "shadow"
+]);
+const VIP_TEXT_EFFECT_IDS = new Set(["rainbow", "shimmer", "fire", "glitch", "wave"]);
 const TEXT_STYLE_HEX = /^#[0-9a-f]{6}$/i;
 const CHAT_FX_TEXT_GLOWS = new Set(["off", "soft", "neon", "strong"]);
 const CHAT_FX_FONTS = new Set([
@@ -2665,6 +2680,8 @@ function sanitizeTextStyle(raw) {
   const mode = String(raw.mode || "").toLowerCase();
   if (TEXT_STYLE_MODES.has(mode)) out.mode = mode;
   if (TEXT_STYLE_HEX.test(raw.color || "")) out.color = String(raw.color).trim();
+  const effectId = String(raw.effectId ?? raw.effect ?? "").trim().toLowerCase();
+  if (TEXT_EFFECT_IDS.has(effectId)) out.effectId = effectId;
   const family = String(raw.fontFamily || raw.font || "").trim();
   if (CHAT_FX_FONTS.has(family)) out.fontFamily = family;
   const fontStyle = String(raw.fontStyle || "").toLowerCase();
@@ -10132,10 +10149,11 @@ app.post("/api/me/prefs", strictLimiter, requireLogin, async (req, res) => {
       const { rows } = await pgPool.query("SELECT prefs_json FROM users WHERE id = $1 LIMIT 1", [userId]);
       const current = safeJsonParse(rows?.[0]?.prefs_json, {});
       const currentPrefs = normalizePrefs(current || {});
-      const mergedCustomization = sanitizeCustomization(
+      let mergedCustomization = sanitizeCustomization(
         { ...(currentPrefs.customization || {}), ...(incoming.customization || {}) },
         currentPrefs.textStyle || incoming.textStyle
       );
+      mergedCustomization = enforceTextEffectAccess(mergedCustomization, req.session.user.role);
       const merged = enforcePinnedLimit(
         normalizePrefs({ ...(current || {}), ...(incoming || {}), customization: mergedCustomization }),
         req.session.user.role
@@ -10167,10 +10185,11 @@ app.post("/api/me/prefs", strictLimiter, requireLogin, async (req, res) => {
   db.get("SELECT prefs_json FROM users WHERE id = ?", [userId], (_e, row) => {
     const current = safeJsonParse(row?.prefs_json, {});
     const currentPrefs = normalizePrefs(current || {});
-    const mergedCustomization = sanitizeCustomization(
+    let mergedCustomization = sanitizeCustomization(
       { ...(currentPrefs.customization || {}), ...(incoming.customization || {}) },
       currentPrefs.textStyle || incoming.textStyle
     );
+    mergedCustomization = enforceTextEffectAccess(mergedCustomization, req.session.user.role);
     const merged = enforcePinnedLimit(
       normalizePrefs({ ...(current || {}), ...(incoming || {}), customization: mergedCustomization }),
       req.session.user.role
@@ -10191,6 +10210,119 @@ app.post("/api/me/prefs", strictLimiter, requireLogin, async (req, res) => {
       return res.json({ ok: true, prefs: merged });
     });
   });
+});
+
+function normalizeReactionRoom(rawRoom) {
+  const trimmed = String(rawRoom || "").trim();
+  return trimmed.startsWith("#") ? trimmed.slice(1) : trimmed;
+}
+
+function enforceTextEffectAccess(customization, role) {
+  if (!customization || typeof customization !== "object") return customization;
+  if (roleRank(role || "User") >= roleRank("VIP")) return customization;
+  const sanitizeStyle = (style) => {
+    if (!style || typeof style !== "object") return style;
+    if (VIP_TEXT_EFFECT_IDS.has(style.effectId)) {
+      return { ...style, effectId: "none" };
+    }
+    return style;
+  };
+  return {
+    ...customization,
+    ...(customization.userNameStyle ? { userNameStyle: sanitizeStyle(customization.userNameStyle) } : {}),
+    ...(customization.messageTextStyle ? { messageTextStyle: sanitizeStyle(customization.messageTextStyle) } : {}),
+  };
+}
+
+app.post("/api/messages/:messageId/react", strictLimiter, requireLogin, async (req, res) => {
+  try {
+    const messageId = Number(req.params.messageId);
+    const emoji = String(req.body?.emoji || "").trim();
+    const room = normalizeReactionRoom(req.body?.room);
+
+    if (!Number.isInteger(messageId)) {
+      return res.status(400).json({ error: "Invalid message id" });
+    }
+    if (!room) {
+      return res.status(400).json({ error: "Invalid room" });
+    }
+    if (!emoji || emoji.length > 10) {
+      return res.status(400).json({ error: "Invalid emoji" });
+    }
+
+    const messageRow = await dbGetAsync(
+      "SELECT room FROM messages WHERE id = ? AND deleted = 0",
+      [messageId]
+    );
+    if (!messageRow) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+    const messageRoom = normalizeReactionRoom(messageRow.room);
+    if (messageRoom && messageRoom !== room) {
+      return res.status(400).json({ error: "Room mismatch" });
+    }
+
+    const username = req.session.user.username;
+    const existing = await dbGetAsync(
+      `SELECT 1 FROM message_reactions WHERE message_id = ? AND room = ? AND username = ? AND emoji = ?`,
+      [messageId, room, username, emoji]
+    );
+
+    if (existing) {
+      await dbRunAsync(
+        `DELETE FROM message_reactions WHERE message_id = ? AND room = ? AND username = ? AND emoji = ?`,
+        [messageId, room, username, emoji]
+      );
+      io.to(room).emit("reactionRemoved", { messageId, emoji, username });
+    } else {
+      await dbRunAsync(
+        `INSERT INTO message_reactions (message_id, room, username, emoji, created_at) VALUES (?, ?, ?, ?, ?)`,
+        [messageId, room, username, emoji, Date.now()]
+      );
+      io.to(room).emit("reactionAdded", { messageId, emoji, username });
+    }
+
+    const reactions = await dbAllAsync(
+      `SELECT emoji, COUNT(*) as count, GROUP_CONCAT(username) as users
+       FROM message_reactions
+       WHERE message_id = ? AND room = ?
+       GROUP BY emoji`,
+      [messageId, room]
+    );
+
+    io.to(room).emit("messageReactions", { messageId, reactions });
+    return res.json({ reactions });
+  } catch (err) {
+    console.error("Error toggling reaction:", err);
+    return res.status(500).json({ error: "Failed to toggle reaction" });
+  }
+});
+
+app.get("/api/messages/:messageId/reactions", requireLogin, async (req, res) => {
+  try {
+    const messageId = Number(req.params.messageId);
+    const room = normalizeReactionRoom(req.query?.room);
+
+    if (!Number.isInteger(messageId)) {
+      return res.status(400).json({ error: "Invalid message id" });
+    }
+    if (!room) {
+      return res.status(400).json({ error: "Invalid room" });
+    }
+
+    const reactions = await dbAllAsync(
+      `SELECT emoji, COUNT(*) as count, GROUP_CONCAT(username) as users
+       FROM message_reactions
+       WHERE message_id = ? AND room = ?
+       GROUP BY emoji`,
+      [messageId, room]
+    );
+
+    return res.json({ reactions });
+  } catch (err) {
+    console.error("Error fetching reactions:", err);
+    return res.status(500).json({ error: "Failed to fetch reactions" });
+  }
 });
 
 app.get("/api/role-symbols", requireLogin, async (req, res) => {
@@ -10315,10 +10447,11 @@ app.post("/api/profile/customization", strictLimiter, requireLogin, async (req, 
       const { rows } = await pgPool.query("SELECT prefs_json FROM users WHERE id = $1 LIMIT 1", [userId]);
       const current = safeJsonParse(rows?.[0]?.prefs_json, {});
       const currentPrefs = normalizePrefs(current || {});
-      const mergedCustomization = sanitizeCustomization(
+      let mergedCustomization = sanitizeCustomization(
         { ...(currentPrefs.customization || {}), ...(incoming.customization || {}) },
         currentPrefs.textStyle || incoming.textStyle
       );
+      mergedCustomization = enforceTextEffectAccess(mergedCustomization, req.session.user.role);
       const merged = enforcePinnedLimit(
         normalizePrefs({ ...(current || {}), ...(incoming || {}), customization: mergedCustomization }),
         req.session.user.role
@@ -10336,10 +10469,11 @@ app.post("/api/profile/customization", strictLimiter, requireLogin, async (req, 
   db.get("SELECT prefs_json FROM users WHERE id = ?", [userId], (_e, row) => {
     const current = safeJsonParse(row?.prefs_json, {});
     const currentPrefs = normalizePrefs(current || {});
-    const mergedCustomization = sanitizeCustomization(
+    let mergedCustomization = sanitizeCustomization(
       { ...(currentPrefs.customization || {}), ...(incoming.customization || {}) },
       currentPrefs.textStyle || incoming.textStyle
     );
+    mergedCustomization = enforceTextEffectAccess(mergedCustomization, req.session.user.role);
     const merged = enforcePinnedLimit(
       normalizePrefs({ ...(current || {}), ...(incoming || {}), customization: mergedCustomization }),
       req.session.user.role
@@ -17381,6 +17515,25 @@ function doJoin(room, status) {
               }
             }
           );
+          const normalizedRoom = normalizeReactionRoom(room);
+          db.all(
+            `SELECT message_id, emoji, COUNT(*) as count, GROUP_CONCAT(username) as users
+             FROM message_reactions
+             WHERE room = ? AND message_id IN (${placeholders})
+             GROUP BY message_id, emoji`,
+            [normalizedRoom, ...ids],
+            (_e3, rows) => {
+              const byMsg = {};
+              for (const r of rows || []) {
+                const key = String(r.message_id);
+                if (!byMsg[key]) byMsg[key] = [];
+                byMsg[key].push({ emoji: r.emoji, count: r.count, users: r.users });
+              }
+              for (const mid of Object.keys(byMsg)) {
+                socket.emit("messageReactions", { messageId: mid, reactions: byMsg[mid] });
+              }
+            }
+          );
         }
       });
     }
@@ -18791,23 +18944,33 @@ if (!room) {
             return;
           }
 
-          db.run("DELETE FROM reactions WHERE message_id=?", [mid], (reactErr) => {
-            if (reactErr) {
-              console.warn("[delete:main] reaction cleanup failed", { messageId: mid, error: reactErr?.message || reactErr });
-            }
-            if (requireMinRole(actorRole, "Moderator")) {
-              logModAction({
-                actor,
-                action: "DELETE_MESSAGE",
-                targetUserId: msg.user_id,
-                targetUsername: msg.username,
-                room: msg.room,
-                details: `messageId=${mid}`,
-              });
-            }
-            respondDelete(ack, { ok: true });
-            emitMainMessageDeleted(mid, msg.room);
-          });
+           db.run("DELETE FROM reactions WHERE message_id=?", [mid], (reactErr) => {
+             if (reactErr) {
+               console.warn("[delete:main] reaction cleanup failed", { messageId: mid, error: reactErr?.message || reactErr });
+             }
+           const normalizedRoom = normalizeReactionRoom(msg.room);
+           db.run(
+               "DELETE FROM message_reactions WHERE message_id=? AND room=?",
+               [mid, normalizedRoom],
+               (newReactErr) => {
+                 if (newReactErr) {
+                   console.warn("[delete:main] message reaction cleanup failed", { messageId: mid, error: newReactErr?.message || newReactErr });
+                 }
+                 if (requireMinRole(actorRole, "Moderator")) {
+                   logModAction({
+                     actor,
+                     action: "DELETE_MESSAGE",
+                     targetUserId: msg.user_id,
+                     targetUsername: msg.username,
+                     room: msg.room,
+                     details: `messageId=${mid}`,
+                   });
+                 }
+                 respondDelete(ack, { ok: true });
+                 emitMainMessageDeleted(mid, msg.room);
+               }
+             );
+           });
         });
       }
     );
