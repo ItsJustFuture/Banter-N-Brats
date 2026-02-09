@@ -7407,7 +7407,6 @@ function createRoleGemSvg(filePath, color) {
   mask.setAttribute("maskContentUnits", "userSpaceOnUse");
   const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
   image.setAttribute("href", filePath);
-  image.setAttributeNS("http://www.w3.org/1999/xlink", "href", filePath);
   image.setAttribute("width", "256");
   image.setAttribute("height", "256");
   image.setAttribute("preserveAspectRatio", "xMidYMid meet");

@@ -766,7 +766,7 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
       challenged_user_id INTEGER NOT NULL,
       status TEXT NOT NULL,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL DEFAULT 0
     )
   `);
 
@@ -1035,7 +1035,7 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
       moderator_gemstone TEXT DEFAULT 'onyx',
       moderator_color_variant TEXT DEFAULT 'blue',
       enable_animations INTEGER NOT NULL DEFAULT 1,
-      updated_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL DEFAULT 0
     )
   `);
   await run(`CREATE INDEX IF NOT EXISTS idx_role_symbols_username ON user_role_symbols(username)`);
