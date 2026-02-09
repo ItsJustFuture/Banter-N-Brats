@@ -14641,10 +14641,10 @@ function buildProfileFormData(profile, options = {}) {
   formData.append("gender", safeProfile.gender ?? "");
   formData.append("bio", safeProfile.bio ?? "");
   formData.append("vibeTags", JSON.stringify(safeProfile.vibe_tags ?? []));
-  if (Object.hasOwn(options, "headerColorA")) {
+  if (options.headerColorA != null) {
     formData.append("headerColorA", options.headerColorA);
   }
-  if (Object.hasOwn(options, "headerColorB")) {
+  if (options.headerColorB != null) {
     formData.append("headerColorB", options.headerColorB);
   }
   if (options.avatarFile) {
