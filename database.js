@@ -268,7 +268,7 @@ async function runSqliteMigrations() {
       arena_state_json TEXT,
       winner_rewarded INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL DEFAULT 0
     )
   `);
 
