@@ -1232,6 +1232,781 @@
   color-scheme: dark;
 }
 
+/* Sakura Dreams (Light) */
+[data-theme="Sakura Dreams"] {
+  --bg: linear-gradient(135deg, #fff5f7 0%, #ffe3ef 45%, #f6e8ff 100%);
+  --bg2: rgba(255, 255, 255, 0.70);
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel2: rgba(255, 255, 255, 0.70);
+  --text: #2b1f2a;
+  --muted: #6b5a68;
+  --border: #0000001a;
+  --shadowColor: rgba(0, 0, 0, 0.12);
+  --accent: #ff69b4;
+  --accent2: #b57edc;
+  --danger: #d7373a;
+  --success: #1f8a4c;
+  --warning: #b87410;
+  --link: #e94e8f;
+  --messageSelfBg: #ff69b4;
+  --messageSelfText: #ffffff;
+  --messageOtherBg: rgba(255, 255, 255, 0.86);
+  --messageOtherText: #2b1f2a;
+  --messageSystemBg: rgba(255, 105, 180, 0.12);
+  --messageSystemText: #2b1f2a;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(181, 126, 220, 0.14);
+  --mentionText: #2b1f2a;
+  color-scheme: light;
+}
+
+/* Spring Garden (Light) */
+[data-theme="Spring Garden"] {
+  --bg: linear-gradient(135deg, #f0fff4 0%, #e0f7e9 45%, #fef6e4 100%);
+  --bg2: rgba(255, 255, 255, 0.70);
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel2: rgba(255, 255, 255, 0.70);
+  --text: #1f2d24;
+  --muted: #4f6b58;
+  --border: #0000001a;
+  --shadowColor: rgba(0, 0, 0, 0.12);
+  --accent: #22c55e;
+  --accent2: #7ddf93;
+  --danger: #d7373a;
+  --success: #1f8a4c;
+  --warning: #b87410;
+  --link: #1f8a4c;
+  --messageSelfBg: #22c55e;
+  --messageSelfText: #ffffff;
+  --messageOtherBg: rgba(255, 255, 255, 0.86);
+  --messageOtherText: #1f2d24;
+  --messageSystemBg: rgba(34, 197, 94, 0.12);
+  --messageSystemText: #1f2d24;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(125, 223, 147, 0.14);
+  --mentionText: #1f2d24;
+  color-scheme: light;
+}
+
+/* Tropical Paradise (Light) */
+[data-theme="Tropical Paradise"] {
+  --bg: linear-gradient(135deg, #fff7d6 0%, #dff9ff 45%, #ffe3f1 100%);
+  --bg2: rgba(255, 255, 255, 0.70);
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel2: rgba(255, 255, 255, 0.70);
+  --text: #1f2b33;
+  --muted: #566c73;
+  --border: #0000001a;
+  --shadowColor: rgba(0, 0, 0, 0.12);
+  --accent: #00c4cc;
+  --accent2: #ff7f50;
+  --danger: #d7373a;
+  --success: #1f8a4c;
+  --warning: #b87410;
+  --link: #00a2b4;
+  --messageSelfBg: #00c4cc;
+  --messageSelfText: #ffffff;
+  --messageOtherBg: rgba(255, 255, 255, 0.86);
+  --messageOtherText: #1f2b33;
+  --messageSystemBg: rgba(0, 196, 204, 0.12);
+  --messageSystemText: #1f2b33;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(255, 127, 80, 0.14);
+  --mentionText: #1f2b33;
+  color-scheme: light;
+}
+
+/* Beach Sunset (Dark) */
+[data-theme="Beach Sunset"] {
+  --bg: linear-gradient(135deg, #120a1f 0%, #2b1733 45%, #3b1d1d 100%);
+  --bg2: rgba(0, 0, 0, 0.28);
+  --panel: rgba(14, 16, 24, 0.82);
+  --panel2: rgba(8, 12, 18, 0.76);
+  --text: #fcefe8;
+  --muted: #d2b5a6;
+  --border: #00000033;
+  --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #ff7f50;
+  --accent2: #ffa751;
+  --danger: #ed4245;
+  --success: #23a55a;
+  --warning: #f0b132;
+  --link: #ff9f4d;
+  --messageSelfBg: #ff7f50;
+  --messageSelfText: #2b0f08;
+  --messageOtherBg: rgba(18, 12, 24, 0.72);
+  --messageOtherText: #fcefe8;
+  --messageSystemBg: rgba(255, 127, 80, 0.12);
+  --messageSystemText: #fcefe8;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(255, 167, 81, 0.14);
+  --mentionText: #fcefe8;
+  color-scheme: dark;
+}
+
+/* Autumn Harvest (Light) */
+[data-theme="Autumn Harvest"] {
+  --bg: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 45%, #f7ead9 100%);
+  --bg2: rgba(255, 255, 255, 0.70);
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel2: rgba(255, 255, 255, 0.70);
+  --text: #3d241a;
+  --muted: #7a5b4b;
+  --border: #0000001a;
+  --shadowColor: rgba(0, 0, 0, 0.12);
+  --accent: #c1502e;
+  --accent2: #ff8a00;
+  --danger: #d7373a;
+  --success: #1f8a4c;
+  --warning: #b87410;
+  --link: #c1502e;
+  --messageSelfBg: #c1502e;
+  --messageSelfText: #ffffff;
+  --messageOtherBg: rgba(255, 255, 255, 0.86);
+  --messageOtherText: #3d241a;
+  --messageSystemBg: rgba(193, 80, 46, 0.12);
+  --messageSystemText: #3d241a;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(255, 138, 0, 0.14);
+  --mentionText: #3d241a;
+  color-scheme: light;
+}
+
+/* Pumpkin Spice (Light) */
+[data-theme="Pumpkin Spice"] {
+  --bg: linear-gradient(135deg, #fff1e1 0%, #ffd0a8 45%, #ffe7d1 100%);
+  --bg2: rgba(255, 255, 255, 0.70);
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel2: rgba(255, 255, 255, 0.70);
+  --text: #3b2417;
+  --muted: #7a5b4b;
+  --border: #0000001a;
+  --shadowColor: rgba(0, 0, 0, 0.12);
+  --accent: #e25822;
+  --accent2: #ff9f1c;
+  --danger: #d7373a;
+  --success: #1f8a4c;
+  --warning: #b87410;
+  --link: #e25822;
+  --messageSelfBg: #e25822;
+  --messageSelfText: #ffffff;
+  --messageOtherBg: rgba(255, 255, 255, 0.86);
+  --messageOtherText: #3b2417;
+  --messageSystemBg: rgba(226, 88, 34, 0.12);
+  --messageSystemText: #3b2417;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(255, 159, 28, 0.14);
+  --mentionText: #3b2417;
+  color-scheme: light;
+}
+
+/* Winter Wonderland (Light) */
+[data-theme="Winter Wonderland"] {
+  --bg: linear-gradient(135deg, #f7fbff 0%, #e5f3ff 45%, #f0f8ff 100%);
+  --bg2: rgba(255, 255, 255, 0.70);
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel2: rgba(255, 255, 255, 0.70);
+  --text: #1b2a3a;
+  --muted: #526b82;
+  --border: #0000001a;
+  --shadowColor: rgba(0, 0, 0, 0.12);
+  --accent: #5b7bff;
+  --accent2: #00e5ff;
+  --danger: #d7373a;
+  --success: #1f8a4c;
+  --warning: #b87410;
+  --link: #2b7cff;
+  --messageSelfBg: #5b7bff;
+  --messageSelfText: #ffffff;
+  --messageOtherBg: rgba(255, 255, 255, 0.86);
+  --messageOtherText: #1b2a3a;
+  --messageSystemBg: rgba(91, 123, 255, 0.12);
+  --messageSystemText: #1b2a3a;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(0, 229, 255, 0.14);
+  --mentionText: #1b2a3a;
+  color-scheme: light;
+}
+
+/* Aurora Borealis Night (Dark) */
+[data-theme="Aurora Borealis Night"] {
+  --bg: linear-gradient(135deg, #050b14 0%, #0a1f2e 45%, #0a2a1f 100%);
+  --bg2: rgba(0, 0, 0, 0.28);
+  --panel: rgba(12, 16, 24, 0.82);
+  --panel2: rgba(8, 12, 18, 0.76);
+  --text: #e6f7ff;
+  --muted: #a0bed0;
+  --border: #00000033;
+  --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #00f5a0;
+  --accent2: #7c4dff;
+  --danger: #ed4245;
+  --success: #23a55a;
+  --warning: #f0b132;
+  --link: #7aa7ff;
+  --messageSelfBg: #00f5a0;
+  --messageSelfText: #03201b;
+  --messageOtherBg: rgba(8, 16, 24, 0.72);
+  --messageOtherText: #e6f7ff;
+  --messageSystemBg: rgba(124, 77, 255, 0.12);
+  --messageSystemText: #e6f7ff;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(0, 245, 160, 0.14);
+  --mentionText: #e6f7ff;
+  color-scheme: dark;
+}
+
+/* Valentine's Romance (Light) */
+[data-theme="Valentine's Romance"] {
+  --bg: linear-gradient(135deg, #fff0f4 0%, #ffd6e7 45%, #ffeaf2 100%);
+  --bg2: rgba(255, 255, 255, 0.70);
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel2: rgba(255, 255, 255, 0.70);
+  --text: #331321;
+  --muted: #6f4a5a;
+  --border: #0000001a;
+  --shadowColor: rgba(0, 0, 0, 0.12);
+  --accent: #e0115f;
+  --accent2: #ff7fa8;
+  --danger: #d7373a;
+  --success: #1f8a4c;
+  --warning: #b87410;
+  --link: #e0115f;
+  --messageSelfBg: #e0115f;
+  --messageSelfText: #ffffff;
+  --messageOtherBg: rgba(255, 255, 255, 0.86);
+  --messageOtherText: #331321;
+  --messageSystemBg: rgba(224, 17, 95, 0.12);
+  --messageSystemText: #331321;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(255, 127, 168, 0.14);
+  --mentionText: #331321;
+  color-scheme: light;
+}
+
+/* Spooky Season (Dark) */
+[data-theme="Spooky Season"] {
+  --bg: linear-gradient(135deg, #120814 0%, #2a0f2f 45%, #2b1b0f 100%);
+  --bg2: rgba(0, 0, 0, 0.28);
+  --panel: rgba(14, 16, 24, 0.82);
+  --panel2: rgba(8, 12, 18, 0.76);
+  --text: #f5e7ff;
+  --muted: #c0a6cf;
+  --border: #00000033;
+  --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #ff7b1c;
+  --accent2: #b57edc;
+  --danger: #ed4245;
+  --success: #23a55a;
+  --warning: #f0b132;
+  --link: #ffb35a;
+  --messageSelfBg: #ff7b1c;
+  --messageSelfText: #2b0f08;
+  --messageOtherBg: rgba(18, 10, 20, 0.72);
+  --messageOtherText: #f5e7ff;
+  --messageSystemBg: rgba(255, 123, 28, 0.12);
+  --messageSystemText: #f5e7ff;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(181, 126, 220, 0.14);
+  --mentionText: #f5e7ff;
+  color-scheme: dark;
+}
+
+/* Christmas Magic (Light) */
+[data-theme="Christmas Magic"] {
+  --bg: linear-gradient(135deg, #f7fff9 0%, #fbe7ea 45%, #f1fff0 100%);
+  --bg2: rgba(255, 255, 255, 0.70);
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel2: rgba(255, 255, 255, 0.70);
+  --text: #1f2b24;
+  --muted: #5a6b60;
+  --border: #0000001a;
+  --shadowColor: rgba(0, 0, 0, 0.12);
+  --accent: #c81d25;
+  --accent2: #1f8a4c;
+  --danger: #d7373a;
+  --success: #1f8a4c;
+  --warning: #b87410;
+  --link: #c81d25;
+  --messageSelfBg: #c81d25;
+  --messageSelfText: #ffffff;
+  --messageOtherBg: rgba(255, 255, 255, 0.86);
+  --messageOtherText: #1f2b24;
+  --messageSystemBg: rgba(31, 138, 76, 0.12);
+  --messageSystemText: #1f2b24;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(31, 138, 76, 0.14);
+  --mentionText: #1f2b24;
+  color-scheme: light;
+}
+
+/* New Year's Eve (Dark) */
+[data-theme="New Year's Eve"] {
+  --bg: linear-gradient(135deg, #07070d 0%, #12121c 45%, #1a0f24 100%);
+  --bg2: rgba(0, 0, 0, 0.28);
+  --panel: rgba(14, 16, 24, 0.82);
+  --panel2: rgba(8, 12, 18, 0.76);
+  --text: #f6f1d5;
+  --muted: #c9b77a;
+  --border: #00000033;
+  --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #ffd800;
+  --accent2: #ffb700;
+  --danger: #ed4245;
+  --success: #23a55a;
+  --warning: #f0b132;
+  --link: #ffd800;
+  --messageSelfBg: #ffd800;
+  --messageSelfText: #1b1400;
+  --messageOtherBg: rgba(10, 10, 18, 0.75);
+  --messageOtherText: #f6f1d5;
+  --messageSystemBg: rgba(255, 216, 0, 0.12);
+  --messageSystemText: #f6f1d5;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(255, 183, 0, 0.14);
+  --mentionText: #f6f1d5;
+  color-scheme: dark;
+}
+
+/* Pride Rainbow (Light) */
+[data-theme="Pride Rainbow"] {
+  --bg: linear-gradient(135deg, #fff3f5 0%, #f9f8ff 40%, #e8f7ff 70%, #fffbe6 100%);
+  --bg2: rgba(255, 255, 255, 0.70);
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel2: rgba(255, 255, 255, 0.70);
+  --text: #1f2937;
+  --muted: #5b6472;
+  --border: #0000001a;
+  --shadowColor: rgba(0, 0, 0, 0.12);
+  --accent: #ff3855;
+  --accent2: #7c4dff;
+  --danger: #d7373a;
+  --success: #1f8a4c;
+  --warning: #b87410;
+  --link: #ff3855;
+  --messageSelfBg: #ff3855;
+  --messageSelfText: #ffffff;
+  --messageOtherBg: rgba(255, 255, 255, 0.86);
+  --messageOtherText: #1f2937;
+  --messageSystemBg: rgba(255, 56, 85, 0.12);
+  --messageSystemText: #1f2937;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(124, 77, 255, 0.14);
+  --mentionText: #1f2937;
+  color-scheme: light;
+}
+
+/* Lunar New Year (Light) */
+[data-theme="Lunar New Year"] {
+  --bg: linear-gradient(135deg, #fff4f0 0%, #ffe6d5 45%, #fff7e0 100%);
+  --bg2: rgba(255, 255, 255, 0.70);
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel2: rgba(255, 255, 255, 0.70);
+  --text: #2b1a12;
+  --muted: #6b4f45;
+  --border: #0000001a;
+  --shadowColor: rgba(0, 0, 0, 0.12);
+  --accent: #c81d25;
+  --accent2: #ffcc00;
+  --danger: #d7373a;
+  --success: #1f8a4c;
+  --warning: #b87410;
+  --link: #c81d25;
+  --messageSelfBg: #c81d25;
+  --messageSelfText: #ffffff;
+  --messageOtherBg: rgba(255, 255, 255, 0.86);
+  --messageOtherText: #2b1a12;
+  --messageSystemBg: rgba(255, 204, 0, 0.12);
+  --messageSystemText: #2b1a12;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(255, 204, 0, 0.14);
+  --mentionText: #2b1a12;
+  color-scheme: light;
+}
+
+/* Pixel Dungeon (Dark) */
+[data-theme="Pixel Dungeon"] {
+  --bg: linear-gradient(135deg, #0b0f12 0%, #151f1b 45%, #0d1a1f 100%);
+  --bg2: rgba(0, 0, 0, 0.28);
+  --panel: rgba(12, 16, 24, 0.82);
+  --panel2: rgba(8, 12, 18, 0.76);
+  --text: #e8fbe8;
+  --muted: #a3c9a9;
+  --border: #00000033;
+  --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #39ff14;
+  --accent2: #00ffa6;
+  --danger: #ed4245;
+  --success: #23a55a;
+  --warning: #f0b132;
+  --link: #7dff6a;
+  --messageSelfBg: #39ff14;
+  --messageSelfText: #0b120b;
+  --messageOtherBg: rgba(12, 18, 16, 0.75);
+  --messageOtherText: #e8fbe8;
+  --messageSystemBg: rgba(57, 255, 20, 0.12);
+  --messageSystemText: #e8fbe8;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(0, 255, 166, 0.14);
+  --mentionText: #e8fbe8;
+  color-scheme: dark;
+}
+
+/* Arcade Classic (Dark) */
+[data-theme="Arcade Classic"] {
+  --bg: linear-gradient(135deg, #05060b 0%, #14082b 45%, #0c1a2f 100%);
+  --bg2: rgba(0, 0, 0, 0.28);
+  --panel: rgba(12, 16, 24, 0.82);
+  --panel2: rgba(8, 12, 18, 0.76);
+  --text: #f0e9ff;
+  --muted: #b8a9d6;
+  --border: #00000033;
+  --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #ff2fd6;
+  --accent2: #00e5ff;
+  --danger: #ed4245;
+  --success: #23a55a;
+  --warning: #f0b132;
+  --link: #7ad7ff;
+  --messageSelfBg: #ff2fd6;
+  --messageSelfText: #1a0016;
+  --messageOtherBg: rgba(10, 12, 20, 0.75);
+  --messageOtherText: #f0e9ff;
+  --messageSystemBg: rgba(0, 229, 255, 0.12);
+  --messageSystemText: #f0e9ff;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(255, 47, 214, 0.14);
+  --mentionText: #f0e9ff;
+  color-scheme: dark;
+}
+
+/* RPG Quest (Dark) */
+[data-theme="RPG Quest"] {
+  --bg: linear-gradient(135deg, #0d0b08 0%, #1b1a12 45%, #122018 100%);
+  --bg2: rgba(0, 0, 0, 0.28);
+  --panel: rgba(12, 16, 24, 0.82);
+  --panel2: rgba(8, 12, 18, 0.76);
+  --text: #f2e9d8;
+  --muted: #c1b59b;
+  --border: #00000033;
+  --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #d4af37;
+  --accent2: #50c878;
+  --danger: #ed4245;
+  --success: #23a55a;
+  --warning: #f0b132;
+  --link: #d4af37;
+  --messageSelfBg: #d4af37;
+  --messageSelfText: #1f1400;
+  --messageOtherBg: rgba(18, 18, 12, 0.75);
+  --messageOtherText: #f2e9d8;
+  --messageSystemBg: rgba(212, 175, 55, 0.12);
+  --messageSystemText: #f2e9d8;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(80, 200, 120, 0.14);
+  --mentionText: #f2e9d8;
+  color-scheme: dark;
+}
+
+/* FPS Combat (Dark) */
+[data-theme="FPS Combat"] {
+  --bg: linear-gradient(135deg, #0b0e0f 0%, #1a1f1c 45%, #141b1e 100%);
+  --bg2: rgba(0, 0, 0, 0.28);
+  --panel: rgba(12, 16, 24, 0.82);
+  --panel2: rgba(8, 12, 18, 0.76);
+  --text: #e6e9e3;
+  --muted: #a5b0a0;
+  --border: #00000033;
+  --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #8a9a5b;
+  --accent2: #f0b132;
+  --danger: #ed4245;
+  --success: #23a55a;
+  --warning: #f0b132;
+  --link: #f0b132;
+  --messageSelfBg: #8a9a5b;
+  --messageSelfText: #10140d;
+  --messageOtherBg: rgba(14, 18, 16, 0.75);
+  --messageOtherText: #e6e9e3;
+  --messageSystemBg: rgba(138, 154, 91, 0.12);
+  --messageSystemText: #e6e9e3;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(240, 177, 50, 0.14);
+  --mentionText: #e6e9e3;
+  color-scheme: dark;
+}
+
+/* Racing Circuit (Dark) */
+[data-theme="Racing Circuit"] {
+  --bg: linear-gradient(135deg, #0b0c12 0%, #151a2a 45%, #0f1a24 100%);
+  --bg2: rgba(0, 0, 0, 0.28);
+  --panel: rgba(12, 16, 24, 0.82);
+  --panel2: rgba(8, 12, 18, 0.76);
+  --text: #eef2ff;
+  --muted: #a7b0c5;
+  --border: #00000033;
+  --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #ff3855;
+  --accent2: #00a2ff;
+  --danger: #ed4245;
+  --success: #23a55a;
+  --warning: #f0b132;
+  --link: #7aa7ff;
+  --messageSelfBg: #ff3855;
+  --messageSelfText: #1a070d;
+  --messageOtherBg: rgba(12, 16, 24, 0.75);
+  --messageOtherText: #eef2ff;
+  --messageSystemBg: rgba(0, 162, 255, 0.12);
+  --messageSystemText: #eef2ff;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(255, 56, 85, 0.14);
+  --mentionText: #eef2ff;
+  color-scheme: dark;
+}
+
+/* Vaporwave Dreams (Dark) */
+[data-theme="Vaporwave Dreams"] {
+  --bg: linear-gradient(135deg, #120024 0%, #2a0b4a 45%, #081a3c 100%);
+  --bg2: rgba(0, 0, 0, 0.28);
+  --panel: rgba(12, 16, 24, 0.82);
+  --panel2: rgba(8, 12, 18, 0.76);
+  --text: #fbeaff;
+  --muted: #c9a8d6;
+  --border: #00000033;
+  --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #ff5bf1;
+  --accent2: #7c4dff;
+  --danger: #ed4245;
+  --success: #23a55a;
+  --warning: #f0b132;
+  --link: #ff83ea;
+  --messageSelfBg: #ff5bf1;
+  --messageSelfText: #1a001f;
+  --messageOtherBg: rgba(18, 10, 28, 0.75);
+  --messageOtherText: #fbeaff;
+  --messageSystemBg: rgba(124, 77, 255, 0.12);
+  --messageSystemText: #fbeaff;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(255, 91, 241, 0.14);
+  --mentionText: #fbeaff;
+  color-scheme: dark;
+}
+
+/* Y2K Millennium (Light) */
+[data-theme="Y2K Millennium"] {
+  --bg: linear-gradient(135deg, #f5f9ff 0%, #e9f0ff 45%, #fff1f8 100%);
+  --bg2: rgba(255, 255, 255, 0.70);
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel2: rgba(255, 255, 255, 0.70);
+  --text: #1a2333;
+  --muted: #566072;
+  --border: #0000001a;
+  --shadowColor: rgba(0, 0, 0, 0.12);
+  --accent: #2b7cff;
+  --accent2: #ff6fae;
+  --danger: #d7373a;
+  --success: #1f8a4c;
+  --warning: #b87410;
+  --link: #2b7cff;
+  --messageSelfBg: #2b7cff;
+  --messageSelfText: #ffffff;
+  --messageOtherBg: rgba(255, 255, 255, 0.86);
+  --messageOtherText: #1a2333;
+  --messageSystemBg: rgba(43, 124, 255, 0.12);
+  --messageSystemText: #1a2333;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(255, 111, 174, 0.14);
+  --mentionText: #1a2333;
+  color-scheme: light;
+}
+
+/* Cottagecore (Light) */
+[data-theme="Cottagecore"] {
+  --bg: linear-gradient(135deg, #fdf7e3 0%, #f3f0d8 45%, #e8f5e0 100%);
+  --bg2: rgba(255, 255, 255, 0.70);
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel2: rgba(255, 255, 255, 0.70);
+  --text: #3b2f20;
+  --muted: #6f5e4d;
+  --border: #0000001a;
+  --shadowColor: rgba(0, 0, 0, 0.12);
+  --accent: #8a9a5b;
+  --accent2: #c1502e;
+  --danger: #d7373a;
+  --success: #1f8a4c;
+  --warning: #b87410;
+  --link: #8a9a5b;
+  --messageSelfBg: #8a9a5b;
+  --messageSelfText: #ffffff;
+  --messageOtherBg: rgba(255, 255, 255, 0.86);
+  --messageOtherText: #3b2f20;
+  --messageSystemBg: rgba(138, 154, 91, 0.12);
+  --messageSystemText: #3b2f20;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(193, 80, 46, 0.14);
+  --mentionText: #3b2f20;
+  color-scheme: light;
+}
+
+/* Dark Academia (Dark) */
+[data-theme="Dark Academia"] {
+  --bg: linear-gradient(135deg, #0f0c08 0%, #1b1610 45%, #1c1a14 100%);
+  --bg2: rgba(0, 0, 0, 0.28);
+  --panel: rgba(12, 16, 24, 0.82);
+  --panel2: rgba(8, 12, 18, 0.76);
+  --text: #f2e9d8;
+  --muted: #b5a28a;
+  --border: #00000033;
+  --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #c9a66b;
+  --accent2: #8b6b4a;
+  --danger: #ed4245;
+  --success: #23a55a;
+  --warning: #f0b132;
+  --link: #c9a66b;
+  --messageSelfBg: #c9a66b;
+  --messageSelfText: #1c1206;
+  --messageOtherBg: rgba(16, 12, 8, 0.75);
+  --messageOtherText: #f2e9d8;
+  --messageSystemBg: rgba(201, 166, 107, 0.12);
+  --messageSystemText: #f2e9d8;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(139, 107, 74, 0.14);
+  --mentionText: #f2e9d8;
+  color-scheme: dark;
+}
+
+/* Grunge 90s (Dark) */
+[data-theme="Grunge 90s"] {
+  --bg: linear-gradient(135deg, #0d0d0f 0%, #1a1a20 45%, #222226 100%);
+  --bg2: rgba(0, 0, 0, 0.28);
+  --panel: rgba(12, 16, 24, 0.82);
+  --panel2: rgba(8, 12, 18, 0.76);
+  --text: #f0f0f2;
+  --muted: #b0b0b8;
+  --border: #00000033;
+  --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #ff4d4d;
+  --accent2: #6b7a90;
+  --danger: #ed4245;
+  --success: #23a55a;
+  --warning: #f0b132;
+  --link: #ff6b6b;
+  --messageSelfBg: #ff4d4d;
+  --messageSelfText: #1a0505;
+  --messageOtherBg: rgba(18, 18, 22, 0.75);
+  --messageOtherText: #f0f0f2;
+  --messageSystemBg: rgba(255, 77, 77, 0.12);
+  --messageSystemText: #f0f0f2;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(107, 122, 144, 0.14);
+  --mentionText: #f0f0f2;
+  color-scheme: dark;
+}
+
+/* Art Deco Luxury (Dark) */
+[data-theme="Art Deco Luxury"] {
+  --bg: linear-gradient(135deg, #0b0b10 0%, #14141a 45%, #0f1a1a 100%);
+  --bg2: rgba(0, 0, 0, 0.28);
+  --panel: rgba(12, 16, 24, 0.82);
+  --panel2: rgba(8, 12, 18, 0.76);
+  --text: #f7f1d5;
+  --muted: #c5b58a;
+  --border: #00000033;
+  --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #d4af37;
+  --accent2: #00c4cc;
+  --danger: #ed4245;
+  --success: #23a55a;
+  --warning: #f0b132;
+  --link: #d4af37;
+  --messageSelfBg: #d4af37;
+  --messageSelfText: #1a1200;
+  --messageOtherBg: rgba(12, 12, 16, 0.75);
+  --messageOtherText: #f7f1d5;
+  --messageSystemBg: rgba(212, 175, 55, 0.12);
+  --messageSystemText: #f7f1d5;
+  --dm-bubble-bg: var(--bubble);
+  --dm-bubble-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --dm-bubble-radius: var(--radiusLg);
+  --dm-bubble-shadow: 0 8px 18px color-mix(in srgb, var(--shadowColor) 60%, transparent);
+  --mentionBg: rgba(0, 196, 204, 0.14);
+  --mentionText: #f7f1d5;
+  color-scheme: dark;
+}
+
 [data-theme="Iris & Lola Neon"] {
   color-scheme: dark;
   --bg: radial-gradient(circle at 50% 45%,
