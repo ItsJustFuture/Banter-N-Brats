@@ -14230,6 +14230,12 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   gap: 6px;
 }
 
+.roleSymbolPreviewIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .roleIconWrapper {
   display: inline-flex;
   align-items: center;

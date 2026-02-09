@@ -13864,7 +13864,12 @@ customizeCards.forEach((card) => {
   });
 });
 customizeBackBtns.forEach((btn) => {
-  btn.addEventListener("click", () => setCustomizePage(null));
+  btn.addEventListener("click", () => {
+    if (btn.dataset.back === "profile") {
+      revertProfileAppearanceChanges();
+    }
+    setCustomizePage(null);
+  });
 });
 customizeSearch?.addEventListener("input", () => {
   const value = customizeSearch.value;
@@ -14628,17 +14633,37 @@ const cancelEffectsBtn = document.getElementById("cancelEffectsBtn");
 const saveLayoutBtn = document.getElementById("saveLayoutBtn");
 const cancelLayoutBtn = document.getElementById("cancelLayoutBtn");
 
+function buildProfileFormData(profile, options = {}) {
+  const formData = new FormData();
+  formData.append("mood", profile?.mood || "");
+  formData.append("age", profile?.age ?? "");
+  formData.append("gender", profile?.gender || "");
+  formData.append("bio", profile?.bio || "");
+  formData.append("vibeTags", JSON.stringify(profile?.vibe_tags || []));
+  if (Object.prototype.hasOwnProperty.call(options, "headerColorA")) {
+    formData.append("headerColorA", options.headerColorA);
+  }
+  if (Object.prototype.hasOwnProperty.call(options, "headerColorB")) {
+    formData.append("headerColorB", options.headerColorB);
+  }
+  if (options.avatarFile) {
+    formData.append("avatar", options.avatarFile);
+  }
+  return formData;
+}
+
+function revertProfileAppearanceChanges() {
+  syncHeaderGradientInputs(me?.header_grad_a, me?.header_grad_b);
+  updateProfileAppearancePreview();
+}
+
 async function saveProfileAppearanceSettings() {
   if (!me?.username) return false;
   const grad = getHeaderGradientInputValues();
-  const formData = new FormData();
-  formData.append("mood", me?.mood || "");
-  formData.append("age", me?.age ?? "");
-  formData.append("gender", me?.gender || "");
-  formData.append("bio", me?.bio || "");
-  formData.append("vibeTags", JSON.stringify(me?.vibe_tags || []));
-  formData.append("headerColorA", grad.a);
-  formData.append("headerColorB", grad.b);
+  const formData = buildProfileFormData(me, {
+    headerColorA: grad.a,
+    headerColorB: grad.b,
+  });
   setMsgline(profileActionMsg, "Saving profile appearance...");
   try {
     const res = await fetch("/profile", { method: "POST", body: formData });
@@ -14670,21 +14695,19 @@ saveEditProfileBtn?.addEventListener("click", async () => {
   editProfileMsg.textContent = "Saving...";
   
   try {
-    const formData = new FormData();
-    if (editProfileMoodCustomize) formData.append("mood", editProfileMoodCustomize.value);
-    if (editProfileAgeCustomize) formData.append("age", editProfileAgeCustomize.value);
-    if (editProfileGenderCustomize) formData.append("gender", editProfileGenderCustomize.value);
-    if (editProfileBioCustomize) formData.append("bio", editProfileBioCustomize.value);
-    formData.append("vibeTags", JSON.stringify(editProfileSelectedVibeTags || []));
     const grad = getHeaderGradientInputValues();
-    formData.append("headerColorA", grad.a);
-    formData.append("headerColorB", grad.b);
-    
-    const avatarFile = editProfileAvatarCustomize?.files?.[0];
-    if (avatarFile) {
-      formData.append("avatar", avatarFile);
-    }
-    
+    const formData = buildProfileFormData({
+      mood: editProfileMoodCustomize?.value || "",
+      age: editProfileAgeCustomize?.value ?? "",
+      gender: editProfileGenderCustomize?.value || "",
+      bio: editProfileBioCustomize?.value || "",
+      vibe_tags: editProfileSelectedVibeTags || []
+    }, {
+      headerColorA: grad.a,
+      headerColorB: grad.b,
+      avatarFile: editProfileAvatarCustomize?.files?.[0] || null
+    });
+
     const res = await fetch("/profile", { method: "POST", body: formData });
     
     const data = await res.json().catch(() => ({}));
@@ -14736,8 +14759,7 @@ cancelEditProfileBtn?.addEventListener("click", () => {
 
 // Wire up Profile Appearance modal buttons
 cancelProfileAppearanceBtn?.addEventListener("click", () => {
-  syncHeaderGradientInputs(me?.header_grad_a, me?.header_grad_b);
-  updateProfileAppearancePreview();
+  revertProfileAppearanceChanges();
   setCustomizePage(null);
 });
 
@@ -19437,7 +19459,7 @@ async function loadMyProfile(){
   me.gender = p.gender || "";
   me.header_grad_a = p.header_grad_a || null;
   me.header_grad_b = p.header_grad_b || null;
-  me.avatar = p.avatar || me.avatar || null;
+  me.avatar = p.avatar ?? null;
 
   applyProgressionPayload(p);
 
@@ -19588,6 +19610,8 @@ function buildRoleSymbolPreviewIcon(role, prefs) {
   const wrapper = document.createElement("span");
   wrapper.className = "roleIconWrapper";
   wrapper.dataset.role = normalizedRole.toLowerCase();
+  wrapper.dataset.roleName = normalizedRole;
+  wrapper.setAttribute("role", "img");
   if (["Owner", "Co-owner", "Admin"].includes(normalizedRole) && prefs.enable_animations !== 0) {
     wrapper.classList.add("roleIconAnimated");
   }
@@ -19598,12 +19622,16 @@ function buildRoleSymbolPreviewIcon(role, prefs) {
     const color = ROLE_SYMBOL_COLOR_VARIANTS[colorKey]?.color;
     if (gem) {
       if (color) wrapper.style.color = color;
+      const colorName = ROLE_SYMBOL_COLOR_VARIANTS[colorKey]?.name;
+      const colorSuffix = colorName ? ` (${colorName})` : "";
+      wrapper.setAttribute("aria-label", `${normalizedRole} gemstone ${gem.name}${colorSuffix}`);
       wrapper.appendChild(createRoleGemSvg(gem.file, color));
       return wrapper;
     }
   }
   wrapper.classList.add("roleIconEmoji");
   wrapper.textContent = roleIcon(normalizedRole);
+  wrapper.setAttribute("aria-label", `${normalizedRole} role icon`);
   return wrapper;
 }
 
