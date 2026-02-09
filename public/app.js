@@ -14641,10 +14641,10 @@ function buildProfileFormData(profile, options = {}) {
   formData.append("gender", safeProfile.gender ?? "");
   formData.append("bio", safeProfile.bio ?? "");
   formData.append("vibeTags", JSON.stringify(safeProfile.vibe_tags ?? []));
-  if (options.headerColorA != null) {
+  if (options.headerColorA !== null && options.headerColorA !== undefined) {
     formData.append("headerColorA", options.headerColorA);
   }
-  if (options.headerColorB != null) {
+  if (options.headerColorB !== null && options.headerColorB !== undefined) {
     formData.append("headerColorB", options.headerColorB);
   }
   if (options.avatarFile) {
@@ -19460,7 +19460,7 @@ async function loadMyProfile(){
   me.gender = p.gender || "";
   me.header_grad_a = p.header_grad_a || null;
   me.header_grad_b = p.header_grad_b || null;
-  me.avatar = p.avatar ?? null;
+  me.avatar = p.avatar === undefined ? null : p.avatar;
 
   applyProgressionPayload(p);
 
