@@ -7437,9 +7437,16 @@ function getVibeDef(tag){
 }
 
 function formatVibeChipLabel(tag){
-  const def = getVibeDef(tag);
+  // Handle both string tags and object tags
+  let tagStr;
+  if (typeof tag === 'object' && tag !== null) {
+    tagStr = tag.label || tag.id || "";
+  } else {
+    tagStr = String(tag || "");
+  }
+  const def = getVibeDef(tagStr);
   if(def?.emoji && def?.label) return `${def.emoji} ${def.label}`;
-  return String(tag || "").trim();
+  return tagStr.trim();
 }
 
 function sanitizeVibeTagsClient(raw){
@@ -7448,8 +7455,14 @@ function sanitizeVibeTagsClient(raw){
   const hasOptions = VIBE_TAG_OPTIONS.length > 0;
   arr.forEach((v) => {
     if (out.length >= VIBE_TAG_LIMIT) return;
-    const val = String(v || "").trim();
-    if (!val) return;
+    // Handle both string and object tags (extract label from objects)
+    let val;
+    if (typeof v === 'object' && v !== null) {
+      val = String(v.label || v.id || "").trim();
+    } else {
+      val = String(v || "").trim();
+    }
+    if (!val || val === "[object Object]") return;
     if(hasOptions){
       const hit = VIBE_TAG_OPTIONS.find((opt) => opt.toLowerCase() === val.toLowerCase());
       if (hit && !out.includes(hit)) out.push(hit);
@@ -14783,7 +14796,6 @@ function closeEditProfileModal(){
 function renderEditProfileVibeOptions(){
   if (!editProfileVibeOptions) return;
   editProfileVibeOptions.innerHTML = "";
-  const VIBE_TAG_LIMIT = 3;
   if (editProfileVibeLimit) editProfileVibeLimit.textContent = VIBE_TAG_LIMIT;
   
   if (!VIBE_TAG_DEFS || !Array.isArray(VIBE_TAG_DEFS)) return;
@@ -14933,7 +14945,6 @@ function renderEditProfileVibeOptionsCustomize() {
   const editVibeTagOptions = document.getElementById("editVibeTagOptions");
   if (!editVibeTagOptions) return;
   editVibeTagOptions.innerHTML = "";
-  const VIBE_TAG_LIMIT = 3;
   const editVibeTagLimit = document.getElementById("editVibeTagLimit");
   if (editVibeTagLimit) editVibeTagLimit.textContent = VIBE_TAG_LIMIT;
   

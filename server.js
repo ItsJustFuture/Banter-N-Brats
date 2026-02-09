@@ -2579,8 +2579,14 @@ function sanitizeVibeTags(raw) {
   const out = [];
   for (const v of arr) {
     if (out.length >= VIBE_TAG_LIMIT) break;
-    const val = String(v || "").trim();
-    if (!val) continue;
+    // Handle both string and object tags (extract label from objects)
+    let val;
+    if (typeof v === 'object' && v !== null) {
+      val = String(v.label || v.id || "").trim();
+    } else {
+      val = String(v || "").trim();
+    }
+    if (!val || val === "[object Object]") continue;
     const hit = VIBE_TAG_LABELS.get(val.toLowerCase());
     if (hit && !out.includes(hit)) out.push(hit);
   }

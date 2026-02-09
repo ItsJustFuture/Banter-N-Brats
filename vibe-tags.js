@@ -1,6 +1,6 @@
 "use strict";
 
-const VIBE_TAG_LIMIT = 3;
+const VIBE_TAG_LIMIT = 5;
 
 const VIBE_TAGS = Object.freeze([
   { id: "chill", label: "Chill", emoji: "😌" },
