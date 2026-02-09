@@ -14634,17 +14634,17 @@ const saveLayoutBtn = document.getElementById("saveLayoutBtn");
 const cancelLayoutBtn = document.getElementById("cancelLayoutBtn");
 
 function buildProfileFormData(profile, options = {}) {
-  const safeProfile = profile || {};
+  const safeProfile = profile ?? {};
   const formData = new FormData();
   formData.append("mood", safeProfile.mood ?? "");
   formData.append("age", safeProfile.age ?? "");
   formData.append("gender", safeProfile.gender ?? "");
   formData.append("bio", safeProfile.bio ?? "");
   formData.append("vibeTags", JSON.stringify(safeProfile.vibe_tags ?? []));
-  if (Object.prototype.hasOwnProperty.call(options, "headerColorA")) {
+  if (Object.hasOwn(options, "headerColorA")) {
     formData.append("headerColorA", options.headerColorA);
   }
-  if (Object.prototype.hasOwnProperty.call(options, "headerColorB")) {
+  if (Object.hasOwn(options, "headerColorB")) {
     formData.append("headerColorB", options.headerColorB);
   }
   if (options.avatarFile) {
