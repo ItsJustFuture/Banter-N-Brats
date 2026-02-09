@@ -2993,13 +2993,14 @@ async function pgGetRoleSymbolPrefs(username) {
 }
 
 async function pgUpsertRoleSymbolPrefs(username, prefs) {
-  const safeName = normKey(username);
+  const rawName = String(username || "").trim();
+  const safeName = normKey(rawName);
   if (!safeName) return { ...ROLE_SYMBOL_DEFAULTS };
   const normalized = normalizeRoleSymbolPrefs(prefs || {});
   const now = Date.now();
   await pgPool.query(
     `DELETE FROM user_role_symbols WHERE lower(username)=lower($1) AND username <> $2`,
-    [safeName, safeName]
+    [rawName, safeName]
   );
   await pgPool.query(
     `INSERT INTO user_role_symbols (

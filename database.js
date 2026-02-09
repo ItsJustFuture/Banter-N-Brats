@@ -1066,7 +1066,8 @@ async function getRoleSymbolPrefs(username) {
 }
 
 async function updateRoleSymbolPrefs(username, prefs = {}) {
-  const safeName = String(username || "").trim().toLowerCase();
+  const rawName = String(username || "").trim();
+  const safeName = rawName.toLowerCase();
   if (!safeName) return null;
   const merged = {
     ...DEFAULT_ROLE_SYMBOL_PREFS,
@@ -1075,7 +1076,7 @@ async function updateRoleSymbolPrefs(username, prefs = {}) {
   const now = Date.now();
   await run(
     `DELETE FROM user_role_symbols WHERE lower(username) = lower(?) AND username <> ?`,
-    [safeName, safeName]
+    [rawName, safeName]
   );
   await run(
     `INSERT INTO user_role_symbols (
