@@ -268,7 +268,7 @@ async function runSqliteMigrations() {
       arena_state_json TEXT,
       winner_rewarded INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL DEFAULT 0
+      updated_at INTEGER NOT NULL
     )
   `);
 
@@ -729,7 +729,7 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
       chess_draws INTEGER NOT NULL DEFAULT 0,
       chess_peak_elo INTEGER NOT NULL DEFAULT 1200,
       chess_last_game_at INTEGER,
-      updated_at INTEGER NOT NULL DEFAULT 0
+      updated_at INTEGER NOT NULL
     )
   `);
 
@@ -766,7 +766,7 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
       challenged_user_id INTEGER NOT NULL,
       status TEXT NOT NULL,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL DEFAULT 0
+      updated_at INTEGER NOT NULL
     )
   `);
 

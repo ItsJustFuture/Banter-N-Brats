@@ -7428,7 +7428,9 @@ function createRoleIconElement(role, username = null) {
   const normalizedRole = normalizeRole(role);
   span.dataset.role = normalizedRole.toLowerCase();
   span.dataset.roleName = normalizedRole;
+  span.setAttribute("role", "img");
   const prefs = resolveRoleSymbolPrefs(username);
+  let ariaLabel = `${normalizedRole} role icon`;
   if (["Owner", "Co-owner", "Admin"].includes(normalizedRole) && prefs.enable_animations !== 0) {
     span.classList.add("roleIconAnimated");
   }
@@ -7438,9 +7440,13 @@ function createRoleIconElement(role, username = null) {
     const colorKey = normalizedRole === "VIP" ? prefs.vip_color_variant : prefs.moderator_color_variant;
     const gem = ROLE_GEM_DEFS[gemKey];
     const color = ROLE_SYMBOL_COLOR_VARIANTS[colorKey]?.color;
+    const colorName = ROLE_SYMBOL_COLOR_VARIANTS[colorKey]?.name;
     if (gem) {
       span.dataset.gem = gemKey;
       if (color) span.style.color = color;
+      const colorSuffix = colorName ? ` (${colorName})` : "";
+      ariaLabel = `${normalizedRole} gemstone ${gem.name}${colorSuffix}`;
+      span.setAttribute("aria-label", ariaLabel);
       span.appendChild(createRoleGemSvg(gem.file, color));
       return span;
     }
@@ -7448,6 +7454,7 @@ function createRoleIconElement(role, username = null) {
 
   span.classList.add("roleIconEmoji");
   span.textContent = roleIcon(normalizedRole);
+  span.setAttribute("aria-label", ariaLabel);
   return span;
 }
 
@@ -7481,10 +7488,12 @@ function refreshAllRoleIcons() {
 async function preloadRoleSymbols(usernames) {
   const names = Array.isArray(usernames) ? usernames : [];
   const missing = [];
+  const pendingKeys = [];
   names.forEach((name) => {
     const key = normKey(name);
     if (!key || roleSymbolCache.has(key) || roleSymbolPrefetchPending.has(key)) return;
     roleSymbolPrefetchPending.add(key);
+    pendingKeys.push(key);
     missing.push(name);
   });
   if (!missing.length) return;
@@ -7505,7 +7514,7 @@ async function preloadRoleSymbols(usernames) {
   } catch (err) {
     console.warn("Failed to preload role symbols:", err);
   } finally {
-    missing.forEach((name) => roleSymbolPrefetchPending.delete(normKey(name)));
+    pendingKeys.forEach((key) => roleSymbolPrefetchPending.delete(key));
   }
 }
 const PRESET_REASONS = [
