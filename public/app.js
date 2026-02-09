@@ -1,25 +1,32 @@
 "use strict";
 
-// Register Service Worker for PWA support
+// Register Service Worker for PWA support with instant updates
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
         console.log('[PWA] Service Worker registered:', registration.scope);
         
-        // Check for updates periodically (every 6 hours to avoid excessive requests)
-        setInterval(() => {
-          registration.update();
-        }, 6 * 60 * 60 * 1000);
+        // Check for updates on every page load to ensure instant deployment updates
+        registration.update()
+          .then(() => console.log('[PWA] Update check complete'))
+          .catch((err) => console.warn('[PWA] Update check failed:', err));
+        
+        // Handle controller change - reload page automatically when new SW activates
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('[PWA] New service worker activated, reloading page...');
+          window.location.reload();
+        });
         
         // Handle updates
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {
+            console.log('[PWA] New service worker installing...');
             newWorker.addEventListener('statechange', () => {
+              console.log('[PWA] Service worker state:', newWorker.state);
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('[PWA] New version available. Reload to update.');
-                // Optionally show a notification to the user
+                console.log('[PWA] New version installed, will activate immediately');
               }
             });
           }
@@ -27,6 +34,7 @@ if ('serviceWorker' in navigator) {
       })
       .catch((error) => {
         console.error('[PWA] Service Worker registration failed:', error);
+        console.error('[PWA] Error details:', error.message, error.stack);
       });
   });
 }
