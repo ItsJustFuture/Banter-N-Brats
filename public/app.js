@@ -1099,7 +1099,13 @@ const COLOR_PRESETS = Object.freeze([
   { id: "color-midnight", label: "Midnight", value: "#191970" },
   { id: "color-electric", label: "Electric", value: "#7df9ff" },
   { id: "color-flame", label: "Flame", value: "#e25822" },
-  { id: "color-plasma", label: "Plasma", value: "#ff3855" }
+  { id: "color-plasma", label: "Plasma", value: "#ff3855" },
+  { id: "color-olive", label: "Olive", value: "#808000" },
+  { id: "color-ochre", label: "Ochre", value: "#cc7722" },
+  { id: "color-cedar", label: "Cedar", value: "#7b3f2c" },
+  { id: "color-seafoam", label: "Seafoam", value: "#9fe2bf" },
+  { id: "color-buttercream", label: "Buttercream", value: "#fff4c2" },
+  { id: "color-mulberry", label: "Mulberry", value: "#c54b8c" }
 ]);
 const NEON_PRESETS = Object.freeze([
   { id: "neon-red-1", label: "Red Blaze", baseColor: "#ff3b3b", textColor: "#ff7a7a", group: "Reds" },
@@ -1202,7 +1208,10 @@ const GRADIENT_PRESETS = Object.freeze([
   { id: "grad-rose-gold", label: "Rose Gold", group: "Luxury", css: "linear-gradient(135deg, #e6a57e, #f4d0b3)" },
   { id: "grad-champagne", label: "Champagne", group: "Luxury", css: "linear-gradient(135deg, #f5e7c8, #d4af7a)" },
   { id: "grad-midnight-sapphire", label: "Midnight Sapphire", group: "Luxury", css: "linear-gradient(135deg, #0f2027, #203a43, #2c5364)" },
-  { id: "grad-emerald-luxury", label: "Emerald Luxury", group: "Luxury", css: "linear-gradient(135deg, #134e5e, #71b280)" }
+  { id: "grad-emerald-luxury", label: "Emerald Luxury", group: "Luxury", css: "linear-gradient(135deg, #134e5e, #71b280)" },
+  { id: "grad-misty-pines", label: "Misty Pines", group: "Nature", css: "linear-gradient(135deg, #2f6b4f, #a3d9a5)" },
+  { id: "grad-vanilla-latte", label: "Vanilla Latte", group: "Food & Drink", css: "linear-gradient(135deg, #f7d9b5, #c89f72)" },
+  { id: "grad-gilded-noir", label: "Gilded Noir", group: "Luxury", css: "linear-gradient(135deg, #1c1c24, #d4af37)" }
 ]);
 const GRADIENT_PRESET_MAP = new Map(GRADIENT_PRESETS.map((preset) => [preset.id, preset]));
 const LEGACY_BUBBLE_PREF_KEYS = Object.freeze([
