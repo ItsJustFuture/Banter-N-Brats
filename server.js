@@ -2524,6 +2524,8 @@ const VIBE_TAG_LABELS = new Map(
 
 const HEX_COLOR_RE = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const BANNER_STYLE_VALUES = new Set(["cover", "contain", "pattern"]);
+const BANNER_GRADIENT_MAX_LENGTH = 220;
+const STATUS_EMOJI_MAX_LENGTH = 16;
 
 function sanitizeVibeTags(raw) {
   const arr = Array.isArray(raw)
@@ -2551,7 +2553,7 @@ function sanitizeHexColor(raw){
 function sanitizeBannerGradient(raw) {
   const value = String(raw || "").trim();
   if (!value) return null;
-  if (value.length > 220) return null;
+  if (value.length > BANNER_GRADIENT_MAX_LENGTH) return null;
   const lower = value.toLowerCase();
   if (lower.includes("url(")) return null;
   if (!lower.startsWith("linear-gradient") && !lower.startsWith("radial-gradient")) return null;
@@ -2573,7 +2575,7 @@ function sanitizeBannerUrl(raw) {
 
 function sanitizeStatusEmoji(raw) {
   const value = String(raw || "").trim();
-  return value ? value.slice(0, 16) : null;
+  return value ? value.slice(0, STATUS_EMOJI_MAX_LENGTH) : null;
 }
 
 function normalizeBannerStyle(raw) {
@@ -10362,16 +10364,15 @@ app.get("/api/profile/banner", requireLogin, async (req, res) => {
 app.post("/api/profile/banner", strictLimiter, requireLogin, express.json({ limit: "16kb" }), async (req, res) => {
   const userId = req.session.user?.id;
   const username = req.session.user?.username;
-  const rawStyle = req.body?.banner_style;
-  const normalizedStyle = normalizeBannerStyle(rawStyle);
-  if (rawStyle && !BANNER_STYLE_VALUES.has(String(rawStyle).trim().toLowerCase())) {
+  const rawStyle = String(req.body?.banner_style || "").trim().toLowerCase();
+  if (rawStyle && !BANNER_STYLE_VALUES.has(rawStyle)) {
     return res.status(400).json({ error: "Invalid banner style" });
   }
 
   const banner = {
     banner_url: sanitizeBannerUrl(req.body?.banner_url),
     banner_gradient: sanitizeBannerGradient(req.body?.banner_gradient),
-    banner_style: normalizedStyle,
+    banner_style: rawStyle || "cover",
   };
 
   try {

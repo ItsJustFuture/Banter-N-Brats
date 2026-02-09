@@ -62,11 +62,12 @@ const STATUS_COLORS = [
   { name: "Orange", value: "#f59e0b" },
   { name: "Red", value: "#ef4444" },
 ];
+const MINUTE_MS = 60 * 1000;
 const STATUS_EXPIRY_OPTIONS = [
-  1800000,
-  3600000,
-  14400000,
-  86400000,
+  30 * MINUTE_MS,
+  60 * MINUTE_MS,
+  4 * 60 * MINUTE_MS,
+  24 * 60 * MINUTE_MS,
 ];
 
 
@@ -20409,7 +20410,7 @@ function renderCustomStatus(p) {
   const customStatus = String(p?.custom_status || "").trim();
   const statusEmoji = String(p?.status_emoji || "").trim();
   const expiresAt = Number(p?.status_expires_at) || null;
-  if ((expiresAt && Date.now() >= expiresAt) || (!customStatus && !statusEmoji)) {
+  if (isCustomStatusInactive({ custom_status: customStatus, status_emoji: statusEmoji, status_expires_at: expiresAt })) {
     profileCustomStatus.style.display = "none";
     return;
   }
@@ -20429,6 +20430,12 @@ function renderCustomStatus(p) {
     profileCustomStatus.style.background = "var(--panel)";
     profileCustomStatus.style.color = "var(--text)";
   }
+}
+
+function isCustomStatusInactive({ custom_status, status_emoji, status_expires_at } = {}) {
+  const hasContent = !!(String(custom_status || "").trim() || String(status_emoji || "").trim());
+  const expiresAt = Number(status_expires_at) || null;
+  return !hasContent || (expiresAt && Date.now() >= expiresAt);
 }
 
 async function renderUserBadges(username, { showAll = false, cachedBadges } = {}) {
