@@ -2981,13 +2981,13 @@ function normalizeRoleSymbolPrefs(prefs = {}) {
 }
 
 async function pgGetRoleSymbolPrefs(username) {
-  const rawName = normalizeUsername(username);
+  const rawName = String(username || "").trim();
   const safeName = rawName.toLowerCase();
   if (!safeName) return { ...ROLE_SYMBOL_DEFAULTS };
   const { rows } = await pgPool.query(
     `SELECT vip_gemstone, vip_color_variant, moderator_gemstone, moderator_color_variant, enable_animations
      FROM user_role_symbols WHERE lower(username)=lower($1) LIMIT 1`,
-    [rawName]
+    [safeName]
   );
   const row = rows?.[0];
   if (!row) return { ...ROLE_SYMBOL_DEFAULTS };
@@ -2995,14 +2995,14 @@ async function pgGetRoleSymbolPrefs(username) {
 }
 
 async function pgUpsertRoleSymbolPrefs(username, prefs) {
-  const rawName = normalizeUsername(username);
+  const rawName = String(username || "").trim();
   const safeName = rawName.toLowerCase();
   if (!safeName) return { ...ROLE_SYMBOL_DEFAULTS };
   const normalized = normalizeRoleSymbolPrefs(prefs || {});
   const now = Date.now();
   await pgPool.query(
-    `DELETE FROM user_role_symbols WHERE lower(username)=lower($1) AND username <> $2`,
-    [rawName, safeName]
+    `DELETE FROM user_role_symbols WHERE lower(username) = $1 AND username <> $2`,
+    [safeName, safeName]
   );
   await pgPool.query(
     `INSERT INTO user_role_symbols (
