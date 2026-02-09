@@ -904,6 +904,7 @@
 <div class="modalTop profileModalTop">
 <!-- Profile sheet header (compact layout) -->
 <div class="profileSheetHero compact" id="profileSheetHero">
+<div class="profileBanner" id="profileBanner"></div>
 <div class="profileSheetBg" id="profileSheetBg"></div>
 <div aria-hidden="true" class="profileSheetOverlay" id="profileSheetOverlay"></div>
 <div class="profileSheetContent compact">
@@ -941,6 +942,10 @@
 <span class="profileSheetName" id="profileSheetName">—</span>
 <span class="profileRoleChip" id="profileSheetRoleChip">Role</span>
 </div><div class="profileSheetMood"><span id="profileMood"></span></div>
+<div class="userStatus" id="profileCustomStatus" style="display:none;">
+<span class="emoji" id="profileCustomStatusEmoji"></span>
+<span class="statusText" id="profileCustomStatusText"></span>
+</div>
 <div class="profileSheetStats" id="profileSheetStats" style="display:none;">
 <span class="statPill" id="profileSheetStars">⭐ 0</span>
 <span class="statPill" id="profileSheetLikes">♡ 0</span>
@@ -1035,6 +1040,12 @@
 <span class="coupleChip" id="profileCoupleChip" style="display:none;"></span>
 </div>
 </div>
+</div>
+</details>
+<details class="profileSection" data-section="badges">
+<summary>Badges</summary>
+<div class="profileSectionBody">
+<div id="profileBadges"></div>
 </div>
 </details>
 <details class="profileSection" data-section="about">
@@ -1555,6 +1566,8 @@
 </div>
 <div class="small muted">Add a glowing aura effect around your avatar. Requires Polish Pack to be enabled.</div>
 </div>
+<div class="field" data-customize-item="" data-search="profile banner header image gradient" id="profileBannerSettings"></div>
+<div class="field" data-customize-item="" data-search="custom status emoji color" id="profileStatusSettings"></div>
 </div>
 </div>
 <details class="customizeSection" data-section="profile-advanced">
