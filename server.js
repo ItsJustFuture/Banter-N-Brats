@@ -2525,7 +2525,10 @@ const VIBE_TAG_LABELS = new Map(
 const HEX_COLOR_RE = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const BANNER_STYLE_VALUES = new Set(["cover", "contain", "pattern"]);
 const BANNER_GRADIENT_MAX_LENGTH = 220;
+const BANNER_URL_MAX_LENGTH = 400;
 const STATUS_EMOJI_MAX_LENGTH = 16;
+const STATUS_TEXT_MAX_LENGTH = 100;
+const ALLOWED_BANNER_PATH_PREFIXES = ["/uploads/"];
 
 function sanitizeVibeTags(raw) {
   const arr = Array.isArray(raw)
@@ -2554,8 +2557,8 @@ function sanitizeBannerGradient(raw) {
   const value = String(raw || "").trim();
   if (!value) return null;
   if (value.length > BANNER_GRADIENT_MAX_LENGTH) return null;
+  if (/url\s*\(/i.test(value)) return null;
   const lower = value.toLowerCase();
-  if (lower.includes("url(")) return null;
   if (!lower.startsWith("linear-gradient") && !lower.startsWith("radial-gradient")) return null;
   return value;
 }
@@ -2563,11 +2566,15 @@ function sanitizeBannerGradient(raw) {
 function sanitizeBannerUrl(raw) {
   const value = String(raw || "").trim();
   if (!value) return null;
-  if (value.startsWith("/")) return value.slice(0, 400);
+  if (value.startsWith("/")) {
+    if (value.includes("..")) return null;
+    const allowed = ALLOWED_BANNER_PATH_PREFIXES.some((prefix) => value.startsWith(prefix));
+    return allowed ? value.slice(0, BANNER_URL_MAX_LENGTH) : null;
+  }
   try {
     const parsed = new URL(value);
     if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-      return value.slice(0, 400);
+      return value.slice(0, BANNER_URL_MAX_LENGTH);
     }
   } catch {}
   return null;
