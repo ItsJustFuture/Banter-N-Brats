@@ -13,9 +13,19 @@ if ('serviceWorker' in navigator) {
           .catch((err) => console.warn('[PWA] Update check failed:', err));
         
         // Handle controller change - reload page automatically when new SW activates
+        // Guard against infinite reload loops by tracking reload timestamp
         navigator.serviceWorker.addEventListener('controllerchange', () => {
           console.log('[PWA] New service worker activated, reloading page...');
-          window.location.reload();
+          const lastReload = localStorage.getItem('sw-last-reload');
+          const now = Date.now();
+          
+          // Only reload if last reload was more than 5 seconds ago
+          if (!lastReload || now - parseInt(lastReload, 10) > 5000) {
+            localStorage.setItem('sw-last-reload', now.toString());
+            window.location.reload();
+          } else {
+            console.log('[PWA] Skipping reload (too soon after last reload)');
+          }
         });
         
         // Handle updates

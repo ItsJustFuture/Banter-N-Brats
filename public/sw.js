@@ -2,6 +2,10 @@
 // Ensures every deploy updates instantly with no stale cache
 
 // Use timestamp-based cache name to ensure every build gets a unique cache
+// Note: Date.now() is evaluated when the SW script is first parsed/executed.
+// Since Render serves a new sw.js on each deploy, this creates a unique cache
+// per deployment, not per page load. The browser caches sw.js itself and only
+// re-fetches it when it detects changes (byte-for-byte comparison).
 const CACHE_NAME = `banter-brats-${Date.now()}`;
 
 // Minimal shell files to cache (network-first strategy)
@@ -109,7 +113,7 @@ self.addEventListener('fetch', (event) => {
               );
             }
             // For other requests, let it fail
-            throw new Error('No cache available');
+            throw new Error(`Failed to fetch ${url.pathname} and no cached version available`);
           });
       })
   );
