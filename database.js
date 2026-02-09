@@ -1147,17 +1147,17 @@ async function updateRoleSymbolPrefs(username, prefs = {}) {
 }
 
 async function updateUserBanner(username, { banner_url, banner_gradient, banner_style } = {}) {
-  const safeName = String(username || "").trim();
+  const safeName = String(username || "").trim().toLowerCase();
   if (!safeName) return null;
   await run(
-    `UPDATE users SET banner_url = ?, banner_gradient = ?, banner_style = ? WHERE username = ?`,
+    `UPDATE users SET banner_url = ?, banner_gradient = ?, banner_style = ? WHERE lower(username) = lower(?)`,
     [banner_url ?? null, banner_gradient ?? null, banner_style ?? "cover", safeName]
   );
   return true;
 }
 
 async function updateUserStatus(username, { custom_status, status_emoji, status_color, status_expires_at } = {}) {
-  const safeName = String(username || "").trim();
+  const safeName = String(username || "").trim().toLowerCase();
   if (!safeName) return null;
   await run(
     `UPDATE users SET
@@ -1165,7 +1165,7 @@ async function updateUserStatus(username, { custom_status, status_emoji, status_
       status_emoji = ?,
       status_color = ?,
       status_expires_at = ?
-    WHERE username = ?`,
+    WHERE lower(username) = lower(?)`,
     [
       custom_status ?? null,
       status_emoji ?? null,
@@ -1178,13 +1178,13 @@ async function updateUserStatus(username, { custom_status, status_emoji, status_
 }
 
 async function getUserBadges(username) {
-  const safeName = String(username || "").trim();
+  const safeName = String(username || "").trim().toLowerCase();
   if (!safeName) return [];
   const rows = await all(
     `SELECT ub.*, bd.name, bd.description, bd.emoji, bd.rarity, bd.category
      FROM user_badges ub
      JOIN badge_definitions bd ON ub.badge_id = bd.badge_id
-     WHERE ub.username = ?
+     WHERE lower(ub.username) = lower(?)
      ORDER BY ub.earned_at DESC`,
     [safeName]
   );
@@ -1192,7 +1192,7 @@ async function getUserBadges(username) {
 }
 
 async function awardBadge(username, badge_id) {
-  const safeName = String(username || "").trim();
+  const safeName = String(username || "").trim().toLowerCase();
   const safeBadge = String(badge_id || "").trim();
   if (!safeName || !safeBadge) return null;
   await run(

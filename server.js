@@ -2526,6 +2526,8 @@ const HEX_COLOR_RE = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const BANNER_STYLE_VALUES = new Set(["cover", "contain", "pattern"]);
 const BANNER_GRADIENT_MAX_LENGTH = 220;
 const BANNER_URL_MAX_LENGTH = 400;
+const SAFE_UPLOAD_PATH_RE = /^\/uploads\/[A-Za-z0-9._/-]+$/;
+const UNSAFE_CSS_URL_RE = /["'(),\s]/;
 const STATUS_EMOJI_MAX_LENGTH = 16;
 const STATUS_TEXT_MAX_LENGTH = 100;
 const ALLOWED_BANNER_PATH_PREFIXES = ["/uploads/"];
@@ -2566,10 +2568,12 @@ function sanitizeBannerGradient(raw) {
 function sanitizeBannerUrl(raw) {
   const value = String(raw || "").trim();
   if (!value) return null;
+  if (UNSAFE_CSS_URL_RE.test(value)) return null;
   if (value.startsWith("/")) {
     if (value.includes("..")) return null;
     const allowed = ALLOWED_BANNER_PATH_PREFIXES.some((prefix) => value.startsWith(prefix));
-    return allowed ? value.slice(0, BANNER_URL_MAX_LENGTH) : null;
+    if (!allowed) return null;
+    return SAFE_UPLOAD_PATH_RE.test(value) ? value.slice(0, BANNER_URL_MAX_LENGTH) : null;
   }
   try {
     const parsed = new URL(value);
@@ -10424,14 +10428,14 @@ app.post("/api/profile/status", strictLimiter, requireLogin, express.json({ limi
   const userId = req.session.user?.id;
   const username = req.session.user?.username;
   const rawStatus = String(req.body?.custom_status || "").trim();
-  if (rawStatus && rawStatus.length > 100) {
-    return res.status(400).json({ error: "Status too long (max 100 chars)" });
+  if (rawStatus && rawStatus.length > STATUS_TEXT_MAX_LENGTH) {
+    return res.status(400).json({ error: `Status too long (max ${STATUS_TEXT_MAX_LENGTH} chars)` });
   }
 
   const expiresAtRaw = req.body?.status_expires_at;
   const expiresAtNum = Number(expiresAtRaw);
   const status = {
-    custom_status: rawStatus ? rawStatus.slice(0, 100) : null,
+    custom_status: rawStatus ? rawStatus.slice(0, STATUS_TEXT_MAX_LENGTH) : null,
     status_emoji: sanitizeStatusEmoji(req.body?.status_emoji),
     status_color: sanitizeHexColor(req.body?.status_color),
     status_expires_at: Number.isFinite(expiresAtNum) && expiresAtNum > 0 ? expiresAtNum : null,
@@ -13951,7 +13955,37 @@ app.get("/profile", requireLogin, async (req, res) => {
   }
 
   // SQLite fallback (original behavior)
-  const row = await dbGet(`SELECT * FROM users WHERE id = ?`, [userId]);
+  const row = await dbGet(
+    `SELECT
+       id,
+       username,
+       role,
+       avatar,
+       avatar_updated,
+       bio,
+       mood,
+       age,
+       gender,
+       header_grad_a,
+       header_grad_b,
+       created_at,
+       last_seen,
+       last_room,
+       last_status,
+       gold,
+       xp,
+       vibe_tags,
+       banner_url,
+       banner_gradient,
+       banner_style,
+       custom_status,
+       status_emoji,
+       status_color,
+       status_expires_at
+     FROM users
+     WHERE id = ?`,
+    [userId]
+  );
   if (!row) return res.status(404).send("Not found");
   const live = onlineState.get(row.id);
   const lastStatus = normalizeStatus(live?.status || row.last_status, "");

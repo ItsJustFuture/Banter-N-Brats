@@ -8785,6 +8785,12 @@ function buildProfileHeaderGradient(colorA, colorB){
   const layers = [highlight, `linear-gradient(135deg, ${a}, ${b})`].filter(Boolean);
   return layers.join(", ");
 }
+function escapeCssUrl(raw) {
+  const value = String(raw || "");
+  if (!value) return "";
+  const encoded = encodeURI(value).replace(/["'(),\s]/g, (match) => encodeURIComponent(match));
+  return `url("${encoded}")`;
+}
 function applyProfileBanner(banner){
   if (!profileBanner || !profileSheetBg) return;
   const bannerUrl = banner?.banner_url || null;
@@ -8802,7 +8808,7 @@ function applyProfileBanner(banner){
     return;
   }
   profileBanner.style.display = "";
-  profileBanner.style.backgroundImage = bannerGradient ? bannerGradient : `url("${bannerUrl}")`;
+  profileBanner.style.backgroundImage = bannerGradient ? bannerGradient : escapeCssUrl(bannerUrl);
   profileBanner.style.backgroundPosition = "center";
   profileBanner.style.backgroundRepeat = bannerStyle === "pattern" ? "repeat" : "no-repeat";
   profileBanner.style.backgroundSize = bannerStyle === "pattern" ? "auto" : bannerStyle;
