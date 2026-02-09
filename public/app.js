@@ -17,16 +17,18 @@ if ('serviceWorker' in navigator) {
         // Using 30-second cooldown to handle race conditions across multiple tabs
         navigator.serviceWorker.addEventListener('controllerchange', () => {
           console.log('[PWA] New service worker activated, checking if reload needed...');
-          const lastReload = localStorage.getItem('sw-last-reload');
+          const lastReloadRaw = localStorage.getItem('sw-last-reload');
+          const parsedLastReload = Number(lastReloadRaw);
+          const lastReload = Number.isFinite(parsedLastReload) ? parsedLastReload : 0;
           const now = Date.now();
           
           // Only reload if last reload was more than 30 seconds ago
-          if (!lastReload || now - parseInt(lastReload, 10) > 30000) {
+          if (!lastReloadRaw || now - lastReload > 30000) {
             localStorage.setItem('sw-last-reload', now.toString());
             console.log('[PWA] Reloading page to apply update...');
             window.location.reload();
           } else {
-            console.log('[PWA] Skipping reload (recently reloaded at', new Date(parseInt(lastReload, 10)).toISOString() + ')');
+            console.log('[PWA] Skipping reload (recently reloaded at', new Date(lastReload).toISOString() + ')');
           }
         });
         
