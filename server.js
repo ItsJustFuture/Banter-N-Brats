@@ -2649,6 +2649,7 @@ const TEXT_EFFECT_IDS = new Set([
   "outline",
   "shadow"
 ]);
+const VIP_TEXT_EFFECT_IDS = new Set(["rainbow", "shimmer", "fire", "glitch", "wave"]);
 const TEXT_STYLE_HEX = /^#[0-9a-f]{6}$/i;
 const CHAT_FX_TEXT_GLOWS = new Set(["off", "soft", "neon", "strong"]);
 const CHAT_FX_FONTS = new Set([
@@ -10219,10 +10220,9 @@ function normalizeReactionRoom(rawRoom) {
 function enforceTextEffectAccess(customization, role) {
   if (!customization || typeof customization !== "object") return customization;
   if (roleRank(role || "User") >= roleRank("VIP")) return customization;
-  const vipEffects = new Set(["rainbow", "shimmer", "fire", "glitch", "wave"]);
   const sanitizeStyle = (style) => {
     if (!style || typeof style !== "object") return style;
-    if (vipEffects.has(style.effectId)) {
+    if (VIP_TEXT_EFFECT_IDS.has(style.effectId)) {
       return { ...style, effectId: "none" };
     }
     return style;

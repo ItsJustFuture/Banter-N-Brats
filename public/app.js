@@ -1092,6 +1092,7 @@ const TEXT_EFFECTS = [
   { id: "shadow", name: "Drop Shadow", type: "shadow" }
 ];
 const TEXT_EFFECT_MAP = new Map(TEXT_EFFECTS.map((effect) => [effect.id, effect]));
+const VIP_TEXT_EFFECT_IDS = new Set(TEXT_EFFECTS.filter((effect) => effect.vip).map((effect) => effect.id));
 const TEXT_STYLE_MODES = new Set(["color", "neon", "gradient"]);
 const TEXT_STYLE_INTENSITIES = new Set(["low", "med", "high", "ultra"]);
 const TEXT_STYLE_GRADIENT_INTENSITIES = new Set(["soft", "normal", "bold"]);
@@ -2365,7 +2366,7 @@ function gradientVisibilityProfile(intensity){
 
 function canUseTextEffect(effectId){
   const effect = TEXT_EFFECT_MAP.get(effectId);
-  if (!effect || !effect.vip) return true;
+  if (!effect || !VIP_TEXT_EFFECT_IDS.has(effect.id)) return true;
   return roleRank(me?.role || "User") >= roleRank("VIP");
 }
 
@@ -21971,7 +21972,7 @@ function buildTextCustomizationModal(){
     if (!textStyleDraft) return;
     const nextEffect = textCustomizationEffect.value;
     if (nextEffect && !canUseTextEffect(nextEffect)) {
-      toast("This text effect requires VIP status. Upgrade to unlock premium effects.");
+      showToast("This text effect requires VIP status. Upgrade to unlock premium effects.");
       textCustomizationEffect.value = "none";
       textStyleDraft.effectId = "none";
     } else {
