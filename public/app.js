@@ -15034,10 +15034,10 @@ function renderEditProfileVibeOptionsCustomize() {
   // Populate dropdown with available tags (excluding already selected)
   editVibeTagDropdown.innerHTML = '<option value="">Choose a vibe tag...</option>';
   VIBE_TAG_DEFS.forEach(def => {
-    const tag = def.label;
-    if (!editProfileSelectedVibeTags.includes(tag)) {
+    const tagLabel = def.label;
+    if (!editProfileSelectedVibeTags.includes(tagLabel)) {
       const option = document.createElement("option");
-      option.value = tag;
+      option.value = tagLabel;
       option.textContent = `${def.emoji} ${def.label}`;
       editVibeTagDropdown.appendChild(option);
     }
@@ -15048,14 +15048,14 @@ function renderEditProfileVibeOptionsCustomize() {
   if (editProfileSelectedVibeTags.length === 0) {
     editVibeTagSelectedList.innerHTML = '<div class="small muted">No vibe tags selected</div>';
   } else {
-    editProfileSelectedVibeTags.forEach(tag => {
+    editProfileSelectedVibeTags.forEach(tagLabel => {
       const pill = document.createElement("span");
       pill.className = "pillBtn active";
       pill.style.cursor = "pointer";
-      pill.textContent = formatVibeChipLabel(tag);
+      pill.textContent = formatVibeChipLabel(tagLabel);
       pill.title = "Click to remove";
       pill.addEventListener("click", () => {
-        editProfileSelectedVibeTags = editProfileSelectedVibeTags.filter(t => t !== tag);
+        editProfileSelectedVibeTags = editProfileSelectedVibeTags.filter(t => t !== tagLabel);
         renderEditProfileVibeOptionsCustomize();
         updateEditProfilePreview();
       });
