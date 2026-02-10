@@ -6941,6 +6941,11 @@ const StickyYouTubePlayer = (()=>{
     audioOnlyMode = !audioOnlyMode;
     if(!container) return;
     
+    // Sync checkbox state
+    if(audioOnlyCheckbox){
+      audioOnlyCheckbox.checked = audioOnlyMode;
+    }
+    
     if(audioOnlyMode){
       container.classList.add("yt-audio-only");
       startWaveform();
@@ -7036,6 +7041,11 @@ const StickyYouTubePlayer = (()=>{
       if(player && typeof player.setSize === "function"){
         const w = Math.max(240, Math.floor((playerHolder?.getBoundingClientRect().width || holder?.getBoundingClientRect().width || 0)));
         if(w) player.setSize(w, h);
+      }
+      // Resize waveform canvas when player size changes
+      if(waveformCanvas && holder){
+        waveformCanvas.width = holder.clientWidth;
+        waveformCanvas.height = holder.clientHeight;
       }
     }catch{}
 
