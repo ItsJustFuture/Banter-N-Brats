@@ -1729,6 +1729,41 @@
 </div>
 </div>
 </details>
+<details class="customizeSection" data-section="layout-accessibility">
+<summary>Accessibility &amp; Animations</summary>
+<div class="panelBox" id="layoutAccessibility">
+<div class="field" data-customize-item="" data-search="role icon animations symbols">
+<div class="toggleRow">
+<label class="switch">
+<input id="roleSymbolAnimToggle" type="checkbox" checked/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">Role icon animations</div>
+</div>
+<div class="small muted">Enables animated effects for VIP and Moderator role symbols (gemstones). When disabled, symbols appear static without sparkle or shine effects. Useful for reducing visual distractions.</div>
+</div>
+<div class="field" data-customize-item="" data-search="avatar aura polish pack animations">
+<div class="toggleRow">
+<label class="switch">
+<input id="chatFxPolishAnimations" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">Polish pack animations</div>
+</div>
+<div class="small muted">Enables animated visual effects from the Polish Pack including avatar auras, particle effects, and enhanced visual polish. When disabled, removes animated polish effects while keeping static styling.</div>
+</div>
+<div class="field" data-customize-item="" data-search="confetti particles celebrations">
+<div class="toggleRow">
+<label class="switch">
+<input id="prefReduceParticles" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">Reduce celebration particles</div>
+</div>
+<div class="small muted">Reduces or disables confetti, sparkles, and other particle effects during celebrations like level-ups or achievements. Helps reduce motion and visual clutter for better focus.</div>
+</div>
+</div>
+</details>
 <details class="customizeSection" data-section="layout-extra">
 <summary>Badge &amp; Extras</summary>
 <div class="panelBox" id="layoutExtra">
@@ -1864,13 +1899,6 @@
 </div>
 <div class="small muted">Choose your moderator gemstone and color variant.</div>
 </div>
-        <div class="toggleRow" id="roleSymbolAnimRow">
-          <label class="switch">
-            <input id="roleSymbolAnimToggle" type="checkbox" checked/>
-            <span class="slider"></span>
-          </label>
-          <div class="toggleLabel">Enable role icon animations</div>
-        </div>
         <div class="roleSymbolPreviewRow" id="roleSymbolPreviewRow">
           <div class="small muted">Preview</div>
           <div class="roleSymbolPreviewContent">
@@ -1888,9 +1916,14 @@
 <div class="sectionTitle">Vibe Tags</div>
 <div class="panelBox">
 <div class="field">
-<label>Select up to <span id="editVibeTagLimit"></span> vibe tags</label>
-<div class="pillRow" id="editVibeTagOptions"></div>
+<label for="editVibeTagDropdown">Select up to <span id="editVibeTagLimit"></span> vibe tags</label>
+<select id="editVibeTagDropdown" size="1">
+<option value="">Choose a vibe tag...</option>
+</select>
 <div class="small muted">Show your personality with badges on your profile.</div>
+</div>
+<div class="field">
+<div id="editVibeTagSelectedList" class="pillRow" style="min-height: 20px; margin-top: 8px;"></div>
 </div>
 </div>
 </div>
