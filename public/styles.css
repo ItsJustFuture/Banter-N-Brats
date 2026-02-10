@@ -8082,6 +8082,55 @@ main.chat{ position: relative; }
 
 .ytSticky .iconBtn{ min-width:34px; height:34px; }
 
+/* Audio-only mode styles */
+.ytWaveform{
+  position:absolute;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  display:none;
+  background:linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.95) 100%);
+  z-index:2;
+}
+.ytSticky.yt-audio-only .ytWaveform{ display:block; }
+.ytSticky.yt-audio-only #ytStickyFrame{ opacity:0; pointer-events:none; }
+.ytPlayerHolder{ position:relative; }
+
+/* Neon glow effect for audio-only mode (full size only) */
+.ytSticky.yt-audio-only.yt-expanded .ytStickyInner{
+  box-shadow:
+    0 0 20px rgba(var(--accent-rgb, 88, 101, 242), 0.4),
+    0 0 40px rgba(var(--accent-rgb, 88, 101, 242), 0.2),
+    0 10px 30px rgba(0,0,0,0.3);
+  animation:ytNeonPulse 3s ease-in-out infinite;
+}
+
+@keyframes ytNeonPulse{
+  0%, 100%{ box-shadow:
+    0 0 20px rgba(var(--accent-rgb, 88, 101, 242), 0.4),
+    0 0 40px rgba(var(--accent-rgb, 88, 101, 242), 0.2),
+    0 10px 30px rgba(0,0,0,0.3); }
+  50%{ box-shadow:
+    0 0 30px rgba(var(--accent-rgb, 88, 101, 242), 0.6),
+    0 0 60px rgba(var(--accent-rgb, 88, 101, 242), 0.3),
+    0 10px 30px rgba(0,0,0,0.3); }
+}
+
+/* Don't show glow when minimized */
+.ytSticky.yt-audio-only.yt-compact .ytStickyInner,
+.ytSticky.yt-audio-only.yt-collapsed .ytStickyInner{
+  box-shadow:0 10px 30px rgba(0,0,0,0.3);
+  animation:none;
+}
+
+/* Better checkbox styling */
+.ytSelectLabel input[type=checkbox]{
+  width:auto;
+  accent-color:var(--accent, #5865f2);
+  cursor:pointer;
+}
+
 @media (max-width: 700px){
   .ytSticky{ margin:6px 0; }
   .ytStickyBody{ padding:0 10px 10px; }
