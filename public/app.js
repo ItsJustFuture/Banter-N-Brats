@@ -5139,6 +5139,9 @@ function openDnDModal(triggerSource = "button"){
   
   renderDndPanel();
   
+  // Load fresh data from server to ensure modal has up-to-date information
+  loadDndCurrent();
+  
   // Add visibility class with animation
   if (PREFERS_REDUCED_MOTION) {
     dndModal.classList.add("modal-visible");
