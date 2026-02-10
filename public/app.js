@@ -15049,11 +15049,12 @@ function renderEditProfileVibeOptionsCustomize() {
     editVibeTagSelectedList.innerHTML = '<div class="small muted">No vibe tags selected</div>';
   } else {
     editProfileSelectedVibeTags.forEach(tagLabel => {
-      const pill = document.createElement("span");
+      const pill = document.createElement("button");
+      pill.type = "button";
       pill.className = "pillBtn active";
-      pill.style.cursor = "pointer";
       pill.textContent = formatVibeChipLabel(tagLabel);
       pill.title = "Click to remove";
+      pill.setAttribute("aria-label", `Remove vibe tag: ${tagLabel}`);
       pill.addEventListener("click", () => {
         editProfileSelectedVibeTags = editProfileSelectedVibeTags.filter(t => t !== tagLabel);
         renderEditProfileVibeOptionsCustomize();
