@@ -5585,8 +5585,10 @@ async function dndJoinLobby() {
     dndState.lobbyUserIds = data.user_ids || [];
     renderDndPanel();
   } catch (e) {
-    console.warn("[dnd] Join/leave lobby failed:", e);
-    alert("Failed to join/leave lobby");
+    const inLobby = (dndState.lobbyUserIds || []).includes(me?.id);
+    const action = inLobby ? "leave" : "join";
+    console.warn(`[dnd] ${action} lobby failed:`, e);
+    alert(`Failed to ${action} lobby: ${e.message || "Unknown error"}`);
   }
 }
 
@@ -5634,7 +5636,7 @@ async function dndStartSession() {
     await loadDndCurrent();
   } catch (e) {
     console.warn("[dnd] Start session failed:", e);
-    alert("Failed to start session");
+    alert(`Failed to start session: ${e.message || "Unknown error"}`);
   }
 }
 
@@ -5655,7 +5657,7 @@ async function dndAdvance() {
     await loadDndCurrent();
   } catch (e) {
     console.warn("[dnd] Advance failed:", e);
-    alert("Failed to advance session");
+    alert(`Failed to advance session: ${e.message || "Unknown error"}`);
   }
 }
 
@@ -5673,7 +5675,7 @@ async function dndEndSession() {
     await loadDndCurrent();
   } catch (e) {
     console.warn("[dnd] End session failed:", e);
-    alert("Failed to end session");
+    alert(`Failed to end session: ${e.message || "Unknown error"}`);
   }
 }
 
