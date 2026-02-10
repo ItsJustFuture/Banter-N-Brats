@@ -8094,7 +8094,7 @@ main.chat{ position: relative; }
   z-index:2;
 }
 .ytSticky.yt-audio-only .ytWaveform{ display:block; }
-.ytSticky.yt-audio-only #ytStickyFrame{ opacity:0; pointer-events:none; }
+.ytSticky.yt-audio-only #ytStickyFrame{ visibility:hidden; pointer-events:none; }
 .ytPlayerHolder{ position:relative; }
 
 /* Neon glow effect for audio-only mode (full size only) */
