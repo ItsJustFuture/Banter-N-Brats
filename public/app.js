@@ -5586,6 +5586,7 @@ async function dndJoinLobby() {
     renderDndPanel();
   } catch (e) {
     console.warn("[dnd] Join/leave lobby failed:", e);
+    alert("Failed to join/leave lobby");
   }
 }
 
@@ -5633,6 +5634,7 @@ async function dndStartSession() {
     await loadDndCurrent();
   } catch (e) {
     console.warn("[dnd] Start session failed:", e);
+    alert("Failed to start session");
   }
 }
 
@@ -5653,6 +5655,7 @@ async function dndAdvance() {
     await loadDndCurrent();
   } catch (e) {
     console.warn("[dnd] Advance failed:", e);
+    alert("Failed to advance session");
   }
 }
 
@@ -5670,6 +5673,7 @@ async function dndEndSession() {
     await loadDndCurrent();
   } catch (e) {
     console.warn("[dnd] End session failed:", e);
+    alert("Failed to end session");
   }
 }
 
