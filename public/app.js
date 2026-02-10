@@ -5140,7 +5140,11 @@ function openDnDModal(triggerSource = "button"){
   renderDndPanel();
   
   // Load fresh data from server to ensure modal has up-to-date information
-  loadDndCurrent();
+  // Don't await to avoid blocking modal opening; errors are handled internally
+  loadDndCurrent().catch(err => {
+    console.warn("[dnd] Failed to refresh data on modal open:", err);
+    // Modal can still be used with existing cached data if load fails
+  });
   
   // Add visibility class with animation
   if (PREFERS_REDUCED_MOTION) {
@@ -5576,8 +5580,11 @@ function applyDndPayload(payload) {
 }
 
 async function dndJoinLobby() {
+  // Determine intended action before attempting operation
+  const inLobby = (dndState.lobbyUserIds || []).includes(me?.id);
+  const action = inLobby ? "leave" : "join";
+  
   try {
-    const inLobby = (dndState.lobbyUserIds || []).includes(me?.id);
     const endpoint = inLobby ? "/api/dnd-story/lobby/leave" : "/api/dnd-story/lobby/join";
     const res = await fetch(endpoint, { method: "POST", credentials: "include" });
     if (!res.ok) throw new Error("Failed");
@@ -5585,8 +5592,6 @@ async function dndJoinLobby() {
     dndState.lobbyUserIds = data.user_ids || [];
     renderDndPanel();
   } catch (e) {
-    const inLobby = (dndState.lobbyUserIds || []).includes(me?.id);
-    const action = inLobby ? "leave" : "join";
     console.warn(`[dnd] ${action} lobby failed:`, e);
     alert(`Failed to ${action} lobby: ${e.message || "Unknown error"}`);
   }
