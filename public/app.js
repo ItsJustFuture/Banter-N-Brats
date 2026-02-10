@@ -5593,7 +5593,7 @@ async function dndJoinLobby() {
     renderDndPanel();
   } catch (e) {
     console.warn(`[dnd] ${action} lobby failed:`, e);
-    alert(`Failed to ${action} lobby: ${e.message || "Unknown error"}`);
+    alert(`Failed to ${action} lobby: ${e.message || "An unexpected error occurred. Please try again."}`);
   }
 }
 
@@ -5641,7 +5641,7 @@ async function dndStartSession() {
     await loadDndCurrent();
   } catch (e) {
     console.warn("[dnd] Start session failed:", e);
-    alert(`Failed to start session: ${e.message || "Unknown error"}`);
+    alert(`Failed to start session: ${e.message || "An unexpected error occurred. Please try again."}`);
   }
 }
 
@@ -5662,7 +5662,7 @@ async function dndAdvance() {
     await loadDndCurrent();
   } catch (e) {
     console.warn("[dnd] Advance failed:", e);
-    alert(`Failed to advance session: ${e.message || "Unknown error"}`);
+    alert(`Failed to advance session: ${e.message || "An unexpected error occurred. Please try again."}`);
   }
 }
 
@@ -5680,7 +5680,7 @@ async function dndEndSession() {
     await loadDndCurrent();
   } catch (e) {
     console.warn("[dnd] End session failed:", e);
-    alert(`Failed to end session: ${e.message || "Unknown error"}`);
+    alert(`Failed to end session: ${e.message || "An unexpected error occurred. Please try again."}`);
   }
 }
 
