@@ -1371,9 +1371,9 @@
 <div class="cardPreview themesPreview"></div>
 </button>
 
-<button class="customizeCard" data-category="edit-profile" data-search="profile edit avatar mood age gender bio username vibe tags" id="openEditProfileBtn" type="button">
-<div class="cardTitle">Edit Profile</div>
-<div class="cardHint">Update avatar, mood, bio, and basic info.</div>
+<button class="customizeCard" data-category="edit-profile" data-search="profile edit avatar mood age gender bio username vibe tags header gradient aura appearance" id="openEditProfileBtn" type="button">
+<div class="cardTitle">Profile</div>
+<div class="cardHint">Avatar, bio, vibe tags, mood, header gradient, and profile appearance.</div>
 <div class="cardPreview profileEditPreview"></div>
 </button>
 
@@ -1383,14 +1383,9 @@
 <div class="cardPreview couplesPreview"></div>
 </button>
 
-<button class="customizeCard" data-category="profile" data-search="profile appearance header gradient avatar aura" type="button">
-<div class="cardTitle">Profile Appearance</div>
-<div class="cardHint">Header gradient and aura options.</div>
-<div class="cardPreview profilePreview"></div>
-</button>
-<button class="customizeCard" data-category="layout" data-search="layout accessibility scale contrast sound comfort" type="button">
+<button class="customizeCard" data-category="layout" data-search="layout accessibility scale contrast sound comfort animations" type="button">
 <div class="cardTitle">Layout &amp; Accessibility</div>
-<div class="cardHint">Scaling, clarity, motion controls, comfort mode, and sound settings.</div>
+<div class="cardHint">Scaling, clarity, motion controls, animations, comfort mode, and sound settings.</div>
 <div class="cardPreview layoutPreview"></div>
 </button>
 </div>
@@ -1508,94 +1503,6 @@
 </div>
 </section></div>
 
-<div class="customizeSubpage neonModal" data-category="profile" id="customizeProfilePage" style="display:none;">
-<div class="customizeHeader">
-<button aria-label="Back" class="iconBtn customizeBackBtn" data-back="profile" type="button">←</button>
-<div>
-<div class="title">🎨 Profile Appearance</div>
-<div class="small muted">Customize your profile header gradient and avatar effects with live preview.</div>
-</div>
-</div>
-<div class="editProfileLayout">
-<aside class="editProfilePreview">
-<div class="previewShell">
-<div class="small" style="margin-bottom:10px;"><strong>Live Preview</strong> - See your changes in real-time</div>
-<div class="profilePreviewCard" id="profileAppearancePreviewCard">
-<div class="profileSheetBg" id="profileAppearancePreviewBg" style="background: linear-gradient(135deg, #ff6a2b, #2b0f08);"></div>
-<div class="profileSheetContent compact">
-<div class="profileAvatarWrap">
-<div class="profileSheetAvatar" id="profileAppearancePreviewAvatar"></div>
-</div>
-<div class="profileSheetMeta">
-<div class="profileSheetNameRow">
-<span class="profileSheetName">Your Name</span>
-</div>
-<div class="profileSheetMood"><span>Your mood</span></div>
-</div>
-</div>
-<div class="profileBioPreview">Your profile with custom colors...</div>
-</div>
-<div class="previewActions">
-<button class="btn btnPrimary" id="saveProfileAppearanceBtn" type="button">✓ Done</button>
-<button class="btn btnSecondary" id="cancelProfileAppearanceBtn" type="button">Cancel</button>
-</div>
-</div>
-</aside>
-<div class="editProfileControls">
-<div class="customizeSection">
-<div class="sectionTitle">Basic</div>
-<div class="panelBox" id="profileAppearanceBasic">
-<div class="field" data-customize-item="" data-search="header gradient">
-<label>Header gradient</label>
-<div class="colorInputRow tight">
-<input aria-label="Header color A" id="headerColorA" type="color"/>
-<input aria-label="Header color A text" id="headerColorAText" placeholder="#ff6a2b" type="text"/>
-</div>
-<div class="colorInputRow tight" style="margin-top:6px;">
-<input aria-label="Header color B" id="headerColorB" type="color"/>
-<input aria-label="Header color B text" id="headerColorBText" placeholder="#2b0f08" type="text"/>
-</div>
-<div class="small muted">Customize your profile header gradient. Text color automatically adjusts between light and dark for best readability.</div>
-</div>
-<div class="field" data-customize-item="" data-search="avatar aura">
-<div class="toggleRow">
-<label class="switch">
-<input id="chatFxPolishAuras" type="checkbox"/>
-<span class="slider"></span>
-</label>
-<div class="toggleLabel">Avatar aura</div>
-</div>
-<div class="small muted">Add a glowing aura effect around your avatar. Requires Polish Pack to be enabled.</div>
-</div>
-<div class="field" data-customize-item="" data-search="profile banner header image gradient" id="profileBannerSettings"></div>
-<div class="field" data-customize-item="" data-search="custom status emoji color" id="profileStatusSettings"></div>
-</div>
-</div>
-<details class="customizeSection" data-section="profile-advanced">
-<summary>Advanced</summary>
-<div class="panelBox" id="profileAppearanceAdvanced">
-<div class="field" data-customize-item="" data-search="couple gradient line visual" id="coupleGradientField" style="display:none;">
-<label>Couple profile link gradient</label>
-<div class="small muted">Customize the gradient line connecting your profile pictures in couple displays.</div>
-<div class="row" style="margin-top:8px; gap:8px; align-items:center;">
-<div class="colorInputRow tight" style="flex:1;">
-<input aria-label="Couple gradient start color" id="coupleGradientStartCustomize" type="color" value="#ff6a2b"/>
-<input aria-label="Couple gradient start color text" id="coupleGradientStartTextCustomize" placeholder="#ff6a2b" type="text" style="flex:1;"/>
-</div>
-<span style="opacity:0.6;">→</span>
-<div class="colorInputRow tight" style="flex:1;">
-<input aria-label="Couple gradient end color" id="coupleGradientEndCustomize" type="color" value="#2b0f08"/>
-<input aria-label="Couple gradient end color text" id="coupleGradientEndTextCustomize" placeholder="#2b0f08" type="text" style="flex:1;"/>
-</div>
-</div>
-<div class="coupleGradientPreview" id="coupleGradientPreviewCustomize" style="height:4px; border-radius:2px; margin-top:8px; background:linear-gradient(90deg, #ff6a2b, #2b0f08);"></div>
-</div>
-</div>
-</details>
-</div>
-</div>
-</div>
-<button id="resetProfileAppearanceBtn" class="secondaryBtn" type="button">Reset profile appearance</button>
 <div class="customizeSubpage neonModal" data-category="layout" id="customizeLayoutPage" style="display:none;">
 <div class="customizeHeader">
 <button aria-label="Back" class="iconBtn customizeBackBtn" data-back="layout" type="button">←</button>
@@ -1729,6 +1636,31 @@
 </div>
 </div>
 </details>
+<details class="customizeSection" data-section="layout-accessibility">
+<summary>Accessibility &amp; Animations</summary>
+<div class="panelBox" id="layoutAccessibility">
+<div class="field" data-customize-item="" data-search="role icon animations symbols">
+<div class="toggleRow">
+<label class="switch">
+<input id="roleSymbolAnimToggle" type="checkbox" checked/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">Role icon animations</div>
+</div>
+<div class="small muted">Enables animated effects for VIP and Moderator role symbols (gemstones). When disabled, symbols appear static without sparkle or shine effects. Useful for reducing visual distractions.</div>
+</div>
+<div class="field" data-customize-item="" data-search="avatar aura polish pack animations">
+<div class="toggleRow">
+<label class="switch">
+<input id="chatFxPolishAnimations" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">Polish pack animations</div>
+</div>
+<div class="small muted">Enables animated visual effects from the Polish Pack including avatar auras, particle effects, and enhanced visual polish. When disabled, removes animated polish effects while keeping static styling.</div>
+</div>
+</div>
+</details>
 <details class="customizeSection" data-section="layout-extra">
 <summary>Badge &amp; Extras</summary>
 <div class="panelBox" id="layoutExtra">
@@ -1767,8 +1699,8 @@
 <div class="customizeHeader">
 <button aria-label="Back" class="iconBtn customizeBackBtn" data-back="edit-profile" type="button">←</button>
 <div>
-<div class="title">✏️ Edit Profile</div>
-<div class="small muted">Update your profile information with live preview.</div>
+<div class="title">👤 Profile</div>
+<div class="small muted">Update your profile information, appearance, and vibe tags with live preview.</div>
 </div>
 </div>
 <div class="editProfileLayout">
@@ -1864,13 +1796,6 @@
 </div>
 <div class="small muted">Choose your moderator gemstone and color variant.</div>
 </div>
-        <div class="toggleRow" id="roleSymbolAnimRow">
-          <label class="switch">
-            <input id="roleSymbolAnimToggle" type="checkbox" checked/>
-            <span class="slider"></span>
-          </label>
-          <div class="toggleLabel">Enable role icon animations</div>
-        </div>
         <div class="roleSymbolPreviewRow" id="roleSymbolPreviewRow">
           <div class="small muted">Preview</div>
           <div class="roleSymbolPreviewContent">
@@ -1888,12 +1813,60 @@
 <div class="sectionTitle">Vibe Tags</div>
 <div class="panelBox">
 <div class="field">
-<label>Select up to <span id="editVibeTagLimit"></span> vibe tags</label>
-<div class="pillRow" id="editVibeTagOptions"></div>
+<label for="editVibeTagDropdown">Select up to <span id="editVibeTagLimit"></span> vibe tags</label>
+<select id="editVibeTagDropdown" size="1">
+<option value="">Choose a vibe tag...</option>
+</select>
 <div class="small muted">Show your personality with badges on your profile.</div>
 </div>
+<div class="field">
+<div id="editVibeTagSelectedList" class="pillRow" style="min-height: 20px; margin-top: 8px;"></div>
 </div>
 </div>
+</div>
+<details class="customizeSection" data-section="profile-appearance">
+<summary>Profile Appearance</summary>
+<div class="panelBox">
+<div class="field" data-customize-item="" data-search="header gradient">
+<label>Header gradient</label>
+<div class="colorInputRow tight">
+<input aria-label="Header color A" id="headerColorA" type="color"/>
+<input aria-label="Header color A text" id="headerColorAText" placeholder="#ff6a2b" type="text"/>
+</div>
+<div class="colorInputRow tight" style="margin-top:6px;">
+<input aria-label="Header color B" id="headerColorB" type="color"/>
+<input aria-label="Header color B text" id="headerColorBText" placeholder="#2b0f08" type="text"/>
+</div>
+<div class="small muted">Customize your profile header gradient. Text color automatically adjusts between light and dark for best readability.</div>
+</div>
+<div class="field" data-customize-item="" data-search="avatar aura">
+<div class="toggleRow">
+<label class="switch">
+<input id="chatFxPolishAuras" type="checkbox"/>
+<span class="slider"></span>
+</label>
+<div class="toggleLabel">Avatar aura</div>
+</div>
+<div class="small muted">Add a glowing aura effect around your avatar. Requires Polish Pack to be enabled.</div>
+</div>
+<div class="field" data-customize-item="" data-search="couple gradient line visual" id="coupleGradientField" style="display:none;">
+<label>Couple profile link gradient</label>
+<div class="small muted">Customize the gradient line connecting your profile pictures in couple displays.</div>
+<div class="row" style="margin-top:8px; gap:8px; align-items:center;">
+<div class="colorInputRow tight" style="flex:1;">
+<input aria-label="Couple gradient start color" id="coupleGradientStartCustomize" type="color" value="#ff6a2b"/>
+<input aria-label="Couple gradient start color text" id="coupleGradientStartTextCustomize" placeholder="#ff6a2b" type="text" style="flex:1;"/>
+</div>
+<span style="opacity:0.6;">→</span>
+<div class="colorInputRow tight" style="flex:1;">
+<input aria-label="Couple gradient end color" id="coupleGradientEndCustomize" type="color" value="#2b0f08"/>
+<input aria-label="Couple gradient end color text" id="coupleGradientEndTextCustomize" placeholder="#2b0f08" type="text" style="flex:1;"/>
+</div>
+</div>
+<div class="coupleGradientPreview" id="coupleGradientPreviewCustomize" style="height:4px; border-radius:2px; margin-top:8px; background:linear-gradient(90deg, #ff6a2b, #2b0f08);"></div>
+</div>
+</div>
+</details>
 <div class="customizeSection">
 <div class="sectionTitle">Bio</div>
 <div class="panelBox">

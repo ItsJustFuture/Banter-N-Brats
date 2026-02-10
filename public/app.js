@@ -14878,12 +14878,14 @@ function renderEditProfileVibeOptions(){
   
   if (!VIBE_TAG_DEFS || !Array.isArray(VIBE_TAG_DEFS)) return;
   
-  VIBE_TAG_DEFS.forEach(tag => {
+  // VIBE_TAG_DEFS contains objects with {id, label, emoji}, not strings
+  VIBE_TAG_DEFS.forEach(def => {
+    const tag = def.label; // Extract label from the object
     const isSelected = editProfileSelectedVibeTags.includes(tag);
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = isSelected ? "pillBtn active" : "pillBtn";
-    btn.textContent = tag;
+    btn.textContent = formatVibeChipLabel(tag); // Use the formatted label with emoji
     btn.addEventListener("click", () => {
       if (isSelected) {
         editProfileSelectedVibeTags = editProfileSelectedVibeTags.filter(t => t !== tag);
@@ -15020,37 +15022,60 @@ function loadEditProfileData() {
 
 // Render vibe tag options in customization tab
 function renderEditProfileVibeOptionsCustomize() {
-  const editVibeTagOptions = document.getElementById("editVibeTagOptions");
-  if (!editVibeTagOptions) return;
-  editVibeTagOptions.innerHTML = "";
+  const editVibeTagDropdown = document.getElementById("editVibeTagDropdown");
+  const editVibeTagSelectedList = document.getElementById("editVibeTagSelectedList");
   const editVibeTagLimit = document.getElementById("editVibeTagLimit");
+  
+  if (!editVibeTagDropdown || !editVibeTagSelectedList) return;
   if (editVibeTagLimit) editVibeTagLimit.textContent = VIBE_TAG_LIMIT;
   
   if (!VIBE_TAG_DEFS || !Array.isArray(VIBE_TAG_DEFS)) return;
   
-  // VIBE_TAG_DEFS contains objects with {id, label, emoji}, not strings
+  // Populate dropdown with available tags (excluding already selected)
+  editVibeTagDropdown.innerHTML = '<option value="">Choose a vibe tag...</option>';
   VIBE_TAG_DEFS.forEach(def => {
-    const tag = def.label; // Extract label from the object
-    const isSelected = editProfileSelectedVibeTags.includes(tag);
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = isSelected ? "pillBtn active" : "pillBtn";
-    btn.textContent = formatVibeChipLabel(tag); // Use the formatted label
-    btn.addEventListener("click", () => {
-      if (isSelected) {
-        editProfileSelectedVibeTags = editProfileSelectedVibeTags.filter(t => t !== tag);
-      } else {
-        if (editProfileSelectedVibeTags.length >= VIBE_TAG_LIMIT) {
-          toast?.(`You can only select up to ${VIBE_TAG_LIMIT} vibe tags.`);
-          return;
-        }
-        editProfileSelectedVibeTags.push(tag);
-      }
+    const tagLabel = def.label;
+    if (!editProfileSelectedVibeTags.includes(tagLabel)) {
+      const option = document.createElement("option");
+      option.value = tagLabel;
+      option.textContent = `${def.emoji} ${def.label}`;
+      editVibeTagDropdown.appendChild(option);
+    }
+  });
+  
+  // Render selected tags as removable pills
+  editVibeTagSelectedList.innerHTML = "";
+  if (editProfileSelectedVibeTags.length === 0) {
+    editVibeTagSelectedList.innerHTML = '<div class="small muted">No vibe tags selected</div>';
+  } else {
+    editProfileSelectedVibeTags.forEach(tagLabel => {
+      const pill = document.createElement("button");
+      pill.type = "button";
+      pill.className = "pillBtn active";
+      pill.textContent = formatVibeChipLabel(tagLabel);
+      pill.title = "Click to remove";
+      pill.setAttribute("aria-label", `Remove vibe tag: ${tagLabel}`);
+      pill.addEventListener("click", () => {
+        editProfileSelectedVibeTags = editProfileSelectedVibeTags.filter(t => t !== tagLabel);
+        renderEditProfileVibeOptionsCustomize();
+        updateEditProfilePreview();
+      });
+      editVibeTagSelectedList.appendChild(pill);
+    });
+  }
+  
+  // Handle dropdown selection
+  editVibeTagDropdown.onchange = () => {
+    const selectedTag = editVibeTagDropdown.value;
+    if (selectedTag && editProfileSelectedVibeTags.length < VIBE_TAG_LIMIT) {
+      editProfileSelectedVibeTags.push(selectedTag);
       renderEditProfileVibeOptionsCustomize();
       updateEditProfilePreview();
-    });
-    editVibeTagOptions.appendChild(btn);
-  });
+    } else if (selectedTag && editProfileSelectedVibeTags.length >= VIBE_TAG_LIMIT) {
+      toast?.(`You can only select up to ${VIBE_TAG_LIMIT} vibe tags.`);
+    }
+    editVibeTagDropdown.value = "";
+  };
 }
 
 // Update the profile preview in edit profile customization tab
