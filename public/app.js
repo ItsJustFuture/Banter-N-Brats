@@ -6853,7 +6853,7 @@ const StickyYouTubePlayer = (()=>{
 
   // Waveform visualization
   function drawWaveform(){
-    if(!waveformCanvas || !audioOnlyMode) return;
+    if(!waveformCanvas || !waveformAnimationId) return;
     const ctx = waveformCanvas.getContext("2d");
     if(!ctx) return;
 
@@ -6907,26 +6907,21 @@ const StickyYouTubePlayer = (()=>{
 
     ctx.shadowBlur = 0;
     
-    if(audioOnlyMode){
-      waveformAnimationId = requestAnimationFrame(drawWaveform);
-    }
+    waveformAnimationId = requestAnimationFrame(drawWaveform);
   }
 
   function startWaveform(){
-    if(!waveformCanvas) return;
+    if(!waveformCanvas || waveformAnimationId) return;
     // Set canvas size to match container
     const holder = waveformCanvas.parentElement;
     if(holder){
       waveformCanvas.width = holder.clientWidth;
       waveformCanvas.height = holder.clientHeight;
     }
-    audioOnlyMode = true;
-    if(waveformAnimationId) cancelAnimationFrame(waveformAnimationId);
-    drawWaveform();
+    waveformAnimationId = requestAnimationFrame(drawWaveform);
   }
 
   function stopWaveform(){
-    audioOnlyMode = false;
     if(waveformAnimationId){
       cancelAnimationFrame(waveformAnimationId);
       waveformAnimationId = null;
@@ -7101,7 +7096,7 @@ const StickyYouTubePlayer = (()=>{
     }else{
       stopProgress();
       updateProgress();
-      if(audioOnlyMode && (state === YT.PlayerState.PAUSED || state === YT.PlayerState.ENDED)){
+      if(audioOnlyMode){
         stopWaveform();
       }
     }
