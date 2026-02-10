@@ -4189,46 +4189,46 @@ body.survival-room .survivalArena{
 .chat-main .msgItem.msg--main{ position:relative; display:flex; flex-direction:row; align-items:flex-start; gap:var(--msg-item-gap, 8px); min-width:0; }
 .chat-main .msgItem.msg--main.self{ flex-direction:row-reverse; }
 .chat-main .msgGroup + .msgGroup .msgGroupBody{
-  padding-top:4px;
+  padding-top:2px;
   border-top:1px solid color-mix(in srgb, var(--border) 55%, transparent);
 }
 
 /* --- Message layout preferences (main chat) --- */
 body.msg-density-compact .chat-main{
-  --msg-pad-y:6px;
-  --msg-pad-x:10px;
+  --msg-pad-y:4px;
+  --msg-pad-x:8px;
   --msg-accent-offset:2px;
   --msg-accent-height:3px;
+  --msg-accent-gap:2px;
+  --msg-group-gap:1px;
+  --msg-stack-gap:4px;
+  --msg-item-gap:6px;
+  --msg-meta-gap:6px;
+  --msg-line-height:1.25;
+}
+body.msg-density-medium .chat-main{
+  --msg-pad-y:5px;
+  --msg-pad-x:10px;
+  --msg-accent-offset:2px;
+  --msg-accent-height:4px;
   --msg-accent-gap:3px;
   --msg-group-gap:2px;
   --msg-stack-gap:6px;
-  --msg-item-gap:6px;
-  --msg-meta-gap:6px;
-  --msg-line-height:1.3;
-}
-body.msg-density-medium .chat-main{
-  --msg-pad-y:8px;
-  --msg-pad-x:12px;
-  --msg-accent-offset:2px;
-  --msg-accent-height:4px;
-  --msg-accent-gap:4px;
-  --msg-group-gap:4px;
-  --msg-stack-gap:8px;
   --msg-item-gap:8px;
   --msg-meta-gap:8px;
-  --msg-line-height:1.4;
+  --msg-line-height:1.35;
 }
 body.msg-density-comfortable .chat-main{
-  --msg-pad-y:11px;
-  --msg-pad-x:14px;
+  --msg-pad-y:7px;
+  --msg-pad-x:11px;
   --msg-accent-offset:3px;
   --msg-accent-height:5px;
-  --msg-accent-gap:4px;
-  --msg-group-gap:6px;
-  --msg-stack-gap:12px;
+  --msg-accent-gap:3px;
+  --msg-group-gap:3px;
+  --msg-stack-gap:8px;
   --msg-item-gap:10px;
   --msg-meta-gap:10px;
-  --msg-line-height:1.5;
+  --msg-line-height:1.4;
 }
 
 body.msg-contrast-low .chat-main{ --msg-bg-strength:12%; }
@@ -4391,10 +4391,10 @@ body.sys-density-minimized .chat-main{
 }
 /* Make grouped bubbles visually merge into one (main chat) */
 .chat-main .msgGroupBody{ gap:var(--msg-group-gap, var(--fx-group-gap, 4px)); }
-.chat-main .msgItem.msg--main.gCont .bubble{ margin-top:2px; }
-.chat-main .msgItem.msg--main.gMid .bubble{ margin-top:2px; }
+.chat-main .msgItem.msg--main.gCont .bubble{ margin-top:1px; }
+.chat-main .msgItem.msg--main.gMid .bubble{ margin-top:1px; }
 .chat-main .msgItem.msg--main.msg--grouped:not(.msg--group-start){
-  margin-top:2px;
+  margin-top:1px;
 }
 
 /* Corner shaping so grouped messages look like one continuous bubble */
@@ -4410,7 +4410,7 @@ body.sys-density-minimized .chat-main{
   border-top-right-radius:var(--fx-radius-grouped, 8px);
 }
 /* If a message has reactions, give it a little breathing room (splits by reaction space) */
-.chat-main .msgItem.msg--main.hasReacts{ margin-bottom:6px; }
+.chat-main .msgItem.msg--main.hasReacts{ margin-bottom:4px; }
 
 .msg{ display:flex; gap:10px; align-items:flex-start; max-width:900px; }
 .msg.self{ align-self:flex-end; flex-direction:row-reverse; }
@@ -4467,6 +4467,7 @@ body.sys-density-minimized .chat-main{
   padding-top:calc(var(--msg-pad-y, 8px) + var(--msg-accent-height, 4px) + var(--msg-accent-gap, 4px));
   padding-bottom:var(--msg-pad-y, 8px);
   line-height:var(--msg-line-height, 1.45);
+  font-size: 15px;
   background:transparent;
   border-color:transparent;
   box-shadow:none;
