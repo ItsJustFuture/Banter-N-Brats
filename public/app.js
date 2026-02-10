@@ -6846,13 +6846,15 @@ function formatTime(ts){
   }
 }
 const StickyYouTubePlayer = (()=>{
-  let container, playerHolder, titleEl, channelEl, thumbEl, playPauseBtn, muteBtn, volumeSlider, seekSlider, currentTimeEl, durationEl, qualitySelect, minimizeBtn, closeBtn;
+  let container, playerHolder, titleEl, channelEl, thumbEl, playPauseBtn, muteBtn, volumeSlider, seekSlider, currentTimeEl, durationEl, qualitySelect, minimizeBtn, closeBtn, audioOnlyCheckbox, waveformCanvas;
   let player = null;
   let apiReadyPromise = null;
   let progressTimer = null;
   let currentVideoId = null;
   let pendingAutoplay = false;
   let state = "expanded";
+  let audioOnlyMode = false;
+  let waveformAnimationId = null;
 
   // Some YT "quality levels" are actually size-like tiers (large/medium/small/tiny).
   // We treat those as player size controls.
@@ -6861,6 +6863,116 @@ const StickyYouTubePlayer = (()=>{
   const YT_SIZE_HEIGHT = { large:240, medium:180, small:140, tiny:110 };
   const YT_SIZE_STORAGE_KEY = "yt_player_size";
   const YT_SIZE_DEFAULT = "medium";
+  const YT_AUDIO_ONLY_KEY = "yt_audio_only";
+
+  // Waveform visualization
+  function drawWaveform(){
+    if(!waveformCanvas || !waveformAnimationId) return;
+    const ctx = waveformCanvas.getContext("2d");
+    if(!ctx) return;
+
+    const w = waveformCanvas.width;
+    const h = waveformCanvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Get accent color from CSS
+    const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    
+    // Convert hex to RGB for gradient
+    let r = 88, g = 101, b = 242; // default
+    if(accentColor.startsWith('#')){
+      const hex = accentColor.slice(1);
+      if(hex.length === 6){
+        r = parseInt(hex.slice(0,2), 16);
+        g = parseInt(hex.slice(2,4), 16);
+        b = parseInt(hex.slice(4,6), 16);
+      }
+    }
+
+    // Create gradient
+    const gradient = ctx.createLinearGradient(0, h/2, w, h/2);
+    gradient.addColorStop(0, `rgba(${r},${g},${b},0.2)`);
+    gradient.addColorStop(0.5, `rgba(${r},${g},${b},0.8)`);
+    gradient.addColorStop(1, `rgba(${r},${g},${b},0.2)`);
+
+    // Draw animated waveform bars
+    const time = Date.now() / 1000;
+    const barCount = Math.floor(w / 8);
+    const barWidth = 4;
+    const gap = 4;
+
+    ctx.fillStyle = gradient;
+    
+    for(let i = 0; i < barCount; i++){
+      // Create pseudo-random but smooth wave pattern
+      const freq = (i / barCount) * Math.PI * 4;
+      const offset = Math.sin(time * 2 + i * 0.5) * 0.3;
+      const baseHeight = Math.sin(freq + time) * 0.4 + 0.5;
+      const barHeight = (baseHeight + offset) * (h * 0.6);
+      
+      const x = i * (barWidth + gap);
+      const y = (h - barHeight) / 2;
+      
+      // Add glow effect
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = `rgba(${r},${g},${b},0.6)`;
+      ctx.fillRect(x, y, barWidth, barHeight);
+    }
+
+    ctx.shadowBlur = 0;
+    
+    waveformAnimationId = requestAnimationFrame(drawWaveform);
+  }
+
+  function startWaveform(){
+    if(!waveformCanvas || waveformAnimationId) return;
+    // Set canvas size to match container
+    const holder = waveformCanvas.parentElement;
+    if(holder){
+      waveformCanvas.width = holder.clientWidth;
+      waveformCanvas.height = holder.clientHeight;
+    }
+    waveformAnimationId = requestAnimationFrame(drawWaveform);
+  }
+
+  function stopWaveform(){
+    if(waveformAnimationId){
+      cancelAnimationFrame(waveformAnimationId);
+      waveformAnimationId = null;
+    }
+    if(waveformCanvas){
+      const ctx = waveformCanvas.getContext("2d");
+      if(ctx) ctx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+    }
+  }
+
+  function setAudioOnlyMode(enabled){
+    audioOnlyMode = Boolean(enabled);
+    if(!container) return;
+    
+    // Sync checkbox state
+    if(audioOnlyCheckbox){
+      audioOnlyCheckbox.checked = audioOnlyMode;
+    }
+    
+    if(audioOnlyMode){
+      container.classList.add("yt-audio-only");
+      // Only start waveform if player is actually playing
+      if(player && player.getPlayerState?.() === window.YT?.PlayerState?.PLAYING){
+        startWaveform();
+      }
+      try{ localStorage.setItem(YT_AUDIO_ONLY_KEY, "true"); }catch{}
+    }else{
+      container.classList.remove("yt-audio-only");
+      stopWaveform();
+      try{ localStorage.removeItem(YT_AUDIO_ONLY_KEY); }catch{}
+    }
+  }
+
+  function toggleAudioOnly(){
+    if(!audioOnlyCheckbox) return;
+    setAudioOnlyMode(audioOnlyCheckbox.checked);
+  }
 
 
   function loadApi(){
@@ -6894,6 +7006,9 @@ const StickyYouTubePlayer = (()=>{
     qualitySelect = document.getElementById("ytQuality");
     minimizeBtn = document.getElementById("ytMinimize");
     closeBtn = document.getElementById("ytClose");
+    audioOnlyCheckbox = document.getElementById("ytAudioOnly");
+    waveformCanvas = document.getElementById("ytWaveform");
+    
     playPauseBtn?.addEventListener("click", togglePlayPause);
     muteBtn?.addEventListener("click", toggleMute);
     volumeSlider?.addEventListener("input", handleVolumeChange);
@@ -6902,6 +7017,8 @@ const StickyYouTubePlayer = (()=>{
     qualitySelect?.addEventListener("change", applyQuality);
     minimizeBtn?.addEventListener("click", cycleState);
     closeBtn?.addEventListener("click", close);
+    audioOnlyCheckbox?.addEventListener("change", toggleAudioOnly);
+    
     applyState("expanded");
 
     // restore saved player size (or default)
@@ -6912,6 +7029,14 @@ const StickyYouTubePlayer = (()=>{
     }catch{
       applyPlayerSize(YT_SIZE_DEFAULT, { persist:false });
     }
+
+    // restore audio-only mode
+    try{
+      const savedAudioOnly = localStorage.getItem(YT_AUDIO_ONLY_KEY) === "true";
+      if(savedAudioOnly){
+        setAudioOnlyMode(true);
+      }
+    }catch{}
   }
 
 
@@ -6931,6 +7056,11 @@ const StickyYouTubePlayer = (()=>{
       if(player && typeof player.setSize === "function"){
         const w = Math.max(240, Math.floor((playerHolder?.getBoundingClientRect().width || holder?.getBoundingClientRect().width || 0)));
         if(w) player.setSize(w, h);
+      }
+      // Resize waveform canvas when player size changes
+      if(waveformCanvas && holder){
+        waveformCanvas.width = holder.clientWidth;
+        waveformCanvas.height = holder.clientHeight;
       }
     }catch{}
 
@@ -6976,9 +7106,13 @@ const StickyYouTubePlayer = (()=>{
     const state = e.data;
     if(state === YT.PlayerState.PLAYING){
       startProgress();
+      if(audioOnlyMode) startWaveform();
     }else{
       stopProgress();
       updateProgress();
+      if(audioOnlyMode){
+        stopWaveform();
+      }
     }
     updatePlayPauseUi();
   }
@@ -7194,6 +7328,7 @@ const StickyYouTubePlayer = (()=>{
   }
   function close(){
     stopProgress();
+    stopWaveform();
     if(player){
       try { player.stopVideo?.(); } catch{}
       try { player.destroy?.(); } catch{}

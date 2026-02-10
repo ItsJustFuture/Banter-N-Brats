@@ -388,10 +388,15 @@
 <label class="ytSelectLabel">Quality
                     <select aria-label="Quality" id="ytQuality"></select>
 </label>
+<label class="ytSelectLabel">
+<input type="checkbox" id="ytAudioOnly" aria-label="Audio only mode"/>
+                    Audio Only
+                </label>
 </div>
 </div>
 <div class="ytPlayerHolder">
 <div id="ytStickyFrame"></div>
+<canvas id="ytWaveform" class="ytWaveform" aria-hidden="true"></canvas>
 </div>
 </div>
 </div>
