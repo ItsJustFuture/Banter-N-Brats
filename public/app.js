@@ -5139,6 +5139,13 @@ function openDnDModal(triggerSource = "button"){
   
   renderDndPanel();
   
+  // Load fresh data from server to ensure modal has up-to-date information
+  // Don't await to avoid blocking modal opening; errors are handled internally
+  loadDndCurrent().catch(err => {
+    console.warn("[dnd] Failed to refresh data on modal open:", err);
+    // Modal can still be used with existing cached data if load fails
+  });
+  
   // Add visibility class with animation
   if (PREFERS_REDUCED_MOTION) {
     dndModal.classList.add("modal-visible");
@@ -5573,16 +5580,20 @@ function applyDndPayload(payload) {
 }
 
 async function dndJoinLobby() {
+  // Determine intended action before attempting operation
+  const inLobby = (dndState.lobbyUserIds || []).includes(me?.id);
+  const action = inLobby ? "leave" : "join";
+  const endpoint = inLobby ? "/api/dnd-story/lobby/leave" : "/api/dnd-story/lobby/join";
+  
   try {
-    const inLobby = (dndState.lobbyUserIds || []).includes(me?.id);
-    const endpoint = inLobby ? "/api/dnd-story/lobby/leave" : "/api/dnd-story/lobby/join";
     const res = await fetch(endpoint, { method: "POST", credentials: "include" });
     if (!res.ok) throw new Error("Failed");
     const data = await res.json();
     dndState.lobbyUserIds = data.user_ids || [];
     renderDndPanel();
   } catch (e) {
-    console.warn("[dnd] Join/leave lobby failed:", e);
+    console.warn(`[dnd] ${action} lobby failed:`, e);
+    alert(`Failed to ${action} lobby: ${e.message || "An unexpected error occurred. Please try again."}`);
   }
 }
 
@@ -5630,6 +5641,7 @@ async function dndStartSession() {
     await loadDndCurrent();
   } catch (e) {
     console.warn("[dnd] Start session failed:", e);
+    alert(`Failed to start session: ${e.message || "An unexpected error occurred. Please try again."}`);
   }
 }
 
@@ -5650,6 +5662,7 @@ async function dndAdvance() {
     await loadDndCurrent();
   } catch (e) {
     console.warn("[dnd] Advance failed:", e);
+    alert(`Failed to advance session: ${e.message || "An unexpected error occurred. Please try again."}`);
   }
 }
 
@@ -5667,6 +5680,7 @@ async function dndEndSession() {
     await loadDndCurrent();
   } catch (e) {
     console.warn("[dnd] End session failed:", e);
+    alert(`Failed to end session: ${e.message || "An unexpected error occurred. Please try again."}`);
   }
 }
 
