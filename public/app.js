@@ -5583,9 +5583,9 @@ async function dndJoinLobby() {
   // Determine intended action before attempting operation
   const inLobby = (dndState.lobbyUserIds || []).includes(me?.id);
   const action = inLobby ? "leave" : "join";
+  const endpoint = inLobby ? "/api/dnd-story/lobby/leave" : "/api/dnd-story/lobby/join";
   
   try {
-    const endpoint = inLobby ? "/api/dnd-story/lobby/leave" : "/api/dnd-story/lobby/join";
     const res = await fetch(endpoint, { method: "POST", credentials: "include" });
     if (!res.ok) throw new Error("Failed");
     const data = await res.json();
