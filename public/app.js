@@ -6937,8 +6937,8 @@ const StickyYouTubePlayer = (()=>{
     }
   }
 
-  function toggleAudioOnly(){
-    audioOnlyMode = !audioOnlyMode;
+  function setAudioOnlyMode(enabled){
+    audioOnlyMode = Boolean(enabled);
     if(!container) return;
     
     // Sync checkbox state
@@ -6948,13 +6948,21 @@ const StickyYouTubePlayer = (()=>{
     
     if(audioOnlyMode){
       container.classList.add("yt-audio-only");
-      startWaveform();
+      // Only start waveform if player is actually playing
+      if(player && player.getPlayerState?.() === window.YT?.PlayerState?.PLAYING){
+        startWaveform();
+      }
       try{ localStorage.setItem(YT_AUDIO_ONLY_KEY, "true"); }catch{}
     }else{
       container.classList.remove("yt-audio-only");
       stopWaveform();
       try{ localStorage.removeItem(YT_AUDIO_ONLY_KEY); }catch{}
     }
+  }
+
+  function toggleAudioOnly(){
+    if(!audioOnlyCheckbox) return;
+    setAudioOnlyMode(audioOnlyCheckbox.checked);
   }
 
 
@@ -7016,10 +7024,8 @@ const StickyYouTubePlayer = (()=>{
     // restore audio-only mode
     try{
       const savedAudioOnly = localStorage.getItem(YT_AUDIO_ONLY_KEY) === "true";
-      if(savedAudioOnly && audioOnlyCheckbox){
-        audioOnlyCheckbox.checked = true;
-        audioOnlyMode = true;
-        container.classList.add("yt-audio-only");
+      if(savedAudioOnly){
+        setAudioOnlyMode(true);
       }
     }catch{}
   }
@@ -7095,7 +7101,7 @@ const StickyYouTubePlayer = (()=>{
     }else{
       stopProgress();
       updateProgress();
-      if(state === YT.PlayerState.PAUSED || state === YT.PlayerState.ENDED){
+      if(audioOnlyMode && (state === YT.PlayerState.PAUSED || state === YT.PlayerState.ENDED)){
         stopWaveform();
       }
     }
@@ -7361,11 +7367,6 @@ const StickyYouTubePlayer = (()=>{
       refreshQualityOptions();
       updateVolumeUi(player.getVolume?.());
       updateProgress();
-      
-      // Start waveform if audio-only mode is active
-      if(audioOnlyMode){
-        startWaveform();
-      }
     }).catch(err => console.error("[YouTube] failed to load api/player", err));
     fetchYouTubeMeta(videoId).then(remoteMeta => {
       if(remoteMeta && currentVideoId === videoId) setMeta(remoteMeta);
