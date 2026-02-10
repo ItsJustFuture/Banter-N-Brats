@@ -4467,7 +4467,7 @@ body.sys-density-minimized .chat-main{
   padding-top:calc(var(--msg-pad-y, 8px) + var(--msg-accent-height, 4px) + var(--msg-accent-gap, 4px));
   padding-bottom:var(--msg-pad-y, 8px);
   line-height:var(--msg-line-height, 1.45);
-  font-size: 15px;
+  font-size:15px;
   background:transparent;
   border-color:transparent;
   box-shadow:none;
