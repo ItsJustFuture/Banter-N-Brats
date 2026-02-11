@@ -16200,17 +16200,25 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 /* ============================================= */
 /* Music Controls Modal                          */
 /* ============================================= */
+#musicControlsModal .modalCard {
+  max-width: 340px;
+}
+
+#musicControlsModal .modalBody {
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom)) 12px;
+}
+
 .musicControlsGrid {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .musicControlBtn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 10px 12px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -16231,7 +16239,7 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 }
 
 .musicControlIcon {
-  font-size: 24px;
+  font-size: 20px;
   flex-shrink: 0;
 }
 
@@ -16265,8 +16273,8 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 .musicControlVolume {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 10px 12px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 8px;
