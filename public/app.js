@@ -1732,6 +1732,8 @@ let textCustomizationPanels = null;
 // Chat & Identity comprehensive modal
 let chatIdentityModal = null;
 let chatIdentityTargetTab = "username"; // "username" or "messageText"
+let chatIdentityUsernameDraft = null; // Per-tab draft for username
+let chatIdentityMessageTextDraft = null; // Per-tab draft for message text
 
 // --- DM avatar strip (direct DMs only): last-read + lightweight avatar cache
 const DM_LAST_READ_KEY = "dm:lastRead:v1";
@@ -23680,7 +23682,7 @@ function buildChatIdentityModal(){
                         <div class="bubble chatFxPreviewBubble" id="chatIdentityPreviewBubble">
                           <div class="meta">
                             <div class="name">
-                              <span class="roleIco" id="chatIdentityPreviewRoleIcon">👑 </span>
+                              <span class="roleIco" id="chatIdentityPreviewRoleIcon" aria-hidden="true">👑 </span>
                               <span class="unameText" id="chatIdentityPreviewName">Your Name</span>
                             </div>
                             <div class="time" id="chatIdentityPreviewTime">Just now</div>
@@ -23697,11 +23699,11 @@ function buildChatIdentityModal(){
             <!-- Tab Toggle Pills -->
             <div class="chatIdentityTabToggle">
               <button type="button" class="chatIdentityTab active" data-tab="username">
-                <span class="chatIdentityTabIcon">👤</span>
+                <span class="chatIdentityTabIcon" aria-hidden="true">👤</span>
                 <span class="chatIdentityTabLabel">Username</span>
               </button>
               <button type="button" class="chatIdentityTab" data-tab="messageText">
-                <span class="chatIdentityTabIcon">💬</span>
+                <span class="chatIdentityTabIcon" aria-hidden="true">💬</span>
                 <span class="chatIdentityTabLabel">Message Text</span>
               </button>
             </div>
@@ -23864,9 +23866,25 @@ function setupChatIdentityModalListeners(){
     if (e.target === modal) closeChatIdentityModal();
   });
   
-  // Escape key
+  // Escape key and Tab trapping
   modal.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeChatIdentityModal();
+    if (e.key === "Escape") {
+      closeChatIdentityModal();
+      return;
+    }
+    if (e.key !== "Tab") return;
+    const focusable = Array.from(modal.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"))
+      .filter((el) => !el.disabled && el.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   });
   
   // Tab toggle
@@ -24052,20 +24070,20 @@ function setupChatIdentityModalListeners(){
     
     if (resetClickCount === 1) {
       resetBtn.textContent = "Click again to confirm";
-      resetBtn.classList.add("btn-danger");
+      resetBtn.classList.add("danger");
       
       if (resetClickTimer) clearTimeout(resetClickTimer);
       resetClickTimer = setTimeout(() => {
         resetClickCount = 0;
         resetBtn.textContent = "Reset to Default";
-        resetBtn.classList.remove("btn-danger");
+        resetBtn.classList.remove("danger");
       }, 3000);
     } else if (resetClickCount >= 2) {
       resetChatIdentitySettings();
       resetClickCount = 0;
       if (resetClickTimer) clearTimeout(resetClickTimer);
       resetBtn.textContent = "Reset to Default";
-      resetBtn.classList.remove("btn-danger");
+      resetBtn.classList.remove("danger");
     }
   });
   
@@ -24089,9 +24107,25 @@ function updateChatIdentityTab(){
     btn.classList.toggle("active", btn.dataset.tab === chatIdentityTargetTab);
   });
   
-  // Load the appropriate text style draft
+  // Save current draft before switching tabs
+  if (textStyleDraft) {
+    if (textStyleTarget === "username") {
+      chatIdentityUsernameDraft = cloneTextStyle(textStyleDraft);
+    } else if (textStyleTarget === "messageText") {
+      chatIdentityMessageTextDraft = cloneTextStyle(textStyleDraft);
+    }
+  }
+  
+  // Load the appropriate per-tab draft or stored prefs
   textStyleTarget = chatIdentityTargetTab;
-  textStyleDraft = cloneTextStyle(getActiveTextStylePrefs());
+  if (chatIdentityTargetTab === "username" && chatIdentityUsernameDraft) {
+    textStyleDraft = cloneTextStyle(chatIdentityUsernameDraft);
+  } else if (chatIdentityTargetTab === "messageText" && chatIdentityMessageTextDraft) {
+    textStyleDraft = cloneTextStyle(chatIdentityMessageTextDraft);
+  } else {
+    // Load from stored prefs if no draft exists
+    textStyleDraft = cloneTextStyle(getActiveTextStylePrefs());
+  }
   
   // Sync inputs and preview
   syncChatIdentityInputs();
@@ -24111,8 +24145,7 @@ function setChatIdentityStyleMode(mode){
   
   const presetPanels = chatIdentityModal.querySelectorAll(".chatIdentityPresetPanel");
   presetPanels.forEach((panel) => {
-    const isActive = panel.dataset.panel === mode;
-    panel.style.display = isActive ? "block" : "none";
+    panel.classList.toggle("active", panel.dataset.panel === mode);
   });
   
   if (textStyleDraft) {
@@ -24273,38 +24306,80 @@ function updateChatIdentityPreview(){
   
   // Apply text styles based on current tab
   if (chatIdentityTargetTab === "username" && previewName) {
-    applyTextStyleToElement(previewName, textStyleDraft);
+    applyTextStyleToEl(previewName, textStyleDraft, { fallbackColor: "#ffffff" });
   }
   if (chatIdentityTargetTab === "messageText" && previewText) {
-    applyTextStyleToElement(previewText, textStyleDraft);
+    applyTextStyleToEl(previewText, textStyleDraft, { fallbackColor: "#ffffff" });
   }
 }
 
 async function saveChatIdentitySettings(){
-  if (!textStyleDraft) return;
+  // Save current tab's draft
+  if (textStyleDraft) {
+    if (chatIdentityTargetTab === "username") {
+      chatIdentityUsernameDraft = cloneTextStyle(textStyleDraft);
+    } else if (chatIdentityTargetTab === "messageText") {
+      chatIdentityMessageTextDraft = cloneTextStyle(textStyleDraft);
+    }
+  }
   
-  // Save the current tab's text style
-  await saveCustomizationPrefs(textStyleDraft, chatIdentityTargetTab);
+  // Prepare both username and message text styles for saving
+  const usernameStyle = chatIdentityUsernameDraft || cloneTextStyle(userNameStylePrefs);
+  const messageTextStyle = chatIdentityMessageTextDraft || cloneTextStyle(messageTextStylePrefs);
   
-  // Also save message layout settings if they've changed
-  // (These are already saved via the individual change handlers)
+  // Normalize both styles
+  const normalizedUsername = normalizeTextStyle(usernameStyle, chatFxPrefs);
+  const normalizedMessageText = normalizeTextStyle(messageTextStyle, chatFxPrefs);
+  
+  // Save both together
+  const nextCustomization = {
+    userNameStyle: normalizedUsername,
+    messageTextStyle: normalizedMessageText
+  };
+  
+  const saved = await persistUserPrefs({ customization: nextCustomization });
+  const applied = applyCustomizationPrefsFromServer(saved?.customization || nextCustomization, chatFxPrefs, saved?.textStyle || null);
+  
+  // Update local preferences
+  userNameStylePrefs = applied.userNameStyle;
+  messageTextStylePrefs = applied.messageTextStyle;
+  
+  // Re-render affected UI components
+  renderMembers(lastUsers);
+  renderDmThreads();
+  if (profileSheetName && currentProfileIsSelf) {
+    applyNameFxToEl(profileSheetName, { userNameStyle: applied.userNameStyle, nameColor: applied.userNameStyle.color });
+  }
   
   showToast("Chat & identity settings saved!");
 }
 
-function resetChatIdentitySettings(){
+async function resetChatIdentitySettings(){
   // Reset text styles to defaults
-  userNameStylePrefs = { ...TEXT_STYLE_DEFAULTS, neon: { ...TEXT_STYLE_DEFAULTS.neon }, gradient: { ...TEXT_STYLE_DEFAULTS.gradient } };
-  messageTextStylePrefs = { ...TEXT_STYLE_DEFAULTS, neon: { ...TEXT_STYLE_DEFAULTS.neon }, gradient: { ...TEXT_STYLE_DEFAULTS.gradient } };
+  const defaultUserNameStyle = { ...TEXT_STYLE_DEFAULTS, neon: { ...TEXT_STYLE_DEFAULTS.neon }, gradient: { ...TEXT_STYLE_DEFAULTS.gradient } };
+  const defaultMessageTextStyle = { ...TEXT_STYLE_DEFAULTS, neon: { ...TEXT_STYLE_DEFAULTS.neon }, gradient: { ...TEXT_STYLE_DEFAULTS.gradient } };
   
   // Reset message layout settings
   applyMessageLayout(MESSAGE_LAYOUT_DEFAULTS);
   
-  // Save to server
-  socket?.emit("user:saveChatFx", {
-    userNameStyle: userNameStylePrefs,
-    messageTextStyle: messageTextStylePrefs
-  });
+  // Save both text styles using the same persistence mechanism
+  const nextCustomization = {
+    userNameStyle: defaultUserNameStyle,
+    messageTextStyle: defaultMessageTextStyle
+  };
+  const saved = await persistUserPrefs({ customization: nextCustomization });
+  const applied = applyCustomizationPrefsFromServer(saved?.customization || nextCustomization, chatFxPrefs, saved?.textStyle || null);
+  
+  // Update local preferences
+  userNameStylePrefs = applied.userNameStyle;
+  messageTextStylePrefs = applied.messageTextStyle;
+  
+  // Re-render affected UI components
+  renderMembers(lastUsers);
+  renderDmThreads();
+  if (profileSheetName && currentProfileIsSelf) {
+    applyNameFxToEl(profileSheetName, { userNameStyle: applied.userNameStyle, nameColor: applied.userNameStyle.color });
+  }
   
   // Update UI
   updateChatIdentityTab();
@@ -24329,27 +24404,37 @@ function openChatIdentityModal(){
   if (sysMsgDensity) sysMsgDensity.value = layout.sysMsgDensity;
   if (msgContrast) msgContrast.value = layout.msgContrast;
   
-  // Initialize text customization
+  // Initialize per-tab drafts from stored preferences
   textStyleTarget = "username";
-  textStyleDraft = cloneTextStyle(getActiveTextStylePrefs());
+  chatIdentityUsernameDraft = cloneTextStyle(userNameStylePrefs);
+  chatIdentityMessageTextDraft = cloneTextStyle(messageTextStylePrefs);
   
-  // Ensure neon and gradient have defaults
-  if (textStyleDraft.mode === "neon" && !textStyleDraft.neon?.presetId) {
-    const preset = NEON_PRESETS[0];
-    textStyleDraft.neon = {
-      presetId: preset.id,
-      color: preset.baseColor,
-      intensity: textStyleDraft.neon?.intensity || TEXT_STYLE_DEFAULTS.neon.intensity
-    };
-  }
-  if (textStyleDraft.mode === "gradient" && !textStyleDraft.gradient?.presetId) {
-    const preset = GRADIENT_PRESETS[0];
-    textStyleDraft.gradient = {
-      presetId: preset.id,
-      css: buildGradientCss(preset),
-      intensity: textStyleDraft.gradient?.intensity || TEXT_STYLE_DEFAULTS.gradient.intensity
-    };
-  }
+  // Set up the initial draft for the active tab
+  textStyleDraft = cloneTextStyle(chatIdentityUsernameDraft);
+  
+  // Ensure neon and gradient have defaults for both drafts
+  const ensurePresetsInDraft = (draft) => {
+    if (draft.mode === "neon" && !draft.neon?.presetId) {
+      const preset = NEON_PRESETS[0];
+      draft.neon = {
+        presetId: preset.id,
+        color: preset.baseColor,
+        intensity: draft.neon?.intensity || TEXT_STYLE_DEFAULTS.neon.intensity
+      };
+    }
+    if (draft.mode === "gradient" && !draft.gradient?.presetId) {
+      const preset = GRADIENT_PRESETS[0];
+      draft.gradient = {
+        presetId: preset.id,
+        css: buildGradientCss(preset),
+        intensity: draft.gradient?.intensity || TEXT_STYLE_DEFAULTS.gradient.intensity
+      };
+    }
+  };
+  
+  ensurePresetsInDraft(chatIdentityUsernameDraft);
+  ensurePresetsInDraft(chatIdentityMessageTextDraft);
+  ensurePresetsInDraft(textStyleDraft);
   
   // Render grids and sync inputs
   renderChatIdentityColorGrid();
@@ -24376,7 +24461,10 @@ function closeChatIdentityModal(){
   if (chatIdentityModal._lastFocusEl?.focus) {
     chatIdentityModal._lastFocusEl.focus();
   }
+  // Clear drafts
   textStyleDraft = null;
+  chatIdentityUsernameDraft = null;
+  chatIdentityMessageTextDraft = null;
 }
 
 const PERSONALISATION_SECTIONS_KEY = "ui.personalisation.openSections";

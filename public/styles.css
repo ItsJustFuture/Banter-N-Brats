@@ -6026,7 +6026,7 @@ body:not(.polish-pack) .tonePicker{
   display:none;
   align-items:center;
   justify-content:center;
-  z-index:980;
+  z-index:920;
   padding:20px;
 }
 .chatIdentityModal.show{ display:flex; }
@@ -6189,7 +6189,7 @@ body:not(.polish-pack) .tonePicker{
   display:none;
 }
 
-.chatIdentityPresetPanel[style*="display: block"]{
+.chatIdentityPresetPanel.active{
   display:block;
 }
 
