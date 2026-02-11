@@ -7387,6 +7387,351 @@ const StickyYouTubePlayer = (()=>{
   return { loadVideo, close, minimize: cycleState };
 })();
 
+// Global Music Room Player (Music room only)
+const MusicRoomPlayer = (() => {
+  let player = null;
+  let playerContainer = null;
+  let currentVideoEl = null;
+  let queueListEl = null;
+  let apiReadyPromise = null;
+  let currentVideo = null;
+  let queue = [];
+  
+  // Per-user quality settings
+  const AUDIO_ONLY_KEY = "music_audio_only";
+  const LOW_QUALITY_KEY = "music_low_quality";
+  
+  // Quality mapping for "low quality" mode
+  // Note: 'tiny' is the lowest quality and has no downgrade option
+  const QUALITY_DOWNGRADE = {
+    "highres": "hd2160",
+    "hd2160": "hd1440",
+    "hd1440": "hd1080",
+    "hd1080": "hd720",
+    "hd720": "large",
+    "large": "medium",
+    "medium": "small",
+    "small": "tiny"
+  };
+
+  function loadApi() {
+    if (window.YT?.Player) return Promise.resolve(window.YT);
+    if (apiReadyPromise) return apiReadyPromise;
+    apiReadyPromise = new Promise((resolve, reject) => {
+      const prevCb = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { prevCb?.(); resolve(window.YT); };
+      const script = document.createElement("script");
+      script.src = "https://www.youtube.com/iframe_api";
+      script.async = true;
+      script.onerror = (err) => reject(err);
+      document.head.appendChild(script);
+    });
+    return apiReadyPromise;
+  }
+
+  function initDom() {
+    if (playerContainer) return; // Already initialized
+    
+    // Create player container
+    playerContainer = document.createElement("div");
+    playerContainer.id = "musicRoomPlayer";
+    playerContainer.className = "musicRoomPlayer is-hidden";
+    playerContainer.innerHTML = `
+      <div class="musicPlayerInner">
+        <div class="musicPlayerHeader">
+          <div class="musicPlayerTitle">🎵 Music Room Player</div>
+          <div class="musicPlayerControls">
+            <button class="iconBtn" id="musicSkipBtn" title="Skip to next" aria-label="Skip to next">⏭</button>
+            <button class="iconBtn" id="musicAudioOnlyBtn" title="Audio only mode" aria-label="Audio only mode">🎵</button>
+            <button class="iconBtn" id="musicLowQualityBtn" title="Low quality mode" aria-label="Low quality mode">📶</button>
+          </div>
+        </div>
+        <div class="musicPlayerBody">
+          <div id="musicPlayerFrame"></div>
+        </div>
+        <div class="musicCurrentVideo" id="musicCurrentVideo">
+          <div class="musicCurrentTitle">Nothing playing</div>
+        </div>
+        <div class="musicQueue" id="musicQueue">
+          <div class="musicQueueHeader">Queue</div>
+          <div class="musicQueueList" id="musicQueueList"></div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(playerContainer);
+    
+    currentVideoEl = document.getElementById("musicCurrentVideo");
+    queueListEl = document.getElementById("musicQueueList");
+    
+    // Setup controls
+    const skipBtn = document.getElementById("musicSkipBtn");
+    const audioOnlyBtn = document.getElementById("musicAudioOnlyBtn");
+    const lowQualityBtn = document.getElementById("musicLowQualityBtn");
+    
+    if (skipBtn) {
+      skipBtn.addEventListener("click", () => {
+        socket?.emit("music:next");
+      });
+    }
+    
+    if (audioOnlyBtn) {
+      audioOnlyBtn.addEventListener("click", () => {
+        toggleAudioOnly();
+      });
+    }
+    
+    if (lowQualityBtn) {
+      lowQualityBtn.addEventListener("click", () => {
+        toggleLowQuality();
+      });
+    }
+    
+    // Load saved preferences
+    loadUserPreferences();
+  }
+
+  function loadUserPreferences() {
+    try {
+      const audioOnly = localStorage.getItem(AUDIO_ONLY_KEY) === "true";
+      const lowQuality = localStorage.getItem(LOW_QUALITY_KEY) === "true";
+      
+      const audioOnlyBtn = document.getElementById("musicAudioOnlyBtn");
+      const lowQualityBtn = document.getElementById("musicLowQualityBtn");
+      
+      if (audioOnlyBtn) {
+        audioOnlyBtn.classList.toggle("active", audioOnly);
+      }
+      
+      if (lowQualityBtn) {
+        lowQualityBtn.classList.toggle("active", lowQuality);
+      }
+      
+      applyQualitySettings();
+    } catch (err) {
+      console.warn("[MusicRoomPlayer] Failed to load preferences:", err);
+    }
+  }
+
+  function toggleAudioOnly() {
+    try {
+      const audioOnlyBtn = document.getElementById("musicAudioOnlyBtn");
+      const isActive = audioOnlyBtn?.classList.toggle("active");
+      localStorage.setItem(AUDIO_ONLY_KEY, isActive ? "true" : "false");
+      applyQualitySettings();
+    } catch (err) {
+      console.warn("[MusicRoomPlayer] Failed to toggle audio only:", err);
+    }
+  }
+
+  function toggleLowQuality() {
+    try {
+      const lowQualityBtn = document.getElementById("musicLowQualityBtn");
+      const isActive = lowQualityBtn?.classList.toggle("active");
+      localStorage.setItem(LOW_QUALITY_KEY, isActive ? "true" : "false");
+      applyQualitySettings();
+    } catch (err) {
+      console.warn("[MusicRoomPlayer] Failed to toggle low quality:", err);
+    }
+  }
+
+  function applyQualitySettings() {
+    if (!player || !player.getPlayerState) return;
+    
+    try {
+      const audioOnly = localStorage.getItem(AUDIO_ONLY_KEY) === "true";
+      const lowQuality = localStorage.getItem(LOW_QUALITY_KEY) === "true";
+      const playerFrame = document.getElementById("musicPlayerFrame");
+      
+      if (audioOnly && playerFrame) {
+        playerFrame.style.display = "none";
+      } else if (playerFrame) {
+        playerFrame.style.display = "";
+      }
+      
+      // Apply quality settings
+      if (player && currentVideo) {
+        const availableQualities = player.getAvailableQualityLevels?.() || [];
+        
+        // Determine baseline quality: prefer 720p, otherwise highest available
+        let baselineQuality = "hd720";
+        if (availableQualities.length > 0) {
+          if (availableQualities.includes("hd720")) {
+            baselineQuality = "hd720";
+          } else {
+            // getAvailableQualityLevels() returns from highest to lowest
+            baselineQuality = availableQualities[0];
+          }
+        }
+
+        // From the baseline, optionally apply a low-quality downgrade
+        let targetQuality;
+        if (lowQuality) {
+          const downgraded = QUALITY_DOWNGRADE[baselineQuality];
+          targetQuality = (downgraded && availableQualities.includes(downgraded))
+            ? downgraded
+            : baselineQuality;
+        } else {
+          targetQuality = baselineQuality;
+        }
+        
+        // Set quality - use loadVideoById to maintain playback state
+        const pos = player.getCurrentTime?.() || 0;
+        const wasPlaying = player.getPlayerState?.() === window.YT?.PlayerState?.PLAYING;
+        
+        player.setPlaybackQuality?.(targetQuality);
+        
+        if (wasPlaying) {
+          // Use loadVideoById to maintain playback state more reliably
+          player.loadVideoById?.({ videoId: currentVideo.videoId, startSeconds: pos, suggestedQuality: targetQuality });
+        } else {
+          player.cueVideoById?.({ videoId: currentVideo.videoId, startSeconds: pos, suggestedQuality: targetQuality });
+        }
+      }
+    } catch (err) {
+      console.warn("[MusicRoomPlayer] Failed to apply quality settings:", err);
+    }
+  }
+
+  async function ensurePlayer() {
+    if (player) return player;
+    
+    await loadApi();
+    const playerFrame = document.getElementById("musicPlayerFrame");
+    if (!playerFrame) return null;
+    
+    player = new YT.Player(playerFrame, {
+      height: "180",
+      width: "320",
+      host: "https://www.youtube-nocookie.com",
+      playerVars: { 
+        playsinline: 1, 
+        controls: 0, 
+        modestbranding: 1, 
+        rel: 0, 
+        autoplay: 1, 
+        enablejsapi: 1, 
+        origin: window.location.origin 
+      },
+      events: {
+        onReady: () => {
+          applyQualitySettings();
+        },
+        onStateChange: (event) => {
+          if (event.data === YT.PlayerState.ENDED) {
+            socket?.emit("music:ended");
+          }
+        }
+      }
+    });
+    
+    return player;
+  }
+
+  function show() {
+    initDom();
+    if (playerContainer) {
+      playerContainer.classList.remove("is-hidden");
+    }
+  }
+
+  function hide() {
+    if (playerContainer) {
+      playerContainer.classList.add("is-hidden");
+    }
+    if (player) {
+      try { player.stopVideo?.(); } catch {}
+    }
+  }
+
+  async function playVideo(videoId, title, addedBy, startedAt) {
+    initDom();
+    show();
+    
+    currentVideo = { videoId, title, addedBy, startedAt };
+    
+    // Update current video display
+    if (currentVideoEl) {
+      currentVideoEl.innerHTML = `
+        <div class="musicCurrentTitle">${escapeHtml(title)}</div>
+        <div class="musicCurrentMeta">Added by ${escapeHtml(addedBy)}</div>
+      `;
+    }
+    
+    await ensurePlayer();
+    
+    if (player) {
+      try {
+        // Calculate seek position based on when video started
+        let startSeconds = 0;
+        if (startedAt) {
+          const elapsedMs = Date.now() - startedAt;
+          startSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+        }
+        
+        // Determine baseline quality: prefer 720p, otherwise highest available
+        const availableQualities = player.getAvailableQualityLevels?.() || [];
+        let suggestedQuality = "hd720";
+        if (availableQualities.length > 0 && !availableQualities.includes("hd720")) {
+          suggestedQuality = availableQualities[0]; // Highest available
+        }
+        
+        player.loadVideoById?.({
+          videoId,
+          startSeconds,
+          suggestedQuality
+        });
+        
+        // Apply quality settings after a short delay
+        setTimeout(() => {
+          applyQualitySettings();
+        }, 500);
+      } catch (err) {
+        console.warn("[MusicRoomPlayer] Failed to play video:", err);
+      }
+    }
+  }
+
+  function updateQueue(queueData) {
+    queue = queueData || [];
+    
+    if (!queueListEl) return;
+    
+    if (queue.length === 0) {
+      queueListEl.innerHTML = '<div class="musicQueueEmpty">Queue is empty</div>';
+      return;
+    }
+    
+    queueListEl.innerHTML = queue.map((item, index) => `
+      <div class="musicQueueItem">
+        <div class="musicQueueIndex">${index + 1}</div>
+        <div class="musicQueueInfo">
+          <div class="musicQueueTitle">${escapeHtml(item.title)}</div>
+          <div class="musicQueueMeta">Added by ${escapeHtml(item.addedBy)}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function stop() {
+    currentVideo = null;
+    if (currentVideoEl) {
+      currentVideoEl.innerHTML = '<div class="musicCurrentTitle">Nothing playing</div>';
+    }
+    if (player) {
+      try { player.stopVideo?.(); } catch {}
+    }
+  }
+
+  return {
+    show,
+    hide,
+    playVideo,
+    updateQueue,
+    stop
+  };
+})();
+
 function buildYouTubePreview(videoId){
   const btn = document.createElement("button");
   btn.type = "button";
@@ -16439,6 +16784,23 @@ function joinRoom(room){
   clearMsgs();
   socket?.emit("join room", { room, status: normalizeStatusLabel(statusSelect.value, "Online") });
   closeDrawers();
+  
+  // Music room player management
+  if (room === "music") {
+    // Request current state when joining music room
+    socket?.emit("music:getState", (state) => {
+      if (state.current) {
+        MusicRoomPlayer.playVideo(state.current.videoId, state.current.title, state.current.addedBy, state.current.startedAt);
+      } else {
+        MusicRoomPlayer.show();
+      }
+      if (state.queue) {
+        MusicRoomPlayer.updateQueue(state.queue);
+      }
+    });
+  } else {
+    MusicRoomPlayer.hide();
+  }
 }
 chanList.addEventListener("click", (e)=>{
   const masterToggle = e.target.closest("[data-room-master-toggle]");
@@ -24637,6 +24999,26 @@ socket.on("mod:case_event", (payload = {}) => {
     applyProgressionPayload(payload);
     renderLevelProgress(progression, true);
   });
+
+  // Music Room Player events
+  socket.on("music:play", (payload) => {
+    if (currentRoom === "music") {
+      MusicRoomPlayer.playVideo(payload.videoId, payload.title, payload.addedBy, payload.startedAt);
+    }
+  });
+
+  socket.on("music:queue", (payload) => {
+    if (currentRoom === "music") {
+      MusicRoomPlayer.updateQueue(payload.queue);
+    }
+  });
+
+  socket.on("music:stop", () => {
+    if (currentRoom === "music") {
+      MusicRoomPlayer.stop();
+    }
+  });
+
   socket.on("profile:update", async (payload = {}) => {
     if (payload?.username && me) {
       me.username = payload.username;
