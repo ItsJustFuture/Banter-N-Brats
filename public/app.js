@@ -11705,6 +11705,9 @@ try{
 
   const bubbleEl = item.querySelector(".bubble");
   applyChatFxToBubble(bubbleEl, resolvedFx, { groupBody: body });
+  // Apply username styling at render time for live updates
+  const unameEl = item.querySelector(".unameText");
+  if (unameEl) applyNameFxToEl(unameEl, resolvedFx);
   applyIdentityGlow(item, { username: senderName, role: senderRole, vibe_tags: m?.vibe_tags, couple: m?.couple });
   body.appendChild(item);
   maybeShowIrisLolaSharedMoment({
@@ -14360,6 +14363,9 @@ function renderDmMessages(threadId){
     if (gClass !== " g-start" && gClass !== " g-solo") {
       u.textContent = ""; // grouped: avoid repeating the username
       u.style.display = "none";
+    } else {
+      // Apply username styling at render time for live updates
+      applyNameFxToEl(u, resolvedFx);
     }
     const t = document.createElement("span");
     t.className = "dmMetaTime";
