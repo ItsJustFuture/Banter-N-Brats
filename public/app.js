@@ -13018,6 +13018,8 @@ function renderFriendsList(list){
       uname.textContent = f.username;
       name.appendChild(ico);
       name.appendChild(uname);
+      // Apply username styling at render time
+      try { applyNameFxToEl(uname, userFxMap[f.username] || {}); } catch {}
 
       const sub = document.createElement('div');
       sub.className = 'mSub';
