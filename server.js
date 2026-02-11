@@ -12936,6 +12936,128 @@ app.post("/api/dnd-story/spectate/influence", dndLimiter, requireLogin, express.
   }
 });
 
+// Character templates endpoints
+app.get("/api/dnd-story/character-templates", requireLogin, async (req, res) => {
+  try {
+    const userId = Number(req.session?.user?.id);
+    if (!userId) return res.status(401).send("Unauthorized");
+    
+    const templates = await dndDb.getCharacterTemplates(pgPool, userId);
+    return res.json({ templates });
+  } catch (e) {
+    console.warn("[dnd] get templates failed", e?.message || e);
+    return res.status(500).send("Failed");
+  }
+});
+
+app.post("/api/dnd-story/character-templates", requireLogin, express.json({ limit: "16kb" }), async (req, res) => {
+  try {
+    const userId = Number(req.session?.user?.id);
+    if (!userId) return res.status(401).send("Unauthorized");
+    
+    const templateName = sanitizeDisplayName(req.body?.templateName || "").trim().slice(0, 40);
+    if (!templateName) {
+      return res.status(400).json({ message: "Template name is required" });
+    }
+    
+    // Reuse the same validation logic as character creation
+    const normalizeMeta = (value, maxLen) => {
+      const cleaned = sanitizeDisplayName(value || "").trim();
+      if (!cleaned) return null;
+      return cleaned.slice(0, maxLen);
+    };
+    
+    const user = req.session.user;
+    const nameInput = normalizeMeta(req.body?.name, 40);
+    const displayName = nameInput || user.username;
+    const race = normalizeMeta(req.body?.race, 32);
+    const gender = normalizeMeta(req.body?.gender, 32);
+    const background = normalizeMeta(req.body?.background, 40);
+    
+    let age = null;
+    if (req.body?.age != null) {
+      age = Number(req.body.age);
+      if (isNaN(age) || age < 18 || age > 999) {
+        return res.status(400).json({ message: "Age must be between 18 and 999" });
+      }
+    }
+    
+    const traits = normalizeMeta(req.body?.traits, 300);
+    const abilities = normalizeMeta(req.body?.abilities, 300);
+    
+    // Validate attributes
+    const attributes = req.body?.attributes || {};
+    const attrValidation = dndCharacterSystem.validateAttributes(attributes);
+    if (!attrValidation.valid) {
+      return res.status(400).json({ message: attrValidation.error });
+    }
+    
+    // Validate skills
+    const skills = req.body?.skills || [];
+    const skillValidation = dndCharacterSystem.validateSkills(skills);
+    if (!skillValidation.valid) {
+      return res.status(400).json({ message: skillValidation.error });
+    }
+    
+    // Validate perks
+    const perks = req.body?.perks || [];
+    const perkValidation = dndCharacterSystem.validatePerks(perks);
+    if (!perkValidation.valid) {
+      return res.status(400).json({ message: perkValidation.error });
+    }
+    
+    // Apply skill bonuses
+    const { attributes: finalAttributes } = dndCharacterSystem.applySkillBonuses(attributes, skills);
+    const finalAttrValidation = dndCharacterSystem.validateAttributes(finalAttributes);
+    if (!finalAttrValidation.valid) {
+      return res.status(400).json({ message: finalAttrValidation.error });
+    }
+    
+    const template = await dndDb.createCharacterTemplate(pgPool, {
+      userId,
+      templateName,
+      displayName,
+      race,
+      gender,
+      age,
+      background,
+      traits,
+      abilities,
+      attributes: finalAttributes,
+      skills,
+      perks
+    });
+    
+    return res.json({ ok: true, template });
+  } catch (e) {
+    console.warn("[dnd] create template failed", e?.message || e);
+    if (e.message && e.message.includes("duplicate key")) {
+      return res.status(400).json({ message: "A template with this name already exists" });
+    }
+    return res.status(500).send("Failed");
+  }
+});
+
+app.delete("/api/dnd-story/character-templates/:id", requireLogin, async (req, res) => {
+  try {
+    const userId = Number(req.session?.user?.id);
+    if (!userId) return res.status(401).send("Unauthorized");
+    
+    const templateId = Number(req.params.id);
+    if (!templateId) return res.status(400).json({ message: "Invalid template ID" });
+    
+    const success = await dndDb.deleteCharacterTemplate(pgPool, templateId, userId);
+    if (!success) {
+      return res.status(404).json({ message: "Template not found" });
+    }
+    
+    return res.json({ ok: true });
+  } catch (e) {
+    console.warn("[dnd] delete template failed", e?.message || e);
+    return res.status(500).send("Failed");
+  }
+});
+
 // ---- Room structure management (Owner-only)
 app.post("/api/room-masters", strictLimiter, requireAdminPlus, express.json({ limit: "16kb" }), async (req, res) => {
   const name = sanitizeRoomGroupName(req.body?.name || "");

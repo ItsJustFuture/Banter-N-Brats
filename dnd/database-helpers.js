@@ -313,6 +313,111 @@ async function getDndEvents(db, sessionId, limit = 50) {
   }
 }
 
+/**
+ * Create a character template for reuse
+ * @param {Object} db - Database client
+ * @param {Object} params - Template parameters
+ * @returns {Promise<Object>} Created template
+ */
+async function createCharacterTemplate(db, params) {
+  const {
+    userId,
+    templateName,
+    displayName,
+    race,
+    gender,
+    age,
+    background,
+    traits,
+    abilities,
+    attributes,
+    skills,
+    perks
+  } = params;
+  
+  const now = Date.now();
+  
+  try {
+    const result = await db.query(
+      `INSERT INTO dnd_character_templates 
+       (user_id, template_name, display_name, race, gender, age, background, traits, abilities,
+        might, finesse, wit, instinct, presence, resolve, chaos,
+        skills_json, perks_json, created_at, updated_at, last_used_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+       RETURNING *`,
+      [
+        userId, templateName, displayName, race, gender, age, background, traits, abilities,
+        attributes.might, attributes.finesse, attributes.wit,
+        attributes.instinct, attributes.presence, attributes.resolve, attributes.chaos,
+        JSON.stringify(skills), JSON.stringify(perks),
+        now, now, now
+      ]
+    );
+    return result.rows[0];
+  } catch (pgErr) {
+    const sqlite = require("./database-sqlite-fallback");
+    return await sqlite.createCharacterTemplate(params);
+  }
+}
+
+/**
+ * Get character templates for a user
+ * @param {Object} db - Database client
+ * @param {number} userId - User ID
+ * @returns {Promise<Array<Object>>} Templates
+ */
+async function getCharacterTemplates(db, userId) {
+  try {
+    const result = await db.query(
+      "SELECT * FROM dnd_character_templates WHERE user_id = $1 ORDER BY last_used_at DESC, created_at DESC",
+      [userId]
+    );
+    return result.rows;
+  } catch (pgErr) {
+    const sqlite = require("./database-sqlite-fallback");
+    return await sqlite.getCharacterTemplates(userId);
+  }
+}
+
+/**
+ * Update a character template's last_used_at timestamp
+ * @param {Object} db - Database client
+ * @param {number} templateId - Template ID
+ * @returns {Promise<void>}
+ */
+async function updateTemplateUsage(db, templateId) {
+  const now = Date.now();
+  try {
+    await db.query(
+      "UPDATE dnd_character_templates SET last_used_at = $1 WHERE id = $2",
+      [now, templateId]
+    );
+  } catch (pgErr) {
+    const sqlite = require("./database-sqlite-fallback");
+    return await sqlite.updateTemplateUsage(templateId);
+  }
+}
+
+/**
+ * Delete a character template
+ * @param {Object} db - Database client
+ * @param {number} templateId - Template ID
+ * @param {number} userId - User ID (for verification)
+ * @returns {Promise<boolean>} Success
+ */
+async function deleteCharacterTemplate(db, templateId, userId) {
+  try {
+    const result = await db.query(
+      "DELETE FROM dnd_character_templates WHERE id = $1 AND user_id = $2",
+      [templateId, userId]
+    );
+    return result.rowCount > 0;
+  } catch (pgErr) {
+    const sqlite = require("./database-sqlite-fallback");
+    return await sqlite.deleteCharacterTemplate(templateId, userId);
+  }
+}
+
 module.exports = {
   createDndSession,
   getDndSession,
@@ -323,5 +428,9 @@ module.exports = {
   getDndCharacters,
   getDndCharacterByUser,
   createDndEvent,
-  getDndEvents
+  getDndEvents,
+  createCharacterTemplate,
+  getCharacterTemplates,
+  updateTemplateUsage,
+  deleteCharacterTemplate
 };
