@@ -6303,14 +6303,15 @@ function handleLoopToggle() {
 function handleVolumeChange(value) {
   if (currentRoom !== "music") return;
   
-  const volume = parseInt(value) || 100;
+  const parsedVolume = parseInt(value, 10);
+  const volume = Number.isNaN(parsedVolume) ? 100 : parsedVolume;
   if (musicVolumePercent) {
     musicVolumePercent.textContent = `${volume}%`;
   }
   
   // Apply volume to YouTube player
-  if (window.MusicRoomPlayer && window.MusicRoomPlayer.setVolume) {
-    window.MusicRoomPlayer.setVolume(volume);
+  if (typeof MusicRoomPlayer !== "undefined" && MusicRoomPlayer && typeof MusicRoomPlayer.setVolume === "function") {
+    MusicRoomPlayer.setVolume(volume);
   }
   
   // Save preference
@@ -6333,6 +6334,13 @@ if (musicControlsClose) {
 if (musicControlsModal) {
   musicControlsModal.addEventListener("click", (e) => {
     if (e.target === musicControlsModal) {
+      closeMusicControlsModal();
+    }
+  });
+  
+  // Add Escape key handler for accessibility
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && musicControlsModal && !musicControlsModal.hidden) {
       closeMusicControlsModal();
     }
   });
@@ -17000,6 +17008,23 @@ function joinRoom(room){
       if (state.queue) {
         MusicRoomPlayer.updateQueue(state.queue);
       }
+      // Hydrate music controls state (loop/votes) from initial room state
+      if (typeof musicControlsState !== "undefined" && state) {
+        if ("loopEnabled" in state) {
+          musicControlsState.loopEnabled = state.loopEnabled;
+        }
+        if ("votes" in state && state.votes) {
+          // Initialize vote Sets from server state
+          musicControlsState.skipVotes = new Set();
+          musicControlsState.clearVotes = new Set();
+          musicControlsState.shuffleVotes = new Set();
+          // We don't have individual voter IDs from getState, just counts
+          // So we'll wait for voteUpdate events to populate the actual voters
+        }
+        if (typeof updateMusicControlsUI === "function") {
+          updateMusicControlsUI();
+        }
+      }
     });
     // Show music controls button in music room
     if (musicControlsBtn) {
@@ -17011,6 +17036,8 @@ function joinRoom(room){
     if (musicControlsBtn) {
       musicControlsBtn.hidden = true;
     }
+    // Close music controls modal when leaving music room
+    closeMusicControlsModal();
   }
 }
 chanList.addEventListener("click", (e)=>{
@@ -25239,20 +25266,35 @@ socket.on("mod:case_event", (payload = {}) => {
     if (type === "skip" && skipVoteCount) {
       skipVoteCount.textContent = count === 1 ? "1 vote" : `${count} votes`;
       musicControlsState.skipVotes = new Set(voters);
+      const hasVoted = voters.includes(me?.id);
+      if (!musicControlsState.myVotes) {
+        musicControlsState.myVotes = {};
+      }
+      musicControlsState.myVotes.skip = hasVoted;
       if (voteSkipBtn) {
-        voteSkipBtn.classList.toggle("voted", voters.includes(me?.id));
+        voteSkipBtn.classList.toggle("voted", hasVoted);
       }
     } else if (type === "clear" && clearVoteCount) {
       clearVoteCount.textContent = count === 1 ? "1 vote" : `${count} votes`;
       musicControlsState.clearVotes = new Set(voters);
+      const hasVoted = voters.includes(me?.id);
+      if (!musicControlsState.myVotes) {
+        musicControlsState.myVotes = {};
+      }
+      musicControlsState.myVotes.clear = hasVoted;
       if (voteClearQueueBtn) {
-        voteClearQueueBtn.classList.toggle("voted", voters.includes(me?.id));
+        voteClearQueueBtn.classList.toggle("voted", hasVoted);
       }
     } else if (type === "shuffle" && shuffleVoteCount) {
       shuffleVoteCount.textContent = count === 1 ? "1 vote" : `${count} votes`;
       musicControlsState.shuffleVotes = new Set(voters);
+      const hasVoted = voters.includes(me?.id);
+      if (!musicControlsState.myVotes) {
+        musicControlsState.myVotes = {};
+      }
+      musicControlsState.myVotes.shuffle = hasVoted;
       if (shuffleQueueBtn) {
-        shuffleQueueBtn.classList.toggle("voted", voters.includes(me?.id));
+        shuffleQueueBtn.classList.toggle("voted", hasVoted);
       }
     }
   });

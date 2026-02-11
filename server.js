@@ -107,12 +107,20 @@ function getMusicRoomUserCount(io) {
 
 // Helper to check if vote threshold is met (at least half of room, rounded up)
 // For odd-numbered rooms, this requires a majority (e.g., 2 votes for 3 users = 66.67%)
-// For even-numbered rooms, this requires exactly half (e.g., 2 votes for 4 users = 50%)
+// For even-numbered rooms, this requires at least half (e.g., 2 votes for 4 users = 50%)
 function checkVoteThreshold(voteSet, io) {
   const roomCount = getMusicRoomUserCount(io);
   if (roomCount === 0) return false;
   const threshold = Math.ceil(roomCount / 2);
   return voteSet.size >= threshold;
+}
+
+// Remove a user's votes from all music vote types (to be called on room change/disconnect).
+function clearUserMusicVotes(userId) {
+  if (!userId) return;
+  for (const voteSet of Object.values(MUSIC_VOTES)) {
+    voteSet.delete(userId);
+  }
 }
 
 // Helper to extract YouTube video IDs from text
@@ -13009,7 +13017,12 @@ app.post("/api/dnd-story/character-templates", requireLogin, express.json({ limi
     };
     
     const user = req.session.user;
-    const nameInput = normalizeMeta(req.body?.name, 40);
+    const rawName = req.body?.name;
+    const nameInput = normalizeMeta(rawName, 40);
+    // If a name was explicitly provided but sanitizes to empty, reject it
+    if (rawName != null && rawName !== "" && !nameInput) {
+      return res.status(400).json({ message: "Invalid character name" });
+    }
     const displayName = nameInput || user.username;
     const race = normalizeMeta(req.body?.race, 32);
     const gender = normalizeMeta(req.body?.gender, 32);
@@ -17504,6 +17517,10 @@ io.on("connection", async (socket) => {
         set.delete(socket.id);
         if (!set.size) sessionByUserId.delete(uid);
       }
+      // Clear music votes when user disconnects
+      if (uid) {
+        clearUserMusicVotes(uid);
+      }
     } catch (err) {
       if (IS_DEV_MODE) {
         console.error("[socket] disconnect cleanup error", err);
@@ -18034,6 +18051,11 @@ function doJoin(room, status) {
     if (set) {
       set.delete(socket.user.username);
       broadcastTyping(previousRoom);
+    }
+    
+    // Clear music votes when leaving music room
+    if (previousRoom === "music" && socket.user?.id) {
+      clearUserMusicVotes(socket.user.id);
     }
 
     emitUserList(previousRoom);
@@ -19715,6 +19737,14 @@ if (!room) {
     if (checkVoteThreshold(MUSIC_VOTES.skip, io)) {
       emitRoomSystem("music", `⏭️ Vote passed! Skipping to next song...`);
       MUSIC_VOTES.skip.clear();
+      
+      // Broadcast reset vote state so clients don't show stale votes
+      io.to("music").emit("music:voteUpdate", {
+        type: "skip",
+        count: 0,
+        voters: []
+      });
+      
       skipToNextVideo(io);
     }
   });
@@ -19744,6 +19774,14 @@ if (!room) {
     if (checkVoteThreshold(MUSIC_VOTES.clear, io)) {
       emitRoomSystem("music", `🗑️ Vote passed! Queue cleared.`);
       MUSIC_VOTES.clear.clear();
+      
+      // Broadcast reset vote state so clients don't show stale votes
+      io.to("music").emit("music:voteUpdate", {
+        type: "clear",
+        count: 0,
+        voters: []
+      });
+      
       MUSIC_ROOM_QUEUE.queue = [];
       
       io.to("music").emit("music:queue", {
@@ -19779,6 +19817,13 @@ if (!room) {
       emitRoomSystem("music", `🔀 Vote passed! Queue shuffled.`);
       MUSIC_VOTES.shuffle.clear();
       
+      // Broadcast reset vote state so clients don't show stale votes
+      io.to("music").emit("music:voteUpdate", {
+        type: "shuffle",
+        count: 0,
+        voters: []
+      });
+      
       // Shuffle the queue
       shuffleArray(MUSIC_ROOM_QUEUE.queue);
       
@@ -19808,6 +19853,14 @@ if (!room) {
     
     emitRoomSystem("music", `⏭️ ${socket.user.username} skipped to next song`);
     MUSIC_VOTES.skip.clear();
+    
+    // Broadcast reset vote state
+    io.to("music").emit("music:voteUpdate", {
+      type: "skip",
+      count: 0,
+      voters: []
+    });
+    
     skipToNextVideo(io);
   });
 
@@ -19824,6 +19877,14 @@ if (!room) {
     
     emitRoomSystem("music", `🗑️ ${socket.user.username} cleared the queue`);
     MUSIC_VOTES.clear.clear();
+    
+    // Broadcast reset vote state
+    io.to("music").emit("music:voteUpdate", {
+      type: "clear",
+      count: 0,
+      voters: []
+    });
+    
     MUSIC_ROOM_QUEUE.queue = [];
     
     io.to("music").emit("music:queue", {
@@ -19845,6 +19906,13 @@ if (!room) {
     
     emitRoomSystem("music", `🔀 ${socket.user.username} shuffled the queue`);
     MUSIC_VOTES.shuffle.clear();
+    
+    // Broadcast reset vote state
+    io.to("music").emit("music:voteUpdate", {
+      type: "shuffle",
+      count: 0,
+      voters: []
+    });
     
     // Shuffle the queue
     shuffleArray(MUSIC_ROOM_QUEUE.queue);
