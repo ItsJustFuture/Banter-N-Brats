@@ -24005,34 +24005,34 @@ function setupChatIdentityModalListeners(){
   const sysMsgDensity = modal.querySelector("#chatIdentitySysMsgDensity");
   const msgContrast = modal.querySelector("#chatIdentityMsgContrast");
   
+  const readChatIdentityLayoutForm = () => {
+    return normalizeMessageLayout({
+      msgDensity: msgDensity?.value || MESSAGE_LAYOUT_DEFAULTS.msgDensity,
+      msgAccentStyle: accentStyle?.value || MESSAGE_LAYOUT_DEFAULTS.msgAccentStyle,
+      msgUsernameEmphasis: usernameEmphasis?.value || MESSAGE_LAYOUT_DEFAULTS.msgUsernameEmphasis,
+      sysMsgDensity: sysMsgDensity?.value || MESSAGE_LAYOUT_DEFAULTS.sysMsgDensity,
+      msgContrast: msgContrast?.value || MESSAGE_LAYOUT_DEFAULTS.msgContrast
+    });
+  };
+  
   msgDensity?.addEventListener("change", () => {
-    const layout = readMessageLayoutForm();
-    layout.msgDensity = msgDensity.value;
-    applyMessageLayout(layout);
+    applyMessageLayout(readChatIdentityLayoutForm());
   });
   
   accentStyle?.addEventListener("change", () => {
-    const layout = readMessageLayoutForm();
-    layout.msgAccentStyle = accentStyle.value;
-    applyMessageLayout(layout);
+    applyMessageLayout(readChatIdentityLayoutForm());
   });
   
   usernameEmphasis?.addEventListener("change", () => {
-    const layout = readMessageLayoutForm();
-    layout.msgUsernameEmphasis = usernameEmphasis.value;
-    applyMessageLayout(layout);
+    applyMessageLayout(readChatIdentityLayoutForm());
   });
   
   sysMsgDensity?.addEventListener("change", () => {
-    const layout = readMessageLayoutForm();
-    layout.sysMsgDensity = sysMsgDensity.value;
-    applyMessageLayout(layout);
+    applyMessageLayout(readChatIdentityLayoutForm());
   });
   
   msgContrast?.addEventListener("change", () => {
-    const layout = readMessageLayoutForm();
-    layout.msgContrast = msgContrast.value;
-    applyMessageLayout(layout);
+    applyMessageLayout(readChatIdentityLayoutForm());
   });
   
   // Save and Reset buttons
