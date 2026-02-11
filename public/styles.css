@@ -15908,3 +15908,128 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
     transform: translateY(100%);
   }
 }
+
+/* ============================================= */
+/* Music Controls Modal                          */
+/* ============================================= */
+.musicControlsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.musicControlBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.musicControlBtn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.musicControlBtn:active {
+  transform: translateY(0);
+}
+
+.musicControlIcon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.musicControlLabel {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.musicControlVotes,
+.musicControlStatus {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  background: var(--bg);
+  border-radius: 4px;
+}
+
+.musicControlBtn.voted .musicControlVotes {
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+.musicControlBtn.active .musicControlStatus {
+  background: var(--success);
+  color: white;
+  font-weight: 600;
+}
+
+.musicControlVolume {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.musicControlVolume label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.musicControlVolume input[type="range"] {
+  flex: 2;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg);
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.musicControlVolume input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.musicControlVolume input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+}
+
+.musicVolumePercent {
+  font-size: 13px;
+  color: var(--text-muted);
+  min-width: 42px;
+  text-align: right;
+}
+
+#musicControlsBtn {
+  transition: opacity 0.2s ease;
+}
+
+#musicControlsBtn:hover {
+  opacity: 0.8;
+}

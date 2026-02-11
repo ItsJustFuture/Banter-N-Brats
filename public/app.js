@@ -4256,6 +4256,34 @@ if (IS_DEV && dndNewOpenBtn) {
   console.log("[DnD Button] Initialized - visibility controlled by room detection");
 }
 
+// Music Controls elements
+const musicControlsBtn = document.getElementById("musicControlsBtn");
+const musicControlsModal = document.getElementById("musicControlsModal");
+const musicControlsClose = document.getElementById("musicControlsClose");
+const voteSkipBtn = document.getElementById("voteSkipBtn");
+const voteClearQueueBtn = document.getElementById("voteClearQueueBtn");
+const loopVideoBtn = document.getElementById("loopVideoBtn");
+const shuffleQueueBtn = document.getElementById("shuffleQueueBtn");
+const musicVolumeSlider = document.getElementById("musicVolumeSlider");
+const musicVolumePercent = document.getElementById("musicVolumePercent");
+const skipVoteCount = document.getElementById("skipVoteCount");
+const clearVoteCount = document.getElementById("clearVoteCount");
+const shuffleVoteCount = document.getElementById("shuffleVoteCount");
+const loopStatus = document.getElementById("loopStatus");
+
+// Music controls state
+const musicControlsState = {
+  skipVotes: new Set(),
+  clearVotes: new Set(),
+  shuffleVotes: new Set(),
+  loopEnabled: false,
+  myVotes: {
+    skip: false,
+    clear: false,
+    shuffle: false
+  }
+};
+
 let mediaMenuOpen = false;
 let voiceRec = { recorder: null, stream: null, chunks: [], startedAt: 0 };
 let dicePayoutOpen = false;
@@ -6181,6 +6209,168 @@ const dmStrip = document.getElementById("dmStrip");
 const dmMsg = document.getElementById("dmMsg");
 const dmNotice = document.getElementById("dmNotice");
 
+// ===== MUSIC CONTROLS =====
+function openMusicControlsModal() {
+  if (!musicControlsModal) return;
+  musicControlsModal.hidden = false;
+  musicControlsModal.style.display = "flex";
+  lockBodyScroll(true);
+  updateMusicControlsUI();
+}
+
+function closeMusicControlsModal() {
+  if (!musicControlsModal) return;
+  musicControlsModal.hidden = true;
+  musicControlsModal.style.display = "none";
+  lockBodyScroll(false);
+}
+
+function updateMusicControlsUI() {
+  // Update vote counts
+  if (skipVoteCount) {
+    const count = musicControlsState.skipVotes.size;
+    skipVoteCount.textContent = count === 1 ? "1 vote" : `${count} votes`;
+  }
+  if (clearVoteCount) {
+    const count = musicControlsState.clearVotes.size;
+    clearVoteCount.textContent = count === 1 ? "1 vote" : `${count} votes`;
+  }
+  if (shuffleVoteCount) {
+    const count = musicControlsState.shuffleVotes.size;
+    shuffleVoteCount.textContent = count === 1 ? "1 vote" : `${count} votes`;
+  }
+  
+  // Update button states
+  if (voteSkipBtn) {
+    voteSkipBtn.classList.toggle("voted", musicControlsState.myVotes.skip);
+  }
+  if (voteClearQueueBtn) {
+    voteClearQueueBtn.classList.toggle("voted", musicControlsState.myVotes.clear);
+  }
+  if (shuffleQueueBtn) {
+    shuffleQueueBtn.classList.toggle("voted", musicControlsState.myVotes.shuffle);
+  }
+  
+  // Update loop status
+  if (loopStatus && loopVideoBtn) {
+    loopStatus.textContent = musicControlsState.loopEnabled ? "On" : "Off";
+    loopVideoBtn.classList.toggle("active", musicControlsState.loopEnabled);
+  }
+}
+
+function isMusicModerator() {
+  if (!me || !me.role) return false;
+  const privilegedRoles = ["Moderator", "Admin", "Co-Owner", "Owner"];
+  return privilegedRoles.includes(me.role);
+}
+
+function handleMusicVote(voteType) {
+  if (currentRoom !== "music") return;
+  
+  const isMod = isMusicModerator();
+  
+  // If moderator, bypass voting and execute immediately
+  if (isMod) {
+    socket?.emit(`music:${voteType}`, { bypass: true });
+    return;
+  }
+  
+  // Regular user - toggle vote
+  const hasVoted = musicControlsState.myVotes[voteType];
+  socket?.emit(`music:vote:${voteType}`, { remove: hasVoted });
+  
+  // Optimistically update UI
+  musicControlsState.myVotes[voteType] = !hasVoted;
+  if (hasVoted) {
+    musicControlsState[`${voteType}Votes`].delete(me.id);
+  } else {
+    musicControlsState[`${voteType}Votes`].add(me.id);
+  }
+  updateMusicControlsUI();
+}
+
+function handleLoopToggle() {
+  if (currentRoom !== "music") return;
+  
+  const newState = !musicControlsState.loopEnabled;
+  socket?.emit("music:loop", { enabled: newState });
+  
+  // Optimistically update UI
+  musicControlsState.loopEnabled = newState;
+  updateMusicControlsUI();
+}
+
+function handleVolumeChange(value) {
+  if (currentRoom !== "music") return;
+  
+  const volume = parseInt(value) || 100;
+  if (musicVolumePercent) {
+    musicVolumePercent.textContent = `${volume}%`;
+  }
+  
+  // Apply volume to YouTube player
+  if (window.MusicRoomPlayer && window.MusicRoomPlayer.setVolume) {
+    window.MusicRoomPlayer.setVolume(volume);
+  }
+  
+  // Save preference
+  try {
+    localStorage.setItem("music_volume", volume);
+  } catch (e) {
+    console.warn("[music] Failed to save volume preference:", e);
+  }
+}
+
+// Music controls event listeners
+if (musicControlsBtn) {
+  musicControlsBtn.addEventListener("click", openMusicControlsModal);
+}
+
+if (musicControlsClose) {
+  musicControlsClose.addEventListener("click", closeMusicControlsModal);
+}
+
+if (musicControlsModal) {
+  musicControlsModal.addEventListener("click", (e) => {
+    if (e.target === musicControlsModal) {
+      closeMusicControlsModal();
+    }
+  });
+}
+
+if (voteSkipBtn) {
+  voteSkipBtn.addEventListener("click", () => handleMusicVote("skip"));
+}
+
+if (voteClearQueueBtn) {
+  voteClearQueueBtn.addEventListener("click", () => handleMusicVote("clear"));
+}
+
+if (shuffleQueueBtn) {
+  shuffleQueueBtn.addEventListener("click", () => handleMusicVote("shuffle"));
+}
+
+if (loopVideoBtn) {
+  loopVideoBtn.addEventListener("click", handleLoopToggle);
+}
+
+if (musicVolumeSlider) {
+  musicVolumeSlider.addEventListener("input", (e) => {
+    handleVolumeChange(e.target.value);
+  });
+  
+  // Load saved volume preference
+  try {
+    const savedVolume = localStorage.getItem("music_volume");
+    if (savedVolume !== null) {
+      musicVolumeSlider.value = savedVolume;
+      handleVolumeChange(savedVolume);
+    }
+  } catch (e) {
+    console.warn("[music] Failed to load volume preference:", e);
+  }
+}
+
 function setDmNotice(text){
   if(!dmMsg) return;
   dmMsg.textContent = text || "";
@@ -7618,7 +7808,14 @@ const MusicRoomPlayer = (() => {
         },
         onStateChange: (event) => {
           if (event.data === YT.PlayerState.ENDED) {
-            socket?.emit("music:ended");
+            // Check if loop is enabled
+            if (musicControlsState?.loopEnabled && currentVideo) {
+              // Restart the current video
+              player.seekTo(0);
+              player.playVideo();
+            } else {
+              socket?.emit("music:ended");
+            }
           }
         }
       }
@@ -7722,12 +7919,19 @@ const MusicRoomPlayer = (() => {
     }
   }
 
+  function setVolume(volume) {
+    if (player && typeof player.setVolume === "function") {
+      player.setVolume(volume);
+    }
+  }
+
   return {
     show,
     hide,
     playVideo,
     updateQueue,
-    stop
+    stop,
+    setVolume
   };
 })();
 
@@ -16797,8 +17001,16 @@ function joinRoom(room){
         MusicRoomPlayer.updateQueue(state.queue);
       }
     });
+    // Show music controls button in music room
+    if (musicControlsBtn) {
+      musicControlsBtn.hidden = false;
+    }
   } else {
     MusicRoomPlayer.hide();
+    // Hide music controls button outside music room
+    if (musicControlsBtn) {
+      musicControlsBtn.hidden = true;
+    }
   }
 }
 chanList.addEventListener("click", (e)=>{
@@ -25016,6 +25228,40 @@ socket.on("mod:case_event", (payload = {}) => {
     if (currentRoom === "music") {
       MusicRoomPlayer.stop();
     }
+  });
+
+  socket.on("music:voteUpdate", (payload) => {
+    if (currentRoom !== "music") return;
+    
+    const { type, count, voters } = payload;
+    
+    // Update vote counts
+    if (type === "skip" && skipVoteCount) {
+      skipVoteCount.textContent = count === 1 ? "1 vote" : `${count} votes`;
+      musicControlsState.skipVotes = new Set(voters);
+      if (voteSkipBtn) {
+        voteSkipBtn.classList.toggle("voted", voters.includes(me?.id));
+      }
+    } else if (type === "clear" && clearVoteCount) {
+      clearVoteCount.textContent = count === 1 ? "1 vote" : `${count} votes`;
+      musicControlsState.clearVotes = new Set(voters);
+      if (voteClearQueueBtn) {
+        voteClearQueueBtn.classList.toggle("voted", voters.includes(me?.id));
+      }
+    } else if (type === "shuffle" && shuffleVoteCount) {
+      shuffleVoteCount.textContent = count === 1 ? "1 vote" : `${count} votes`;
+      musicControlsState.shuffleVotes = new Set(voters);
+      if (shuffleQueueBtn) {
+        shuffleQueueBtn.classList.toggle("voted", voters.includes(me?.id));
+      }
+    }
+  });
+
+  socket.on("music:loopUpdate", (payload) => {
+    if (currentRoom !== "music") return;
+    
+    musicControlsState.loopEnabled = !!payload.enabled;
+    updateMusicControlsUI();
   });
 
   socket.on("profile:update", async (payload = {}) => {

@@ -76,9 +76,42 @@ const MUSIC_ROOM_QUEUE = {
   nowPlaying: false,
   nextQueueId: 1, // Counter for queue ordering
   lastEndedVideoId: null, // Track last ended video to prevent duplicate advances
-  lastEndedAt: 0
+  lastEndedAt: 0,
+  loopEnabled: false // Loop current video
 };
 const MUSIC_QUEUE_MAX_SIZE = 100; // Maximum queue size
+
+// Music Room Voting System
+const MUSIC_VOTES = {
+  skip: new Set(),
+  clear: new Set(),
+  shuffle: new Set()
+};
+
+// Helper to check if user is music moderator (can bypass votes)
+function isMusicModerator(user) {
+  if (!user || !user.role) return false;
+  const privilegedRoles = ["Moderator", "Admin", "Co-Owner", "Owner"];
+  return privilegedRoles.includes(user.role);
+}
+
+// Helper to get music room user count
+function getMusicRoomUserCount(io) {
+  try {
+    const room = io.sockets.adapter.rooms.get("music");
+    return room ? room.size : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+// Helper to check if vote threshold is met (50% of room)
+function checkVoteThreshold(voteSet, io) {
+  const roomCount = getMusicRoomUserCount(io);
+  if (roomCount === 0) return false;
+  const threshold = Math.ceil(roomCount / 2);
+  return voteSet.size >= threshold;
+}
 
 // Helper to extract YouTube video IDs from text
 function extractYouTubeIds(text) {
@@ -19482,9 +19515,254 @@ if (!room) {
       callback({
         current: MUSIC_ROOM_QUEUE.currentVideo,
         queue: MUSIC_ROOM_QUEUE.queue,
-        nowPlaying: MUSIC_ROOM_QUEUE.nowPlaying
+        nowPlaying: MUSIC_ROOM_QUEUE.nowPlaying,
+        loopEnabled: MUSIC_ROOM_QUEUE.loopEnabled,
+        votes: {
+          skip: MUSIC_VOTES.skip.size,
+          clear: MUSIC_VOTES.clear.size,
+          shuffle: MUSIC_VOTES.shuffle.size
+        }
       });
     }
+  });
+
+  // Music voting handlers
+  socket.on("music:vote:skip", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const userId = socket.user.id;
+    const remove = payload?.remove;
+    
+    if (remove) {
+      MUSIC_VOTES.skip.delete(userId);
+    } else {
+      MUSIC_VOTES.skip.add(userId);
+      emitRoomSystem("music", `🎵 ${socket.user.username} voted to skip the current song`);
+    }
+    
+    // Broadcast updated vote count
+    io.to("music").emit("music:voteUpdate", {
+      type: "skip",
+      count: MUSIC_VOTES.skip.size,
+      voters: Array.from(MUSIC_VOTES.skip)
+    });
+    
+    // Check if threshold is met
+    if (checkVoteThreshold(MUSIC_VOTES.skip, io)) {
+      emitRoomSystem("music", `⏭️ Vote passed! Skipping to next song...`);
+      MUSIC_VOTES.skip.clear();
+      
+      // Skip to next video
+      if (MUSIC_ROOM_QUEUE.queue.length > 0) {
+        const video = MUSIC_ROOM_QUEUE.queue.shift();
+        MUSIC_ROOM_QUEUE.currentVideo = {
+          videoId: video.videoId,
+          title: video.title,
+          startedAt: Date.now(),
+          addedBy: video.addedBy
+        };
+        MUSIC_ROOM_QUEUE.nowPlaying = true;
+        
+        io.to("music").emit("music:play", {
+          videoId: video.videoId,
+          title: video.title,
+          addedBy: video.addedBy,
+          startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
+        });
+        
+        io.to("music").emit("music:queue", {
+          queue: MUSIC_ROOM_QUEUE.queue,
+          current: MUSIC_ROOM_QUEUE.currentVideo
+        });
+      } else {
+        MUSIC_ROOM_QUEUE.currentVideo = null;
+        MUSIC_ROOM_QUEUE.nowPlaying = false;
+        io.to("music").emit("music:stop");
+      }
+    }
+  });
+
+  socket.on("music:vote:clear", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const userId = socket.user.id;
+    const remove = payload?.remove;
+    
+    if (remove) {
+      MUSIC_VOTES.clear.delete(userId);
+    } else {
+      MUSIC_VOTES.clear.add(userId);
+      emitRoomSystem("music", `🗑️ ${socket.user.username} voted to clear the queue`);
+    }
+    
+    // Broadcast updated vote count
+    io.to("music").emit("music:voteUpdate", {
+      type: "clear",
+      count: MUSIC_VOTES.clear.size,
+      voters: Array.from(MUSIC_VOTES.clear)
+    });
+    
+    // Check if threshold is met
+    if (checkVoteThreshold(MUSIC_VOTES.clear, io)) {
+      emitRoomSystem("music", `🗑️ Vote passed! Queue cleared.`);
+      MUSIC_VOTES.clear.clear();
+      MUSIC_ROOM_QUEUE.queue = [];
+      
+      io.to("music").emit("music:queue", {
+        queue: MUSIC_ROOM_QUEUE.queue,
+        current: MUSIC_ROOM_QUEUE.currentVideo
+      });
+    }
+  });
+
+  socket.on("music:vote:shuffle", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const userId = socket.user.id;
+    const remove = payload?.remove;
+    
+    if (remove) {
+      MUSIC_VOTES.shuffle.delete(userId);
+    } else {
+      MUSIC_VOTES.shuffle.add(userId);
+      emitRoomSystem("music", `🔀 ${socket.user.username} voted to shuffle the queue`);
+    }
+    
+    // Broadcast updated vote count
+    io.to("music").emit("music:voteUpdate", {
+      type: "shuffle",
+      count: MUSIC_VOTES.shuffle.size,
+      voters: Array.from(MUSIC_VOTES.shuffle)
+    });
+    
+    // Check if threshold is met
+    if (checkVoteThreshold(MUSIC_VOTES.shuffle, io)) {
+      emitRoomSystem("music", `🔀 Vote passed! Queue shuffled.`);
+      MUSIC_VOTES.shuffle.clear();
+      
+      // Shuffle the queue (Fisher-Yates algorithm)
+      for (let i = MUSIC_ROOM_QUEUE.queue.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [MUSIC_ROOM_QUEUE.queue[i], MUSIC_ROOM_QUEUE.queue[j]] = [MUSIC_ROOM_QUEUE.queue[j], MUSIC_ROOM_QUEUE.queue[i]];
+      }
+      
+      io.to("music").emit("music:queue", {
+        queue: MUSIC_ROOM_QUEUE.queue,
+        current: MUSIC_ROOM_QUEUE.currentVideo
+      });
+    }
+  });
+
+  socket.on("music:skip", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const bypass = payload?.bypass && isMusicModerator(socket.user);
+    
+    if (!bypass) {
+      socket.emit("system", buildSystemPayload("music", "Only moderators can skip without voting."));
+      return;
+    }
+    
+    // Rate limit skip requests
+    if (!allowSocketEvent(socket, "music_skip", 3, 10000)) {
+      socket.emit("system", buildSystemPayload("music", "Please wait before skipping again."));
+      return;
+    }
+    
+    emitRoomSystem("music", `⏭️ ${socket.user.username} skipped to next song`);
+    MUSIC_VOTES.skip.clear();
+    
+    // Skip to next video
+    if (MUSIC_ROOM_QUEUE.queue.length > 0) {
+      const video = MUSIC_ROOM_QUEUE.queue.shift();
+      MUSIC_ROOM_QUEUE.currentVideo = {
+        videoId: video.videoId,
+        title: video.title,
+        startedAt: Date.now(),
+        addedBy: video.addedBy
+      };
+      MUSIC_ROOM_QUEUE.nowPlaying = true;
+      
+      io.to("music").emit("music:play", {
+        videoId: video.videoId,
+        title: video.title,
+        addedBy: video.addedBy,
+        startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
+      });
+      
+      io.to("music").emit("music:queue", {
+        queue: MUSIC_ROOM_QUEUE.queue,
+        current: MUSIC_ROOM_QUEUE.currentVideo
+      });
+    } else {
+      MUSIC_ROOM_QUEUE.currentVideo = null;
+      MUSIC_ROOM_QUEUE.nowPlaying = false;
+      io.to("music").emit("music:stop");
+    }
+  });
+
+  socket.on("music:clear", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const bypass = payload?.bypass && isMusicModerator(socket.user);
+    
+    if (!bypass) {
+      socket.emit("system", buildSystemPayload("music", "Only moderators can clear queue without voting."));
+      return;
+    }
+    
+    emitRoomSystem("music", `🗑️ ${socket.user.username} cleared the queue`);
+    MUSIC_VOTES.clear.clear();
+    MUSIC_ROOM_QUEUE.queue = [];
+    
+    io.to("music").emit("music:queue", {
+      queue: MUSIC_ROOM_QUEUE.queue,
+      current: MUSIC_ROOM_QUEUE.currentVideo
+    });
+  });
+
+  socket.on("music:shuffle", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const bypass = payload?.bypass && isMusicModerator(socket.user);
+    
+    if (!bypass) {
+      socket.emit("system", buildSystemPayload("music", "Only moderators can shuffle without voting."));
+      return;
+    }
+    
+    emitRoomSystem("music", `🔀 ${socket.user.username} shuffled the queue`);
+    MUSIC_VOTES.shuffle.clear();
+    
+    // Shuffle the queue
+    for (let i = MUSIC_ROOM_QUEUE.queue.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [MUSIC_ROOM_QUEUE.queue[i], MUSIC_ROOM_QUEUE.queue[j]] = [MUSIC_ROOM_QUEUE.queue[j], MUSIC_ROOM_QUEUE.queue[i]];
+    }
+    
+    io.to("music").emit("music:queue", {
+      queue: MUSIC_ROOM_QUEUE.queue,
+      current: MUSIC_ROOM_QUEUE.currentVideo
+    });
+  });
+
+  socket.on("music:loop", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const enabled = !!payload?.enabled;
+    MUSIC_ROOM_QUEUE.loopEnabled = enabled;
+    
+    io.to("music").emit("music:loopUpdate", { enabled });
+    
+    const status = enabled ? "enabled" : "disabled";
+    emitRoomSystem("music", `🔁 ${socket.user.username} ${status} loop`);
   });
 
   const logDeleteFailure = ({ scope, messageId, actorId, actorRole, reason, roomId, threadId }) => {
