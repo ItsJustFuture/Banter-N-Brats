@@ -15710,21 +15710,66 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 .musicRoomPlayer {
   position: fixed;
   top: 60px;
-  right: 20px;
-  width: 360px;
+  right: 10px;
+  width: 280px;
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  z-index: 900;
+  z-index: 100;
   overflow: hidden;
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease, height 0.3s ease;
+}
+
+/* Desktop: Make player draggable */
+@media (min-width: 769px) {
+  .musicRoomPlayer {
+    resize: none; /* Disable browser resize, we'll use custom handle */
+  }
+  
+  .musicPlayerHeader {
+    cursor: move;
+    user-select: none;
+  }
 }
 
 .musicRoomPlayer.is-hidden {
   transform: translateX(400px);
   opacity: 0;
   pointer-events: none;
+}
+
+/* Collapsed state for audio-only mode */
+.musicRoomPlayer.collapsed .musicPlayerBody,
+.musicRoomPlayer.collapsed .musicQueue {
+  display: none;
+}
+
+.musicRoomPlayer.collapsed {
+  height: auto;
+}
+
+/* Resize handle for desktop */
+.musicPlayerResizeHandle {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .musicPlayerResizeHandle {
+    display: block;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+    background: linear-gradient(135deg, transparent 50%, var(--border) 50%);
+    border-bottom-right-radius: 12px;
+  }
+  
+  .musicPlayerResizeHandle:hover {
+    background: linear-gradient(135deg, transparent 50%, var(--accent) 50%);
+  }
 }
 
 .musicPlayerInner {
@@ -15754,10 +15799,10 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 }
 
 .musicPlayerControls .iconBtn {
-  width: 32px;
-  height: 32px;
-  padding: 6px;
-  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  font-size: 13px;
   border-radius: 6px;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -15780,14 +15825,14 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 
 .musicPlayerBody {
   width: 100%;
-  min-height: 180px;
+  min-height: 158px;
   background: black;
   position: relative;
 }
 
 #musicPlayerFrame {
   width: 100%;
-  height: 180px;
+  height: 158px;
 }
 
 .musicCurrentVideo {
@@ -15812,7 +15857,7 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 }
 
 .musicQueue {
-  max-height: 200px;
+  max-height: 150px;
   overflow-y: auto;
   background: var(--bg);
 }
@@ -15895,17 +15940,31 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .musicRoomPlayer {
-    top: auto;
-    bottom: 0;
-    right: 0;
-    left: 0;
-    width: 100%;
-    border-radius: 12px 12px 0 0;
-    max-height: 70vh;
+    top: 54px;
+    bottom: auto;
+    right: 50%;
+    left: auto;
+    transform: translateX(50%);
+    width: calc(100% - 20px);
+    max-width: 360px;
+    border-radius: 12px;
+    max-height: 50vh;
   }
   
   .musicRoomPlayer.is-hidden {
-    transform: translateY(100%);
+    transform: translate(50%, -150%);
+  }
+  
+  .musicPlayerBody {
+    min-height: 140px;
+  }
+  
+  #musicPlayerFrame {
+    height: 140px;
+  }
+  
+  .musicQueue {
+    max-height: 120px;
   }
 }
 

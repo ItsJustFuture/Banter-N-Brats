@@ -7593,10 +7593,23 @@ const MusicRoomPlayer = (() => {
   let apiReadyPromise = null;
   let currentVideo = null;
   let queue = [];
+  let isLoadingVideo = false; // Track if a video is currently being loaded
   
   // Per-user quality settings
   const AUDIO_ONLY_KEY = "music_audio_only";
   const LOW_QUALITY_KEY = "music_low_quality";
+  const COLLAPSED_KEY = "music_collapsed";
+  const POSITION_KEY = "music_player_position";
+  const SIZE_KEY = "music_player_size";
+  
+  // Video loading timing constants
+  const VIDEO_STOP_DELAY_MS = 200; // Time to wait for video to stop before loading new one
+  const VIDEO_LOAD_BUFFER_MS = 500; // Buffer time before allowing next video load
+  const OVERLAP_PREVENTION_DELAY_MS = 300; // Delay when a video is already loading
+  const QUALITY_APPLY_DELAY_MS = 300; // Delay before applying quality settings after video loads
+  
+  // Video aspect ratio
+  const VIDEO_ASPECT_RATIO = 16 / 9;
   
   // Quality mapping for "low quality" mode
   // Note: 'tiny' is the lowest quality and has no downgrade option
@@ -7610,6 +7623,20 @@ const MusicRoomPlayer = (() => {
     "medium": "small",
     "small": "tiny"
   };
+  
+  // Dragging state
+  let isDragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let playerStartX = 0;
+  let playerStartY = 0;
+  
+  // Resizing state
+  let isResizing = false;
+  let resizeStartX = 0;
+  let resizeStartY = 0;
+  let playerStartWidth = 0;
+  let playerStartHeight = 0;
 
   function loadApi() {
     if (window.YT?.Player) return Promise.resolve(window.YT);
@@ -7635,9 +7662,10 @@ const MusicRoomPlayer = (() => {
     playerContainer.className = "musicRoomPlayer is-hidden";
     playerContainer.innerHTML = `
       <div class="musicPlayerInner">
-        <div class="musicPlayerHeader">
+        <div class="musicPlayerHeader" id="musicPlayerHeader">
           <div class="musicPlayerTitle">🎵 Music Room Player</div>
           <div class="musicPlayerControls">
+            <button class="iconBtn" id="musicCollapseBtn" title="Collapse player" aria-label="Collapse player">▼</button>
             <button class="iconBtn" id="musicSkipBtn" title="Skip to next" aria-label="Skip to next">⏭</button>
             <button class="iconBtn" id="musicAudioOnlyBtn" title="Audio only mode" aria-label="Audio only mode">🎵</button>
             <button class="iconBtn" id="musicLowQualityBtn" title="Low quality mode" aria-label="Low quality mode">📶</button>
@@ -7653,6 +7681,7 @@ const MusicRoomPlayer = (() => {
           <div class="musicQueueHeader">Queue</div>
           <div class="musicQueueList" id="musicQueueList"></div>
         </div>
+        <div class="musicPlayerResizeHandle" id="musicPlayerResizeHandle"></div>
       </div>
     `;
     
@@ -7662,9 +7691,16 @@ const MusicRoomPlayer = (() => {
     queueListEl = document.getElementById("musicQueueList");
     
     // Setup controls
+    const collapseBtn = document.getElementById("musicCollapseBtn");
     const skipBtn = document.getElementById("musicSkipBtn");
     const audioOnlyBtn = document.getElementById("musicAudioOnlyBtn");
     const lowQualityBtn = document.getElementById("musicLowQualityBtn");
+    
+    if (collapseBtn) {
+      collapseBtn.addEventListener("click", () => {
+        toggleCollapse();
+      });
+    }
     
     if (skipBtn) {
       skipBtn.addEventListener("click", () => {
@@ -7684,6 +7720,9 @@ const MusicRoomPlayer = (() => {
       });
     }
     
+    // Setup drag and resize handlers (desktop only)
+    setupDragAndResize();
+    
     // Load saved preferences
     loadUserPreferences();
   }
@@ -7692,6 +7731,7 @@ const MusicRoomPlayer = (() => {
     try {
       const audioOnly = localStorage.getItem(AUDIO_ONLY_KEY) === "true";
       const lowQuality = localStorage.getItem(LOW_QUALITY_KEY) === "true";
+      const collapsed = localStorage.getItem(COLLAPSED_KEY) === "true";
       
       const audioOnlyBtn = document.getElementById("musicAudioOnlyBtn");
       const lowQualityBtn = document.getElementById("musicLowQualityBtn");
@@ -7704,9 +7744,39 @@ const MusicRoomPlayer = (() => {
         lowQualityBtn.classList.toggle("active", lowQuality);
       }
       
+      // Apply collapsed state
+      if (collapsed && playerContainer) {
+        playerContainer.classList.add("collapsed");
+        const collapseBtn = document.getElementById("musicCollapseBtn");
+        if (collapseBtn) {
+          collapseBtn.textContent = "▲";
+          collapseBtn.title = "Expand player";
+          collapseBtn.setAttribute("aria-label", "Expand player");
+        }
+      }
+      
       applyQualitySettings();
     } catch (err) {
       console.warn("[MusicRoomPlayer] Failed to load preferences:", err);
+    }
+  }
+
+  function toggleCollapse() {
+    try {
+      if (!playerContainer) return;
+      
+      const isCollapsed = playerContainer.classList.toggle("collapsed");
+      const collapseBtn = document.getElementById("musicCollapseBtn");
+      
+      if (collapseBtn) {
+        collapseBtn.textContent = isCollapsed ? "▲" : "▼";
+        collapseBtn.title = isCollapsed ? "Expand player" : "Collapse player";
+        collapseBtn.setAttribute("aria-label", isCollapsed ? "Expand player" : "Collapse player");
+      }
+      
+      localStorage.setItem(COLLAPSED_KEY, isCollapsed ? "true" : "false");
+    } catch (err) {
+      console.warn("[MusicRoomPlayer] Failed to toggle collapse:", err);
     }
   }
 
@@ -7715,6 +7785,12 @@ const MusicRoomPlayer = (() => {
       const audioOnlyBtn = document.getElementById("musicAudioOnlyBtn");
       const isActive = audioOnlyBtn?.classList.toggle("active");
       localStorage.setItem(AUDIO_ONLY_KEY, isActive ? "true" : "false");
+      
+      // When audio-only is enabled, also collapse the player
+      if (isActive && playerContainer && !playerContainer.classList.contains("collapsed")) {
+        toggleCollapse();
+      }
+      
       applyQualitySettings();
     } catch (err) {
       console.warn("[MusicRoomPlayer] Failed to toggle audio only:", err);
@@ -7730,6 +7806,172 @@ const MusicRoomPlayer = (() => {
     } catch (err) {
       console.warn("[MusicRoomPlayer] Failed to toggle low quality:", err);
     }
+  }
+
+  function setupDragAndResize() {
+    if (!playerContainer) return;
+    
+    // Check if we're on desktop (width > 768px)
+    const isDesktop = () => window.innerWidth > 768;
+    
+    if (!isDesktop()) return; // Only enable on desktop
+    
+    const header = document.getElementById("musicPlayerHeader");
+    const resizeHandle = document.getElementById("musicPlayerResizeHandle");
+    
+    // Load saved position and size
+    try {
+      const savedPosition = localStorage.getItem(POSITION_KEY);
+      const savedSize = localStorage.getItem(SIZE_KEY);
+      
+      if (savedPosition) {
+        const { top, left } = JSON.parse(savedPosition);
+        // Clamp position to current viewport to handle resolution/zoom changes
+        const rect = playerContainer.getBoundingClientRect();
+        const clampedLeft = Math.max(0, Math.min(left, window.innerWidth - rect.width));
+        const clampedTop = Math.max(0, Math.min(top, window.innerHeight - rect.height));
+        playerContainer.style.top = `${clampedTop}px`;
+        playerContainer.style.left = `${clampedLeft}px`;
+        playerContainer.style.right = 'auto';
+      }
+      
+      if (savedSize) {
+        const { width, height } = JSON.parse(savedSize);
+        // Apply the same min/max constraints used during resizing
+        const clampedWidth = Math.max(240, Math.min(width, 600));
+        const clampedHeight = Math.max(200, Math.min(height, 800));
+        // Also clamp to viewport dimensions
+        const maxWidth = Math.min(clampedWidth, window.innerWidth);
+        const maxHeight = Math.min(clampedHeight, window.innerHeight);
+        playerContainer.style.width = `${maxWidth}px`;
+        if (height) {
+          playerContainer.style.height = `${maxHeight}px`;
+        }
+      }
+    } catch (err) {
+      console.warn("[MusicRoomPlayer] Failed to load position/size:", err);
+    }
+    
+    // Drag functionality
+    if (header) {
+      header.style.cursor = "move";
+      
+      header.addEventListener("mousedown", (e) => {
+        // Don't drag if clicking on buttons
+        if (e.target.closest(".iconBtn")) return;
+        
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        
+        const rect = playerContainer.getBoundingClientRect();
+        playerStartX = rect.left;
+        playerStartY = rect.top;
+        
+        playerContainer.style.transition = "none";
+        e.preventDefault();
+      });
+    }
+    
+    // Resize functionality
+    if (resizeHandle) {
+      resizeHandle.addEventListener("mousedown", (e) => {
+        isResizing = true;
+        resizeStartX = e.clientX;
+        resizeStartY = e.clientY;
+        
+        const rect = playerContainer.getBoundingClientRect();
+        playerStartWidth = rect.width;
+        playerStartHeight = rect.height;
+        
+        playerContainer.style.transition = "none";
+        e.preventDefault();
+      });
+    }
+    
+    // Global mouse move handler
+    document.addEventListener("mousemove", (e) => {
+      if (isDragging) {
+        const deltaX = e.clientX - dragStartX;
+        const deltaY = e.clientY - dragStartY;
+        
+        let newLeft = playerStartX + deltaX;
+        let newTop = playerStartY + deltaY;
+        
+        // Keep player within viewport bounds
+        const rect = playerContainer.getBoundingClientRect();
+        newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - rect.width));
+        newTop = Math.max(0, Math.min(newTop, window.innerHeight - rect.height));
+        
+        playerContainer.style.left = `${newLeft}px`;
+        playerContainer.style.top = `${newTop}px`;
+        playerContainer.style.right = "auto";
+      } else if (isResizing) {
+        const deltaX = e.clientX - resizeStartX;
+        const deltaY = e.clientY - resizeStartY;
+        
+        let newWidth = playerStartWidth + deltaX;
+        let newHeight = playerStartHeight + deltaY;
+        
+        // Enforce minimum and maximum sizes
+        newWidth = Math.max(240, Math.min(newWidth, 600));
+        newHeight = Math.max(200, Math.min(newHeight, 800));
+        
+        playerContainer.style.width = `${newWidth}px`;
+        playerContainer.style.height = `${newHeight}px`;
+        
+        // Update video frame size proportionally
+        const videoFrame = document.getElementById("musicPlayerFrame");
+        if (videoFrame) {
+          const videoHeight = newWidth / VIDEO_ASPECT_RATIO;
+          videoFrame.style.height = `${videoHeight}px`;
+
+          // Ensure the underlying YouTube player resizes with the UI
+          try {
+            if (typeof player !== "undefined" && player && typeof player.setSize === "function") {
+              player.setSize(newWidth, videoHeight);
+            }
+          } catch (err) {
+            console.warn("[MusicRoomPlayer] Failed to resize YouTube player:", err);
+          }
+        }
+      }
+    });
+    
+    // Global mouse up handler
+    document.addEventListener("mouseup", () => {
+      if (isDragging) {
+        isDragging = false;
+        playerContainer.style.transition = "";
+        
+        // Save position
+        const rect = playerContainer.getBoundingClientRect();
+        try {
+          localStorage.setItem(POSITION_KEY, JSON.stringify({
+            top: rect.top,
+            left: rect.left
+          }));
+        } catch (err) {
+          console.warn("[MusicRoomPlayer] Failed to save position:", err);
+        }
+      }
+      
+      if (isResizing) {
+        isResizing = false;
+        playerContainer.style.transition = "";
+        
+        // Save size
+        const rect = playerContainer.getBoundingClientRect();
+        try {
+          localStorage.setItem(SIZE_KEY, JSON.stringify({
+            width: rect.width,
+            height: rect.height
+          }));
+        } catch (err) {
+          console.warn("[MusicRoomPlayer] Failed to save size:", err);
+        }
+      }
+    });
   }
 
   function applyQualitySettings() {
@@ -7798,8 +8040,8 @@ const MusicRoomPlayer = (() => {
     if (!playerFrame) return null;
     
     player = new YT.Player(playerFrame, {
-      height: "180",
-      width: "320",
+      height: "158",
+      width: "280",
       host: "https://www.youtube-nocookie.com",
       playerVars: { 
         playsinline: 1, 
@@ -7812,6 +8054,16 @@ const MusicRoomPlayer = (() => {
       },
       events: {
         onReady: () => {
+          // Apply persisted volume if available, otherwise default to 50%
+          try {
+            const storedVolumeRaw = localStorage.getItem("music_volume");
+            const parsedVolume = storedVolumeRaw != null ? Number(storedVolumeRaw) : NaN;
+            const hasValidStoredVolume = Number.isFinite(parsedVolume) && parsedVolume >= 0 && parsedVolume <= 100;
+            const volumeToSet = hasValidStoredVolume ? parsedVolume : 50;
+            player.setVolume(volumeToSet);
+          } catch (err) {
+            console.warn("[MusicRoomPlayer] Failed to set volume:", err);
+          }
           applyQualitySettings();
         },
         onStateChange: (event) => {
@@ -7849,50 +8101,81 @@ const MusicRoomPlayer = (() => {
   }
 
   async function playVideo(videoId, title, addedBy, startedAt) {
-    initDom();
-    show();
-    
-    currentVideo = { videoId, title, addedBy, startedAt };
-    
-    // Update current video display
-    if (currentVideoEl) {
-      currentVideoEl.innerHTML = `
-        <div class="musicCurrentTitle">${escapeHtml(title)}</div>
-        <div class="musicCurrentMeta">Added by ${escapeHtml(addedBy)}</div>
-      `;
+    // Wait until any in-progress load has fully completed before continuing.
+    // This loops instead of using a single fixed delay to avoid overlapping loads
+    // when the first load takes longer than OVERLAP_PREVENTION_DELAY_MS.
+    while (isLoadingVideo) {
+      await new Promise(resolve => setTimeout(resolve, OVERLAP_PREVENTION_DELAY_MS));
     }
     
-    await ensurePlayer();
+    isLoadingVideo = true;
     
-    if (player) {
-      try {
-        // Calculate seek position based on when video started
-        let startSeconds = 0;
-        if (startedAt) {
-          const elapsedMs = Date.now() - startedAt;
-          startSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-        }
-        
-        // Determine baseline quality: prefer 720p, otherwise highest available
-        const availableQualities = player.getAvailableQualityLevels?.() || [];
-        let suggestedQuality = "hd720";
-        if (availableQualities.length > 0 && !availableQualities.includes("hd720")) {
-          suggestedQuality = availableQualities[0]; // Highest available
-        }
-        
-        player.loadVideoById?.({
-          videoId,
-          startSeconds,
-          suggestedQuality
-        });
-        
-        // Apply quality settings after a short delay
-        setTimeout(() => {
-          applyQualitySettings();
-        }, 500);
-      } catch (err) {
-        console.warn("[MusicRoomPlayer] Failed to play video:", err);
+    try {
+      initDom();
+      show();
+      
+      currentVideo = { videoId, title, addedBy, startedAt };
+      
+      // Update current video display
+      if (currentVideoEl) {
+        currentVideoEl.innerHTML = `
+          <div class="musicCurrentTitle">${escapeHtml(title)}</div>
+          <div class="musicCurrentMeta">Added by ${escapeHtml(addedBy)}</div>
+        `;
       }
+      
+      await ensurePlayer();
+      
+      if (player) {
+        try {
+          // Stop any currently playing video first to prevent audio overlap
+          try {
+            const currentState = player.getPlayerState?.();
+            if (currentState === YT.PlayerState.PLAYING || 
+                currentState === YT.PlayerState.BUFFERING ||
+                currentState === YT.PlayerState.PAUSED) {
+              player.stopVideo?.();
+              // Wait for the stop to complete
+              await new Promise(resolve => setTimeout(resolve, VIDEO_STOP_DELAY_MS));
+            }
+          } catch (err) {
+            console.warn("[MusicRoomPlayer] Failed to stop previous video:", err);
+          }
+          
+          // Calculate seek position based on when video started
+          let startSeconds = 0;
+          if (startedAt) {
+            const elapsedMs = Date.now() - startedAt;
+            startSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+          }
+          
+          // Determine baseline quality: prefer 720p, otherwise highest available
+          const availableQualities = player.getAvailableQualityLevels?.() || [];
+          let suggestedQuality = "hd720";
+          if (availableQualities.length > 0 && !availableQualities.includes("hd720")) {
+            suggestedQuality = availableQualities[0]; // Highest available
+          }
+          
+          // Use loadVideoById which automatically starts playback
+          player.loadVideoById?.({
+            videoId,
+            startSeconds,
+            suggestedQuality
+          });
+          
+          // Wait for the video to start loading before allowing next load
+          await new Promise(resolve => setTimeout(resolve, VIDEO_LOAD_BUFFER_MS));
+          
+          // Apply quality settings after player has time to initialize
+          setTimeout(() => {
+            applyQualitySettings();
+          }, QUALITY_APPLY_DELAY_MS);
+        } catch (err) {
+          console.warn("[MusicRoomPlayer] Failed to play video:", err);
+        }
+      }
+    } finally {
+      isLoadingVideo = false;
     }
   }
 
