@@ -7736,6 +7736,8 @@ const MusicRoomPlayer = (() => {
   const INITIAL_SYNC_THRESHOLD_SECONDS = 2; // Drift threshold for initial sync (higher due to loading variance)
   const PERIODIC_SYNC_THRESHOLD_SECONDS = 1.5; // Drift threshold for periodic sync
   const AUTOPLAY_CHECK_INTERVAL_MS = 3000; // Interval for checking if autoplay is needed
+  const SYNC_PLAYBACK_RESUME_DELAY_MS = 100; // Delay before resuming playback after sync correction
+  const AUTOPLAY_FLAG_RESET_DELAY_MS = 5000; // Delay before resetting autoplay attempt flag
   
   // Video aspect ratio
   const VIDEO_ASPECT_RATIO = 16 / 9;
@@ -8518,7 +8520,7 @@ const MusicRoomPlayer = (() => {
           if (playerState !== YT.PlayerState.PLAYING) {
             setTimeout(() => {
               player.playVideo?.();
-            }, 100);
+            }, SYNC_PLAYBACK_RESUME_DELAY_MS);
           }
         }
       }
@@ -8544,7 +8546,7 @@ const MusicRoomPlayer = (() => {
         // Reset flag after a delay
         setTimeout(() => {
           autoplayAttempted = false;
-        }, 5000);
+        }, AUTOPLAY_FLAG_RESET_DELAY_MS);
       }
     } catch (err) {
       console.warn("[MusicRoomPlayer] Autoplay attempt failed:", err);
