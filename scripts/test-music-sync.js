@@ -140,7 +140,7 @@ test("Client has sync state variables", () => {
 
 // Test 14: Client uses float precision for startSeconds
 test("Client uses float precision for startSeconds", () => {
-  if (!appCode.includes('startSeconds = Math.max(0, elapsedMs / 1000);  // Use float for precision')) {
+  if (!appCode.includes('startSeconds = Math.max(0, elapsedMs / MS_TO_SECONDS);  // Use float for precision')) {
     throw new Error('Float precision not used for startSeconds');
   }
 });

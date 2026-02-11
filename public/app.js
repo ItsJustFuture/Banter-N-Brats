@@ -7731,6 +7731,7 @@ const MusicRoomPlayer = (() => {
   const QUALITY_APPLY_DELAY_MS = 300; // Delay before applying quality settings after video loads
   
   // Sync timing constants
+  const MS_TO_SECONDS = 1000; // Milliseconds to seconds conversion
   const AUTOPLAY_DELAY_MS = 1000; // Delay before attempting autoplay after player ready
   const INITIAL_SYNC_CHECK_DELAY_MS = 500; // Delay before initial sync check after video starts
   const INITIAL_SYNC_THRESHOLD_SECONDS = 2; // Drift threshold for initial sync (higher due to loading variance)
@@ -8286,7 +8287,7 @@ const MusicRoomPlayer = (() => {
             setTimeout(() => {
               if (currentVideo && currentVideo.startedAt) {
                 const elapsedMs = Date.now() - currentVideo.startedAt;
-                const expectedPosition = elapsedMs / 1000;
+                const expectedPosition = elapsedMs / MS_TO_SECONDS;
                 const currentPosition = player.getCurrentTime?.() || 0;
                 const drift = Math.abs(currentPosition - expectedPosition);
                 
@@ -8381,7 +8382,7 @@ const MusicRoomPlayer = (() => {
           let startSeconds = 0;
           if (startedAt) {
             const elapsedMs = Date.now() - startedAt;
-            startSeconds = Math.max(0, elapsedMs / 1000);  // Use float for precision
+            startSeconds = Math.max(0, elapsedMs / MS_TO_SECONDS);  // Use float for precision
           }
           
           // Reset autoplay flag for new video
@@ -8468,7 +8469,7 @@ const MusicRoomPlayer = (() => {
             return;
           }
           // Fallback to calculating from startedAt only if elapsedBeforePause is invalid
-          elapsedBeforePause = (Date.now() - startedAt) / 1000;
+          elapsedBeforePause = (Date.now() - startedAt) / MS_TO_SECONDS;
         }
         
         // Seek to the correct position
@@ -8503,7 +8504,7 @@ const MusicRoomPlayer = (() => {
       if (typeof currentTime !== 'number') return;
       
       // Calculate expected position accounting for network latency
-      const networkLatency = (Date.now() - syncData.timestamp) / 1000;
+      const networkLatency = (Date.now() - syncData.timestamp) / MS_TO_SECONDS;
       const expectedPosition = syncData.position + networkLatency;
       const drift = Math.abs(currentTime - expectedPosition);
       

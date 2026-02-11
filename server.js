@@ -85,11 +85,15 @@ const MUSIC_ROOM_QUEUE = {
 };
 const MUSIC_QUEUE_MAX_SIZE = 100; // Maximum queue size
 
+// Music sync timing constants
+const SYNC_BROADCAST_INTERVAL_MS = 2000; // Interval for broadcasting sync updates (2 seconds)
+const MS_TO_SECONDS = 1000; // Milliseconds to seconds conversion
+
 // Broadcast current playback state for client synchronization
 function broadcastMusicSync() {
   if (!MUSIC_ROOM_QUEUE.currentVideo || MUSIC_ROOM_QUEUE.isPaused) return;
   
-  const elapsedSeconds = (Date.now() - MUSIC_ROOM_QUEUE.currentVideo.startedAt) / 1000;
+  const elapsedSeconds = (Date.now() - MUSIC_ROOM_QUEUE.currentVideo.startedAt) / MS_TO_SECONDS;
   
   io.to("music").emit("music:sync", {
     videoId: MUSIC_ROOM_QUEUE.currentVideo.videoId,
@@ -106,7 +110,7 @@ function startSyncBroadcast() {
   }
   
   // Broadcast sync every 2 seconds
-  MUSIC_ROOM_QUEUE.syncInterval = setInterval(broadcastMusicSync, 2000);
+  MUSIC_ROOM_QUEUE.syncInterval = setInterval(broadcastMusicSync, SYNC_BROADCAST_INTERVAL_MS);
 }
 
 // Stop sync interval
@@ -163,7 +167,7 @@ function clearUserMusicVotes(userId) {
 // Helper to pause music playback
 function pauseMusicPlayback(io) {
   const elapsed = MUSIC_ROOM_QUEUE.currentVideo 
-    ? (Date.now() - MUSIC_ROOM_QUEUE.currentVideo.startedAt) / 1000 
+    ? (Date.now() - MUSIC_ROOM_QUEUE.currentVideo.startedAt) / MS_TO_SECONDS 
     : 0;
   
   MUSIC_ROOM_QUEUE.isPaused = true;
@@ -179,7 +183,7 @@ function pauseMusicPlayback(io) {
 
 // Helper to resume music playback
 function resumeMusicPlayback(io) {
-  const newStartedAt = Date.now() - (MUSIC_ROOM_QUEUE.elapsedBeforePause * 1000);
+  const newStartedAt = Date.now() - (MUSIC_ROOM_QUEUE.elapsedBeforePause * MS_TO_SECONDS);
   if (MUSIC_ROOM_QUEUE.currentVideo) {
     MUSIC_ROOM_QUEUE.currentVideo.startedAt = newStartedAt;
   }
