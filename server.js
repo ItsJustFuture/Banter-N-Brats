@@ -127,6 +127,38 @@ function clearUserMusicVotes(userId) {
   }
 }
 
+// Helper to pause music playback
+function pauseMusicPlayback(io) {
+  const elapsed = MUSIC_ROOM_QUEUE.currentVideo 
+    ? (Date.now() - MUSIC_ROOM_QUEUE.currentVideo.startedAt) / 1000 
+    : 0;
+  
+  MUSIC_ROOM_QUEUE.isPaused = true;
+  MUSIC_ROOM_QUEUE.pausedAt = Date.now();
+  MUSIC_ROOM_QUEUE.elapsedBeforePause = elapsed;
+  
+  io.to("music").emit("music:pause", {
+    pausedAt: MUSIC_ROOM_QUEUE.pausedAt,
+    elapsedBeforePause: elapsed
+  });
+}
+
+// Helper to resume music playback
+function resumeMusicPlayback(io) {
+  const newStartedAt = Date.now() - (MUSIC_ROOM_QUEUE.elapsedBeforePause * 1000);
+  if (MUSIC_ROOM_QUEUE.currentVideo) {
+    MUSIC_ROOM_QUEUE.currentVideo.startedAt = newStartedAt;
+  }
+  
+  MUSIC_ROOM_QUEUE.isPaused = false;
+  MUSIC_ROOM_QUEUE.pausedAt = null;
+  
+  io.to("music").emit("music:resume", {
+    startedAt: newStartedAt,
+    elapsedBeforePause: MUSIC_ROOM_QUEUE.elapsedBeforePause
+  });
+}
+
 // Helper to extract YouTube video IDs from text
 function extractYouTubeIds(text) {
   const s = String(text || "");
@@ -19984,37 +20016,11 @@ if (!room) {
       if (wasPaused) {
         // Resume playback
         emitRoomSystem("music", `▶️ Vote passed! Resuming playback...`);
-        
-        // Calculate new startedAt based on elapsed time before pause
-        const newStartedAt = Date.now() - (MUSIC_ROOM_QUEUE.elapsedBeforePause * 1000);
-        if (MUSIC_ROOM_QUEUE.currentVideo) {
-          MUSIC_ROOM_QUEUE.currentVideo.startedAt = newStartedAt;
-        }
-        
-        MUSIC_ROOM_QUEUE.isPaused = false;
-        MUSIC_ROOM_QUEUE.pausedAt = null;
-        
-        io.to("music").emit("music:resume", {
-          startedAt: newStartedAt,
-          elapsedBeforePause: MUSIC_ROOM_QUEUE.elapsedBeforePause
-        });
+        resumeMusicPlayback(io);
       } else {
         // Pause playback
         emitRoomSystem("music", `⏸️ Vote passed! Pausing playback...`);
-        
-        // Calculate elapsed time
-        const elapsed = MUSIC_ROOM_QUEUE.currentVideo 
-          ? (Date.now() - MUSIC_ROOM_QUEUE.currentVideo.startedAt) / 1000 
-          : 0;
-        
-        MUSIC_ROOM_QUEUE.isPaused = true;
-        MUSIC_ROOM_QUEUE.pausedAt = Date.now();
-        MUSIC_ROOM_QUEUE.elapsedBeforePause = elapsed;
-        
-        io.to("music").emit("music:pause", {
-          pausedAt: MUSIC_ROOM_QUEUE.pausedAt,
-          elapsedBeforePause: elapsed
-        });
+        pauseMusicPlayback(io);
       }
       
       MUSIC_VOTES.pause.clear();
@@ -20052,37 +20058,11 @@ if (!room) {
     if (wasPaused) {
       // Resume playback
       emitRoomSystem("music", `▶️ ${socket.user.username} resumed playback`);
-      
-      // Calculate new startedAt based on elapsed time before pause
-      const newStartedAt = Date.now() - (MUSIC_ROOM_QUEUE.elapsedBeforePause * 1000);
-      if (MUSIC_ROOM_QUEUE.currentVideo) {
-        MUSIC_ROOM_QUEUE.currentVideo.startedAt = newStartedAt;
-      }
-      
-      MUSIC_ROOM_QUEUE.isPaused = false;
-      MUSIC_ROOM_QUEUE.pausedAt = null;
-      
-      io.to("music").emit("music:resume", {
-        startedAt: newStartedAt,
-        elapsedBeforePause: MUSIC_ROOM_QUEUE.elapsedBeforePause
-      });
+      resumeMusicPlayback(io);
     } else {
       // Pause playback
       emitRoomSystem("music", `⏸️ ${socket.user.username} paused playback`);
-      
-      // Calculate elapsed time
-      const elapsed = MUSIC_ROOM_QUEUE.currentVideo 
-        ? (Date.now() - MUSIC_ROOM_QUEUE.currentVideo.startedAt) / 1000 
-        : 0;
-      
-      MUSIC_ROOM_QUEUE.isPaused = true;
-      MUSIC_ROOM_QUEUE.pausedAt = Date.now();
-      MUSIC_ROOM_QUEUE.elapsedBeforePause = elapsed;
-      
-      io.to("music").emit("music:pause", {
-        pausedAt: MUSIC_ROOM_QUEUE.pausedAt,
-        elapsedBeforePause: elapsed
-      });
+      pauseMusicPlayback(io);
     }
   });
 

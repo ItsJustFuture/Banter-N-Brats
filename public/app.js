@@ -4272,7 +4272,6 @@ const clearVoteCount = document.getElementById("clearVoteCount");
 const pauseVoteCount = document.getElementById("pauseVoteCount");
 const shuffleVoteCount = document.getElementById("shuffleVoteCount");
 const loopStatus = document.getElementById("loopStatus");
-const pauseStatus = document.getElementById("pauseStatus");
 
 // Music controls state
 const musicControlsState = {
@@ -6287,11 +6286,6 @@ function updateMusicControlsUI() {
   if (loopStatus && loopVideoBtn) {
     loopStatus.textContent = musicControlsState.loopEnabled ? "On" : "Off";
     loopVideoBtn.classList.toggle("active", musicControlsState.loopEnabled);
-  }
-  
-  // Update pause status
-  if (pauseStatus) {
-    pauseStatus.textContent = musicControlsState.isPaused ? "Paused" : "Playing";
   }
 }
 
@@ -8332,12 +8326,19 @@ const MusicRoomPlayer = (() => {
   function resume(startedAt, elapsedBeforePause) {
     if (player && currentVideo) {
       try {
-        // Calculate where we should be in the video
-        const elapsed = elapsedBeforePause || ((Date.now() - startedAt) / 1000);
+        // Validate parameters
+        if (typeof elapsedBeforePause !== 'number' || elapsedBeforePause < 0) {
+          if (typeof startedAt !== 'number' || startedAt <= 0) {
+            console.warn("[MusicRoomPlayer] Invalid resume parameters");
+            return;
+          }
+          // Fallback to calculating from startedAt only if elapsedBeforePause is invalid
+          elapsedBeforePause = (Date.now() - startedAt) / 1000;
+        }
         
         // Seek to the correct position
         if (typeof player.seekTo === "function") {
-          player.seekTo(elapsed, true);
+          player.seekTo(elapsedBeforePause, true);
         }
         
         // Resume playback
