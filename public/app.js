@@ -7724,8 +7724,13 @@ const MusicRoomPlayer = (() => {
     setupDragAndResize();
     
     // Re-apply positioning when window is resized (to handle desktop/mobile transitions)
+    // Debounced to avoid excessive calls during window resizing
+    let resizeTimeout;
     window.addEventListener("resize", () => {
-      setupDragAndResize();
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        setupDragAndResize();
+      }, 250);
     }, { passive: true });
     
     // Load saved preferences
