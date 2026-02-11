@@ -105,7 +105,9 @@ function getMusicRoomUserCount(io) {
   }
 }
 
-// Helper to check if vote threshold is met (50% of room)
+// Helper to check if vote threshold is met (at least half of room, rounded up)
+// For odd-numbered rooms, this requires a majority (e.g., 2 votes for 3 users = 66.67%)
+// For even-numbered rooms, this requires exactly half (e.g., 2 votes for 4 users = 50%)
 function checkVoteThreshold(voteSet, io) {
   const roomCount = getMusicRoomUserCount(io);
   if (roomCount === 0) return false;
