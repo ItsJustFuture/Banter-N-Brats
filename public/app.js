@@ -7713,6 +7713,9 @@ const MusicRoomPlayer = (() => {
   let currentVideo = null;
   let queue = [];
   let isLoadingVideo = false; // Track if a video is currently being loaded
+  let lastSyncTime = 0;  // Track last sync
+  let syncCheckInterval = null;  // Interval for sync checking
+  let autoplayAttempted = false;  // Track autoplay attempts
   
   // Per-user quality settings
   const AUDIO_ONLY_KEY = "music_audio_only";
@@ -8252,6 +8255,11 @@ const MusicRoomPlayer = (() => {
             console.warn("[MusicRoomPlayer] Failed to set volume:", err);
           }
           applyQualitySettings();
+          
+          // Ensure autoplay after a brief delay
+          setTimeout(() => {
+            ensureAutoplay();
+          }, 1000);
         },
         onStateChange: (event) => {
           if (event.data === YT.PlayerState.ENDED) {
@@ -8263,6 +8271,21 @@ const MusicRoomPlayer = (() => {
             } else {
               socket?.emit("music:ended");
             }
+          } else if (event.data === YT.PlayerState.PLAYING) {
+            // When video starts playing, do an initial sync check
+            setTimeout(() => {
+              if (currentVideo && currentVideo.startedAt) {
+                const elapsedMs = Date.now() - currentVideo.startedAt;
+                const expectedPosition = elapsedMs / 1000;
+                const currentPosition = player.getCurrentTime?.() || 0;
+                const drift = Math.abs(currentPosition - expectedPosition);
+                
+                if (drift > 2) {
+                  console.log(`[MusicRoomPlayer] Initial sync correction: ${drift.toFixed(2)}s drift`);
+                  player.seekTo(expectedPosition, true);
+                }
+              }
+            }, 500);
           }
         }
       }
@@ -8276,6 +8299,13 @@ const MusicRoomPlayer = (() => {
     if (playerContainer) {
       playerContainer.classList.remove("is-hidden");
     }
+    
+    // Start periodic autoplay checking (in case autoplay was blocked)
+    if (!syncCheckInterval) {
+      syncCheckInterval = setInterval(() => {
+        ensureAutoplay();
+      }, 3000);
+    }
   }
 
   function hide() {
@@ -8285,6 +8315,14 @@ const MusicRoomPlayer = (() => {
     if (player) {
       try { player.stopVideo?.(); } catch {}
     }
+    
+    // Clean up sync checking interval
+    if (syncCheckInterval) {
+      clearInterval(syncCheckInterval);
+      syncCheckInterval = null;
+    }
+    
+    autoplayAttempted = false;
   }
 
   async function playVideo(videoId, title, addedBy, startedAt) {
@@ -8333,8 +8371,11 @@ const MusicRoomPlayer = (() => {
           let startSeconds = 0;
           if (startedAt) {
             const elapsedMs = Date.now() - startedAt;
-            startSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+            startSeconds = Math.max(0, elapsedMs / 1000);  // Use float for precision
           }
+          
+          // Reset autoplay flag for new video
+          autoplayAttempted = false;
           
           // Determine baseline quality: prefer 720p, otherwise highest available
           const availableQualities = player.getAvailableQualityLevels?.() || [];
@@ -8441,6 +8482,66 @@ const MusicRoomPlayer = (() => {
     }
   }
 
+  function handleSync(syncData) {
+    if (!player || !currentVideo) return;
+    if (syncData.videoId !== currentVideo.videoId) return;
+    
+    try {
+      const currentTime = player.getCurrentTime?.();
+      const playerState = player.getPlayerState?.();
+      
+      if (typeof currentTime !== 'number') return;
+      
+      // Calculate expected position accounting for network latency
+      const networkLatency = (Date.now() - syncData.timestamp) / 1000;
+      const expectedPosition = syncData.position + networkLatency;
+      const drift = Math.abs(currentTime - expectedPosition);
+      
+      // Only sync if drift is significant (more than 1.5 seconds)
+      // This prevents constant micro-adjustments
+      if (drift > 1.5) {
+        console.log(`[MusicRoomPlayer] Drift detected: ${drift.toFixed(2)}s, syncing to ${expectedPosition.toFixed(2)}s`);
+        
+        // Only seek if video is actually playing
+        if (playerState === YT.PlayerState.PLAYING || playerState === YT.PlayerState.BUFFERING) {
+          player.seekTo(expectedPosition, true);
+          
+          // If we were paused/buffering, ensure playback resumes
+          if (playerState !== YT.PlayerState.PLAYING) {
+            setTimeout(() => {
+              player.playVideo?.();
+            }, 100);
+          }
+        }
+      }
+      
+      lastSyncTime = Date.now();
+    } catch (err) {
+      console.warn("[MusicRoomPlayer] Sync error:", err);
+    }
+  }
+
+  function ensureAutoplay() {
+    if (!player || autoplayAttempted) return;
+    
+    try {
+      const playerState = player.getPlayerState?.();
+      
+      // If video is cued but not playing, try to play
+      if (playerState === YT.PlayerState.CUED || playerState === YT.PlayerState.PAUSED) {
+        player.playVideo?.();
+        autoplayAttempted = true;
+        
+        // Reset flag after a delay
+        setTimeout(() => {
+          autoplayAttempted = false;
+        }, 5000);
+      }
+    } catch (err) {
+      console.warn("[MusicRoomPlayer] Autoplay attempt failed:", err);
+    }
+  }
+
   return {
     show,
     hide,
@@ -8449,7 +8550,8 @@ const MusicRoomPlayer = (() => {
     stop,
     pause,
     resume,
-    setVolume
+    setVolume,
+    handleSync  // Expose handleSync
   };
 })();
 
@@ -26599,6 +26701,13 @@ socket.on("mod:case_event", (payload = {}) => {
   socket.on("music:play", (payload) => {
     if (currentRoom === "music") {
       MusicRoomPlayer.playVideo(payload.videoId, payload.title, payload.addedBy, payload.startedAt);
+    }
+  });
+
+  socket.on("music:sync", (payload) => {
+    if (currentRoom === "music" && typeof MusicRoomPlayer !== "undefined" && MusicRoomPlayer) {
+      // Call the internal handleSync function
+      MusicRoomPlayer.handleSync?.(payload);
     }
   });
 

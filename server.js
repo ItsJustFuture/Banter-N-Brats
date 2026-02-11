@@ -80,9 +80,42 @@ const MUSIC_ROOM_QUEUE = {
   loopEnabled: false, // Loop current video
   isPaused: false, // Track if playback is paused
   pausedAt: null, // Timestamp when paused (to calculate elapsed time)
-  elapsedBeforePause: 0 // Seconds elapsed before pause
+  elapsedBeforePause: 0, // Seconds elapsed before pause
+  syncInterval: null  // Store interval ID for cleanup
 };
 const MUSIC_QUEUE_MAX_SIZE = 100; // Maximum queue size
+
+// Broadcast current playback state for client synchronization
+function broadcastMusicSync() {
+  if (!MUSIC_ROOM_QUEUE.currentVideo || MUSIC_ROOM_QUEUE.isPaused) return;
+  
+  const elapsedSeconds = (Date.now() - MUSIC_ROOM_QUEUE.currentVideo.startedAt) / 1000;
+  
+  io.to("music").emit("music:sync", {
+    videoId: MUSIC_ROOM_QUEUE.currentVideo.videoId,
+    position: elapsedSeconds,
+    timestamp: Date.now()
+  });
+}
+
+// Start sync interval when video plays
+function startSyncBroadcast() {
+  // Clear existing interval if any
+  if (MUSIC_ROOM_QUEUE.syncInterval) {
+    clearInterval(MUSIC_ROOM_QUEUE.syncInterval);
+  }
+  
+  // Broadcast sync every 2 seconds
+  MUSIC_ROOM_QUEUE.syncInterval = setInterval(broadcastMusicSync, 2000);
+}
+
+// Stop sync interval
+function stopSyncBroadcast() {
+  if (MUSIC_ROOM_QUEUE.syncInterval) {
+    clearInterval(MUSIC_ROOM_QUEUE.syncInterval);
+    MUSIC_ROOM_QUEUE.syncInterval = null;
+  }
+}
 
 // Music Room Voting System
 const MUSIC_VOTES = {
@@ -136,6 +169,7 @@ function pauseMusicPlayback(io) {
   MUSIC_ROOM_QUEUE.isPaused = true;
   MUSIC_ROOM_QUEUE.pausedAt = Date.now();
   MUSIC_ROOM_QUEUE.elapsedBeforePause = elapsed;
+  stopSyncBroadcast();  // Stop sync during pause
   
   io.to("music").emit("music:pause", {
     pausedAt: MUSIC_ROOM_QUEUE.pausedAt,
@@ -152,6 +186,7 @@ function resumeMusicPlayback(io) {
   
   MUSIC_ROOM_QUEUE.isPaused = false;
   MUSIC_ROOM_QUEUE.pausedAt = null;
+  startSyncBroadcast();  // Resume sync on play
   
   io.to("music").emit("music:resume", {
     startedAt: newStartedAt,
@@ -219,6 +254,9 @@ function skipToNextVideo(io) {
       startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
     });
     
+    // Start periodic sync broadcast
+    startSyncBroadcast();
+    
     io.to("music").emit("music:queue", {
       queue: MUSIC_ROOM_QUEUE.queue,
       current: MUSIC_ROOM_QUEUE.currentVideo
@@ -227,6 +265,7 @@ function skipToNextVideo(io) {
     MUSIC_ROOM_QUEUE.currentVideo = null;
     MUSIC_ROOM_QUEUE.nowPlaying = false;
     io.to("music").emit("music:stop");
+    stopSyncBroadcast();  // Stop sync when no video playing
   }
 }
 
@@ -19428,6 +19467,9 @@ if (!room) {
                       addedBy: video.addedBy,
                       startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
                     });
+                    
+                    // Start periodic sync broadcast
+                    startSyncBroadcast();
                   } else {
                     // Broadcast queue update
                     io.to(room).emit("music:queue", {
@@ -19689,6 +19731,9 @@ if (!room) {
         startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
       });
       
+      // Start periodic sync broadcast
+      startSyncBroadcast();
+      
       io.to("music").emit("music:queue", {
         queue: MUSIC_ROOM_QUEUE.queue,
         current: MUSIC_ROOM_QUEUE.currentVideo
@@ -19698,6 +19743,7 @@ if (!room) {
       MUSIC_ROOM_QUEUE.currentVideo = null;
       MUSIC_ROOM_QUEUE.nowPlaying = false;
       io.to("music").emit("music:stop");
+      stopSyncBroadcast();  // Stop sync when no video playing
     }
   });
 
@@ -19742,6 +19788,9 @@ if (!room) {
         addedBy: video.addedBy,
         startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
       });
+      
+      // Start periodic sync broadcast
+      startSyncBroadcast();
       
       io.to("music").emit("music:queue", {
         queue: MUSIC_ROOM_QUEUE.queue,
