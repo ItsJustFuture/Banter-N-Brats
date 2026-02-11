@@ -6015,6 +6015,232 @@ body:not(.polish-pack) .tonePicker{
     order:3;
   }
 }
+
+/* ===== Chat & Identity Modal ===== */
+.chatIdentityModal{
+  position:fixed;
+  inset:0;
+  background:var(--overlay-scrim);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:980;
+  padding:20px;
+}
+.chatIdentityModal.show{ display:flex; }
+
+.chatIdentityCard{
+  width:min(1200px, 100%);
+  max-height:calc(100vh - 40px);
+  background:var(--panel2);
+  border:1px solid var(--line);
+  border-radius:20px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  box-shadow:var(--shadowLg);
+}
+
+.chatIdentityHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:20px;
+  background:var(--panel2);
+  border-bottom:1px solid var(--line);
+}
+
+.chatIdentityTitle{
+  font-size:18px;
+  font-weight:700;
+  color:var(--text);
+}
+
+.chatIdentityBody{
+  flex:1;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:20px;
+  min-height:0;
+}
+
+.chatIdentityLayout{
+  display:grid;
+  grid-template-columns:minmax(320px, 0.4fr) minmax(400px, 1fr);
+  gap:20px;
+  min-height:0;
+}
+
+.chatIdentityLeft{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+.chatIdentityRight{
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+}
+
+.chatIdentityPreview{
+  background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.12));
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:14px;
+}
+
+.chatIdentityPreviewLabel{
+  font-size:12px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  margin-bottom:10px;
+}
+
+.chatIdentityTabToggle{
+  display:flex;
+  gap:8px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:4px;
+}
+
+.chatIdentityTab{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:10px 16px;
+  border:none;
+  background:transparent;
+  color:var(--muted);
+  border-radius:8px;
+  font-weight:600;
+  cursor:pointer;
+  transition:all 0.2s ease;
+}
+
+.chatIdentityTab.active{
+  background:var(--accent);
+  color:white;
+  box-shadow:0 2px 8px rgba(0,0,0,0.2);
+}
+
+.chatIdentityTabIcon{
+  font-size:18px;
+}
+
+.chatIdentityTabLabel{
+  font-size:14px;
+}
+
+.chatIdentityStyleTabs{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.chatIdentityStyleTabs button{
+  border:1px solid var(--line);
+  background:var(--panel);
+  color:var(--text);
+  border-radius:999px;
+  padding:6px 14px;
+  font-weight:600;
+  cursor:pointer;
+  transition:all 0.2s ease;
+}
+
+.chatIdentityStyleTabs button.active{
+  border-color:var(--accent);
+  box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.chatIdentityControls{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+  gap:12px;
+}
+
+.chatIdentityField{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.chatIdentityField label{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:600;
+}
+
+.chatIdentityPresetsWrap{
+  position:relative;
+  min-height:200px;
+}
+
+.chatIdentityPresetPanel{
+  display:none;
+}
+
+.chatIdentityPresetPanel[style*="display: block"]{
+  display:block;
+}
+
+.chatIdentityMessageLayout{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:16px;
+}
+
+.chatIdentitySectionTitle{
+  font-size:14px;
+  font-weight:700;
+  color:var(--text);
+  margin-bottom:12px;
+  padding-bottom:8px;
+  border-bottom:1px solid var(--line);
+}
+
+.chatIdentityFooter{
+  display:flex;
+  justify-content:flex-end;
+  gap:12px;
+  padding:16px 20px;
+  border-top:1px solid var(--line);
+  background:var(--panel2);
+}
+
+@media (max-width: 920px){
+  .chatIdentityLayout{
+    grid-template-columns:1fr;
+  }
+  .chatIdentityLeft{
+    order:1;
+  }
+  .chatIdentityRight{
+    order:2;
+  }
+}
+
+@media (max-width: 600px){
+  .chatIdentityModal{
+    padding:0;
+  }
+  .chatIdentityCard{
+    max-height:100vh;
+    border-radius:0;
+  }
+  .chatIdentityControls{
+    grid-template-columns:1fr;
+  }
+}
+
 .themesModalSticky{
   position:sticky;
   top:0;

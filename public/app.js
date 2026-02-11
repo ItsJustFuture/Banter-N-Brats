@@ -1729,6 +1729,10 @@ let textCustomizationSaveBtn = null;
 let textCustomizationTabs = null;
 let textCustomizationPanels = null;
 
+// Chat & Identity comprehensive modal
+let chatIdentityModal = null;
+let chatIdentityTargetTab = "username"; // "username" or "messageText"
+
 // --- DM avatar strip (direct DMs only): last-read + lightweight avatar cache
 const DM_LAST_READ_KEY = "dm:lastRead:v1";
 const AVATAR_CACHE_KEY = "dm:avatarCache:v1";
@@ -15669,6 +15673,11 @@ customizeCards.forEach((card) => {
       openThemesModal();
       return;
     }
+    // Handle Chat & Identity card - opens comprehensive modal
+    if (card.dataset.category === "chat") {
+      openChatIdentityModal();
+      return;
+    }
     // Handle Edit Profile card - opens modal and loads current data
     if (card.dataset.category === "edit-profile") {
       setCustomizePage("edit-profile");
@@ -23636,6 +23645,717 @@ function closeTextCustomizationModal(){
   textCustomizationModal.setAttribute("aria-hidden", "true");
   if (textCustomizationModal._lastFocusEl?.focus) {
     textCustomizationModal._lastFocusEl.focus();
+  }
+  textStyleDraft = null;
+}
+
+// ===== Comprehensive Chat & Identity Modal =====
+function buildChatIdentityModal(){
+  if (chatIdentityModal) return chatIdentityModal;
+  
+  const modal = document.createElement("div");
+  modal.className = "chatIdentityModal";
+  modal.id = "chatIdentityModal";
+  modal.setAttribute("aria-hidden", "true");
+  
+  modal.innerHTML = `
+    <div class="chatIdentityCard" role="dialog" aria-modal="true" aria-label="Chat & Identity Settings">
+      <div class="chatIdentityHeader">
+        <div class="chatIdentityTitle">💬 Chat & Identity</div>
+        <button class="iconBtn" type="button" data-action="close-chat-identity" aria-label="Close">✕</button>
+      </div>
+      <div class="chatIdentityBody">
+        <div class="chatIdentityLayout">
+          <!-- Left side: Preview and controls -->
+          <div class="chatIdentityLeft">
+            <!-- Live Preview -->
+            <div class="chatIdentityPreview">
+              <div class="chatIdentityPreviewLabel">Live Preview</div>
+              <div class="chatFxPreviewWrap">
+                <div class="chatFxPreview chat-main" id="chatIdentityPreviewBox">
+                  <div class="chatFxPreviewRow self">
+                    <div class="msgItem msg--main self chatFxPreviewItem">
+                      <div class="msgAvatar chatFxPreviewAvatar" id="chatIdentityPreviewAvatar"></div>
+                      <div class="msgMain">
+                        <div class="bubble chatFxPreviewBubble" id="chatIdentityPreviewBubble">
+                          <div class="meta">
+                            <div class="name">
+                              <span class="roleIco" id="chatIdentityPreviewRoleIcon">👑 </span>
+                              <span class="unameText" id="chatIdentityPreviewName">Your Name</span>
+                            </div>
+                            <div class="time" id="chatIdentityPreviewTime">Just now</div>
+                          </div>
+                          <div class="text" id="chatIdentityPreviewText">Your message preview.</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Tab Toggle Pills -->
+            <div class="chatIdentityTabToggle">
+              <button type="button" class="chatIdentityTab active" data-tab="username">
+                <span class="chatIdentityTabIcon">👤</span>
+                <span class="chatIdentityTabLabel">Username</span>
+              </button>
+              <button type="button" class="chatIdentityTab" data-tab="messageText">
+                <span class="chatIdentityTabIcon">💬</span>
+                <span class="chatIdentityTabLabel">Message Text</span>
+              </button>
+            </div>
+            
+            <!-- Text Styling Tabs (Color/Neon/Gradient) -->
+            <div class="chatIdentityStyleTabs">
+              <button type="button" data-mode="color" class="active">Color</button>
+              <button type="button" data-mode="neon">Neon</button>
+              <button type="button" data-mode="gradient">Gradient</button>
+            </div>
+            
+            <!-- Text Styling Controls -->
+            <div class="chatIdentityControls">
+              <div class="chatIdentityField">
+                <label>Color</label>
+                <div class="chatFxColorRow">
+                  <input type="color" id="chatIdentityColorInput" aria-label="Pick text color" />
+                  <input type="text" id="chatIdentityColorText" placeholder="#RRGGBB" />
+                </div>
+              </div>
+              <div class="chatIdentityField">
+                <label for="chatIdentityFont">Font family</label>
+                <select id="chatIdentityFont"></select>
+              </div>
+              <div class="chatIdentityField">
+                <label for="chatIdentityStyle">Font style</label>
+                <select id="chatIdentityStyle">
+                  <option value="normal">Normal</option>
+                  <option value="bold">Bold</option>
+                  <option value="italic">Italic</option>
+                </select>
+              </div>
+              <div class="chatIdentityField">
+                <label for="chatIdentityEffect">Text effect</label>
+                <select id="chatIdentityEffect"></select>
+              </div>
+              <div class="chatIdentityField">
+                <label for="chatIdentityIntensity">Neon intensity</label>
+                <select id="chatIdentityIntensity">
+                  <option value="low">Low</option>
+                  <option value="med">Medium</option>
+                  <option value="high">High</option>
+                  <option value="ultra">Ultra</option>
+                </select>
+              </div>
+              <div class="chatIdentityField">
+                <label for="chatIdentityGradientIntensity">Gradient intensity</label>
+                <select id="chatIdentityGradientIntensity">
+                  <option value="soft">Soft</option>
+                  <option value="normal">Normal</option>
+                  <option value="bold">Bold</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Right side: Presets and Message Layout Settings -->
+          <div class="chatIdentityRight">
+            <!-- Color/Neon/Gradient Presets -->
+            <div class="chatIdentityPresetsWrap">
+              <div class="chatIdentityPresetPanel" data-panel="color">
+                <div class="chatIdentityField">
+                  <label>Color presets</label>
+                  <div id="chatIdentityColorGrid"></div>
+                </div>
+              </div>
+              <div class="chatIdentityPresetPanel" data-panel="neon">
+                <div class="chatIdentityField">
+                  <label>Neon presets</label>
+                  <div id="chatIdentityNeonGrid"></div>
+                </div>
+              </div>
+              <div class="chatIdentityPresetPanel" data-panel="gradient">
+                <div class="chatIdentityField">
+                  <label>Gradient presets</label>
+                  <div id="chatIdentityGradientGrid"></div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Message Layout Settings -->
+            <div class="chatIdentityMessageLayout">
+              <div class="chatIdentitySectionTitle">Message Layout</div>
+              <div class="chatIdentityField">
+                <label for="chatIdentityMsgDensity">Message density</label>
+                <select id="chatIdentityMsgDensity">
+                  <option value="compact">Compact</option>
+                  <option value="medium">Medium</option>
+                  <option value="comfortable">Comfortable</option>
+                </select>
+                <div class="small muted">Adjust padding and gap between messages.</div>
+              </div>
+              <div class="chatIdentityField">
+                <label for="chatIdentityAccentStyle">Accent line style</label>
+                <select id="chatIdentityAccentStyle">
+                  <option value="solid">Solid</option>
+                  <option value="dotted">Dotted</option>
+                  <option value="gradient">Subtle gradient</option>
+                  <option value="hoverGlow">Hover glow</option>
+                </select>
+                <div class="small muted">Left rail detail for each message block.</div>
+              </div>
+              <div class="chatIdentityField">
+                <label for="chatIdentityUsernameEmphasis">Username emphasis</label>
+                <select id="chatIdentityUsernameEmphasis">
+                  <option value="normal">Normal</option>
+                  <option value="bold">Bold</option>
+                  <option value="underlineHover">Underline-on-hover</option>
+                  <option value="roleChip">Role-chip</option>
+                </select>
+                <div class="small muted">Pick how names stand out in chat.</div>
+              </div>
+              <div class="chatIdentityField">
+                <label for="chatIdentitySysMsgDensity">System message density</label>
+                <select id="chatIdentitySysMsgDensity">
+                  <option value="full">Full</option>
+                  <option value="compact">Compact</option>
+                  <option value="minimized">Minimized</option>
+                </select>
+                <div class="small muted">Tighten system message padding and size.</div>
+              </div>
+              <div class="chatIdentityField">
+                <label for="chatIdentityMsgContrast">Message background contrast</label>
+                <select id="chatIdentityMsgContrast">
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+                <div class="small muted">Control the block tint behind messages.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chatIdentityFooter">
+        <button class="btn btnSecondary" id="chatIdentityResetBtn" type="button">Reset to Default</button>
+        <button class="btn btnPrimary" id="chatIdentitySaveBtn" type="button">Save Changes</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  chatIdentityModal = modal;
+  
+  // Wire up event listeners
+  setupChatIdentityModalListeners();
+  
+  return modal;
+}
+
+function setupChatIdentityModalListeners(){
+  if (!chatIdentityModal) return;
+  
+  const modal = chatIdentityModal;
+  
+  // Close button
+  modal.addEventListener("click", (e) => {
+    const closeBtn = e.target.closest("[data-action='close-chat-identity']");
+    if (closeBtn) closeChatIdentityModal();
+    if (e.target === modal) closeChatIdentityModal();
+  });
+  
+  // Escape key
+  modal.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeChatIdentityModal();
+  });
+  
+  // Tab toggle
+  const tabButtons = modal.querySelectorAll(".chatIdentityTab");
+  tabButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      chatIdentityTargetTab = btn.dataset.tab;
+      updateChatIdentityTab();
+    });
+  });
+  
+  // Style mode tabs (Color/Neon/Gradient)
+  const styleTabs = modal.querySelector(".chatIdentityStyleTabs");
+  styleTabs?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-mode]");
+    if (!btn) return;
+    setChatIdentityStyleMode(btn.dataset.mode);
+  });
+  
+  // Color inputs
+  const colorInput = modal.querySelector("#chatIdentityColorInput");
+  const colorText = modal.querySelector("#chatIdentityColorText");
+  
+  colorInput?.addEventListener("input", () => {
+    if (!textStyleDraft) return;
+    textStyleDraft.color = colorInput.value || "";
+    if (colorText) colorText.value = textStyleDraft.color;
+    renderChatIdentityColorGrid();
+    updateChatIdentityPreview();
+  });
+  
+  colorText?.addEventListener("input", () => {
+    if (!textStyleDraft) return;
+    const color = normalizeHexColor6(colorText.value);
+    textStyleDraft.color = color;
+    if (colorInput && color) colorInput.value = color;
+    renderChatIdentityColorGrid();
+    updateChatIdentityPreview();
+  });
+  
+  // Color grid
+  const colorGrid = modal.querySelector("#chatIdentityColorGrid");
+  colorGrid?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".textCustomizationSwatch");
+    if (!btn || !textStyleDraft) return;
+    const color = normalizeHexColor6(btn.dataset.color);
+    if (!color) return;
+    textStyleDraft.color = color;
+    if (colorInput) colorInput.value = color;
+    if (colorText) colorText.value = color;
+    renderChatIdentityColorGrid();
+    updateChatIdentityPreview();
+  });
+  
+  // Neon grid
+  const neonGrid = modal.querySelector("#chatIdentityNeonGrid");
+  neonGrid?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".textCustomizationSwatch");
+    if (!btn || !textStyleDraft) return;
+    const presetId = btn.dataset.presetId;
+    const preset = presetId ? NEON_PRESET_MAP.get(presetId) : null;
+    if (!preset) return;
+    textStyleDraft.neon = {
+      presetId,
+      color: preset.baseColor,
+      intensity: textStyleDraft.neon?.intensity || TEXT_STYLE_DEFAULTS.neon.intensity
+    };
+    renderChatIdentityNeonGrid();
+    updateChatIdentityPreview();
+  });
+  
+  // Gradient grid
+  const gradientGrid = modal.querySelector("#chatIdentityGradientGrid");
+  gradientGrid?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".textCustomizationSwatch");
+    if (!btn || !textStyleDraft) return;
+    const presetId = btn.dataset.presetId;
+    const preset = presetId ? GRADIENT_PRESET_MAP.get(presetId) : null;
+    if (!preset) return;
+    textStyleDraft.gradient = {
+      presetId,
+      css: buildGradientCss(preset),
+      intensity: textStyleDraft.gradient?.intensity || TEXT_STYLE_DEFAULTS.gradient.intensity
+    };
+    renderChatIdentityGradientGrid();
+    updateChatIdentityPreview();
+  });
+  
+  // Font and style selects
+  const fontSelect = modal.querySelector("#chatIdentityFont");
+  const styleSelect = modal.querySelector("#chatIdentityStyle");
+  const effectSelect = modal.querySelector("#chatIdentityEffect");
+  const intensitySelect = modal.querySelector("#chatIdentityIntensity");
+  const gradIntensitySelect = modal.querySelector("#chatIdentityGradientIntensity");
+  
+  fontSelect?.addEventListener("change", () => {
+    if (!textStyleDraft) return;
+    textStyleDraft.fontFamily = fontSelect.value;
+    updateChatIdentityPreview();
+  });
+  
+  styleSelect?.addEventListener("change", () => {
+    if (!textStyleDraft) return;
+    textStyleDraft.fontStyle = styleSelect.value;
+    updateChatIdentityPreview();
+  });
+  
+  effectSelect?.addEventListener("change", () => {
+    if (!textStyleDraft) return;
+    const nextEffect = effectSelect.value;
+    const { effectId, gated } = normalizeTextEffectSelection(nextEffect);
+    if (gated) {
+      showToast("This text effect requires VIP status. Upgrade to unlock premium effects.");
+    }
+    effectSelect.value = effectId;
+    textStyleDraft.effectId = effectId;
+    updateChatIdentityPreview();
+  });
+  
+  intensitySelect?.addEventListener("change", () => {
+    if (!textStyleDraft) return;
+    textStyleDraft.neon = { ...textStyleDraft.neon, intensity: intensitySelect.value };
+    updateChatIdentityPreview();
+  });
+  
+  gradIntensitySelect?.addEventListener("change", () => {
+    if (!textStyleDraft) return;
+    textStyleDraft.gradient = { ...textStyleDraft.gradient, intensity: gradIntensitySelect.value };
+    updateChatIdentityPreview();
+  });
+  
+  // Message layout selects
+  const msgDensity = modal.querySelector("#chatIdentityMsgDensity");
+  const accentStyle = modal.querySelector("#chatIdentityAccentStyle");
+  const usernameEmphasis = modal.querySelector("#chatIdentityUsernameEmphasis");
+  const sysMsgDensity = modal.querySelector("#chatIdentitySysMsgDensity");
+  const msgContrast = modal.querySelector("#chatIdentityMsgContrast");
+  
+  msgDensity?.addEventListener("change", () => {
+    const layout = readMessageLayoutForm();
+    layout.msgDensity = msgDensity.value;
+    applyMessageLayout(layout);
+  });
+  
+  accentStyle?.addEventListener("change", () => {
+    const layout = readMessageLayoutForm();
+    layout.msgAccentStyle = accentStyle.value;
+    applyMessageLayout(layout);
+  });
+  
+  usernameEmphasis?.addEventListener("change", () => {
+    const layout = readMessageLayoutForm();
+    layout.msgUsernameEmphasis = usernameEmphasis.value;
+    applyMessageLayout(layout);
+  });
+  
+  sysMsgDensity?.addEventListener("change", () => {
+    const layout = readMessageLayoutForm();
+    layout.sysMsgDensity = sysMsgDensity.value;
+    applyMessageLayout(layout);
+  });
+  
+  msgContrast?.addEventListener("change", () => {
+    const layout = readMessageLayoutForm();
+    layout.msgContrast = msgContrast.value;
+    applyMessageLayout(layout);
+  });
+  
+  // Save and Reset buttons
+  const saveBtn = modal.querySelector("#chatIdentitySaveBtn");
+  const resetBtn = modal.querySelector("#chatIdentityResetBtn");
+  
+  saveBtn?.addEventListener("click", async () => {
+    await saveChatIdentitySettings();
+    closeChatIdentityModal();
+  });
+  
+  resetBtn?.addEventListener("click", () => {
+    if (confirm("Reset all chat & identity settings to default?")) {
+      resetChatIdentitySettings();
+    }
+  });
+  
+  // Populate font and effect dropdowns
+  const fontOptions = buildFontSelectOptionsHTML();
+  if (fontSelect) fontSelect.innerHTML = fontOptions;
+  
+  if (effectSelect) {
+    effectSelect.innerHTML = TEXT_EFFECTS.map((effect) => {
+      const label = effect.vip ? `${effect.name} (VIP)` : effect.name;
+      const disabled = effect.vip && !canUseTextEffect(effect.id) ? " disabled" : "";
+      return `<option value="${escapeHtml(effect.id)}"${disabled}>${escapeHtml(label)}</option>`;
+    }).join("");
+  }
+}
+
+function updateChatIdentityTab(){
+  if (!chatIdentityModal) return;
+  const tabButtons = chatIdentityModal.querySelectorAll(".chatIdentityTab");
+  tabButtons.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.tab === chatIdentityTargetTab);
+  });
+  
+  // Load the appropriate text style draft
+  textStyleTarget = chatIdentityTargetTab;
+  textStyleDraft = cloneTextStyle(getActiveTextStylePrefs());
+  
+  // Sync inputs and preview
+  syncChatIdentityInputs();
+  renderChatIdentityColorGrid();
+  renderChatIdentityNeonGrid();
+  renderChatIdentityGradientGrid();
+  setChatIdentityStyleMode(textStyleDraft.mode || TEXT_STYLE_DEFAULTS.mode);
+  updateChatIdentityPreview();
+}
+
+function setChatIdentityStyleMode(mode){
+  if (!chatIdentityModal) return;
+  const styleTabs = chatIdentityModal.querySelectorAll(".chatIdentityStyleTabs button");
+  styleTabs.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.mode === mode);
+  });
+  
+  const presetPanels = chatIdentityModal.querySelectorAll(".chatIdentityPresetPanel");
+  presetPanels.forEach((panel) => {
+    const isActive = panel.dataset.panel === mode;
+    panel.style.display = isActive ? "block" : "none";
+  });
+  
+  if (textStyleDraft) {
+    textStyleDraft.mode = mode;
+    updateChatIdentityPreview();
+  }
+}
+
+function syncChatIdentityInputs(){
+  if (!chatIdentityModal || !textStyleDraft) return;
+  
+  const colorInput = chatIdentityModal.querySelector("#chatIdentityColorInput");
+  const colorText = chatIdentityModal.querySelector("#chatIdentityColorText");
+  const fontSelect = chatIdentityModal.querySelector("#chatIdentityFont");
+  const styleSelect = chatIdentityModal.querySelector("#chatIdentityStyle");
+  const effectSelect = chatIdentityModal.querySelector("#chatIdentityEffect");
+  const intensitySelect = chatIdentityModal.querySelector("#chatIdentityIntensity");
+  const gradIntensitySelect = chatIdentityModal.querySelector("#chatIdentityGradientIntensity");
+  
+  if (colorInput) colorInput.value = normalizeColorForInput(textStyleDraft.color, "#ffffff");
+  if (colorText) colorText.value = textStyleDraft.color || "";
+  if (fontSelect) fontSelect.value = textStyleDraft.fontFamily || TEXT_STYLE_DEFAULTS.fontFamily;
+  if (styleSelect) styleSelect.value = textStyleDraft.fontStyle || TEXT_STYLE_DEFAULTS.fontStyle;
+  if (effectSelect) {
+    const { effectId } = normalizeTextEffectSelection(textStyleDraft.effectId || TEXT_STYLE_DEFAULTS.effectId);
+    textStyleDraft.effectId = effectId;
+    effectSelect.value = effectId;
+  }
+  if (intensitySelect) {
+    intensitySelect.value = textStyleDraft.neon?.intensity || TEXT_STYLE_DEFAULTS.neon.intensity;
+  }
+  if (gradIntensitySelect) {
+    gradIntensitySelect.value = textStyleDraft.gradient?.intensity || TEXT_STYLE_DEFAULTS.gradient.intensity;
+  }
+}
+
+function renderChatIdentityColorGrid(){
+  if (!chatIdentityModal) return;
+  const grid = chatIdentityModal.querySelector("#chatIdentityColorGrid");
+  if (!grid) return;
+  
+  grid.innerHTML = "";
+  const gridWrap = document.createElement("div");
+  gridWrap.className = "textCustomizationGrid";
+  const selectedColor = normalizeHexColor6(textStyleDraft?.color);
+  
+  COLOR_PRESETS.forEach((preset) => {
+    const swatch = document.createElement("button");
+    swatch.type = "button";
+    swatch.className = "textCustomizationSwatch";
+    swatch.style.setProperty("--swatch-color", preset.value);
+    swatch.dataset.color = preset.value;
+    swatch.setAttribute("aria-label", preset.label);
+    if (selectedColor && selectedColor.toLowerCase() === preset.value.toLowerCase()) {
+      swatch.classList.add("selected");
+    }
+    const label = document.createElement("span");
+    label.className = "textCustomizationSwatchLabel";
+    label.textContent = "Aa";
+    swatch.appendChild(label);
+    gridWrap.appendChild(swatch);
+  });
+  
+  grid.appendChild(gridWrap);
+}
+
+function renderChatIdentityNeonGrid(){
+  if (!chatIdentityModal) return;
+  const grid = chatIdentityModal.querySelector("#chatIdentityNeonGrid");
+  if (!grid) return;
+  
+  grid.innerHTML = "";
+  const byGroup = new Map();
+  NEON_PRESETS.forEach((preset) => {
+    const group = preset.group || "Neon";
+    if (!byGroup.has(group)) byGroup.set(group, []);
+    byGroup.get(group).push(preset);
+  });
+  
+  byGroup.forEach((presets, label) => {
+    const groupWrap = document.createElement("div");
+    groupWrap.className = "textCustomizationGridGroup";
+    const groupLabel = document.createElement("div");
+    groupLabel.className = "textCustomizationGroupLabel";
+    groupLabel.textContent = label;
+    const gridWrap = document.createElement("div");
+    gridWrap.className = "textCustomizationGrid";
+    
+    presets.forEach((preset) => {
+      const swatch = document.createElement("button");
+      swatch.type = "button";
+      swatch.className = "textCustomizationSwatch";
+      swatch.style.setProperty("--swatch-color", preset.baseColor);
+      swatch.dataset.presetId = preset.id;
+      swatch.setAttribute("aria-label", preset.label);
+      if (textStyleDraft?.neon?.presetId === preset.id) swatch.classList.add("selected");
+      const labelEl = document.createElement("span");
+      labelEl.className = "textCustomizationSwatchLabel";
+      labelEl.textContent = "Aa";
+      swatch.appendChild(labelEl);
+      gridWrap.appendChild(swatch);
+    });
+    
+    groupWrap.appendChild(groupLabel);
+    groupWrap.appendChild(gridWrap);
+    grid.appendChild(groupWrap);
+  });
+}
+
+function renderChatIdentityGradientGrid(){
+  if (!chatIdentityModal) return;
+  const grid = chatIdentityModal.querySelector("#chatIdentityGradientGrid");
+  if (!grid) return;
+  
+  grid.innerHTML = "";
+  const byGroup = new Map();
+  GRADIENT_PRESETS.forEach((preset) => {
+    const group = preset.group || "Presets";
+    if (!byGroup.has(group)) byGroup.set(group, []);
+    byGroup.get(group).push(preset);
+  });
+  
+  byGroup.forEach((presets, label) => {
+    const groupWrap = document.createElement("div");
+    groupWrap.className = "textCustomizationGridGroup";
+    const groupLabel = document.createElement("div");
+    groupLabel.className = "textCustomizationGroupLabel";
+    groupLabel.textContent = label;
+    const gridWrap = document.createElement("div");
+    gridWrap.className = "textCustomizationGrid";
+    
+    presets.forEach((preset) => {
+      const swatch = document.createElement("button");
+      swatch.type = "button";
+      swatch.className = "textCustomizationSwatch textCustomizationSwatch--gradient";
+      swatch.style.setProperty("--swatch-color", buildGradientCss(preset));
+      swatch.dataset.presetId = preset.id;
+      swatch.setAttribute("aria-label", preset.label);
+      if (textStyleDraft?.gradient?.presetId === preset.id) swatch.classList.add("selected");
+      const labelEl = document.createElement("span");
+      labelEl.className = "textCustomizationSwatchLabel";
+      labelEl.textContent = "Aa";
+      swatch.appendChild(labelEl);
+      gridWrap.appendChild(swatch);
+    });
+    
+    groupWrap.appendChild(groupLabel);
+    groupWrap.appendChild(gridWrap);
+    grid.appendChild(groupWrap);
+  });
+}
+
+function updateChatIdentityPreview(){
+  if (!chatIdentityModal || !textStyleDraft) return;
+  
+  const previewName = chatIdentityModal.querySelector("#chatIdentityPreviewName");
+  const previewText = chatIdentityModal.querySelector("#chatIdentityPreviewText");
+  
+  // Apply text styles based on current tab
+  if (chatIdentityTargetTab === "username" && previewName) {
+    applyTextStyleToElement(previewName, textStyleDraft);
+  }
+  if (chatIdentityTargetTab === "messageText" && previewText) {
+    applyTextStyleToElement(previewText, textStyleDraft);
+  }
+}
+
+async function saveChatIdentitySettings(){
+  if (!textStyleDraft) return;
+  
+  // Save the current tab's text style
+  await saveCustomizationPrefs(textStyleDraft, chatIdentityTargetTab);
+  
+  // Also save message layout settings if they've changed
+  // (These are already saved via the individual change handlers)
+  
+  showToast("Chat & identity settings saved!");
+}
+
+function resetChatIdentitySettings(){
+  // Reset text styles to defaults
+  userNameStylePrefs = { ...TEXT_STYLE_DEFAULTS, neon: { ...TEXT_STYLE_DEFAULTS.neon }, gradient: { ...TEXT_STYLE_DEFAULTS.gradient } };
+  messageTextStylePrefs = { ...TEXT_STYLE_DEFAULTS, neon: { ...TEXT_STYLE_DEFAULTS.neon }, gradient: { ...TEXT_STYLE_DEFAULTS.gradient } };
+  
+  // Reset message layout settings
+  applyMessageLayout(MESSAGE_LAYOUT_DEFAULTS);
+  
+  // Save to server
+  socket?.emit("user:saveChatFx", {
+    userNameStyle: userNameStylePrefs,
+    messageTextStyle: messageTextStylePrefs
+  });
+  
+  // Update UI
+  updateChatIdentityTab();
+  showToast("Chat & identity settings reset to defaults!");
+}
+
+function openChatIdentityModal(){
+  const modal = buildChatIdentityModal();
+  chatIdentityTargetTab = "username"; // Start with username tab
+  
+  // Load current message layout settings
+  const { layout } = readMessageLayoutStorage();
+  const msgDensity = modal.querySelector("#chatIdentityMsgDensity");
+  const accentStyle = modal.querySelector("#chatIdentityAccentStyle");
+  const usernameEmphasis = modal.querySelector("#chatIdentityUsernameEmphasis");
+  const sysMsgDensity = modal.querySelector("#chatIdentitySysMsgDensity");
+  const msgContrast = modal.querySelector("#chatIdentityMsgContrast");
+  
+  if (msgDensity) msgDensity.value = layout.msgDensity;
+  if (accentStyle) accentStyle.value = layout.msgAccentStyle;
+  if (usernameEmphasis) usernameEmphasis.value = layout.msgUsernameEmphasis;
+  if (sysMsgDensity) sysMsgDensity.value = layout.sysMsgDensity;
+  if (msgContrast) msgContrast.value = layout.msgContrast;
+  
+  // Initialize text customization
+  textStyleTarget = "username";
+  textStyleDraft = cloneTextStyle(getActiveTextStylePrefs());
+  
+  // Ensure neon and gradient have defaults
+  if (textStyleDraft.mode === "neon" && !textStyleDraft.neon?.presetId) {
+    const preset = NEON_PRESETS[0];
+    textStyleDraft.neon = {
+      presetId: preset.id,
+      color: preset.baseColor,
+      intensity: textStyleDraft.neon?.intensity || TEXT_STYLE_DEFAULTS.neon.intensity
+    };
+  }
+  if (textStyleDraft.mode === "gradient" && !textStyleDraft.gradient?.presetId) {
+    const preset = GRADIENT_PRESETS[0];
+    textStyleDraft.gradient = {
+      presetId: preset.id,
+      css: buildGradientCss(preset),
+      intensity: textStyleDraft.gradient?.intensity || TEXT_STYLE_DEFAULTS.gradient.intensity
+    };
+  }
+  
+  // Render grids and sync inputs
+  renderChatIdentityColorGrid();
+  renderChatIdentityNeonGrid();
+  renderChatIdentityGradientGrid();
+  syncChatIdentityInputs();
+  setChatIdentityStyleMode(textStyleDraft.mode || TEXT_STYLE_DEFAULTS.mode);
+  updateChatIdentityTab();
+  updateChatIdentityPreview();
+  
+  // Show modal
+  modal.classList.add("show");
+  modal.setAttribute("aria-hidden", "false");
+  modal._lastFocusEl = document.activeElement;
+  
+  const focusTarget = modal.querySelector("button, input, select, textarea");
+  focusTarget?.focus();
+}
+
+function closeChatIdentityModal(){
+  if (!chatIdentityModal) return;
+  chatIdentityModal.classList.remove("show");
+  chatIdentityModal.setAttribute("aria-hidden", "true");
+  if (chatIdentityModal._lastFocusEl?.focus) {
+    chatIdentityModal._lastFocusEl.focus();
   }
   textStyleDraft = null;
 }
