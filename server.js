@@ -94,7 +94,6 @@ function extractYouTubeIds(text) {
 // Helper to fetch YouTube video title
 async function fetchYouTubeTitle(videoId) {
   try {
-    const fetch = (await import("node-fetch")).default;
     const url = `https://noembed.com/embed?url=https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
     const response = await fetch(url);
     if (!response.ok) return null;
