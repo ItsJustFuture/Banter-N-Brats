@@ -6219,6 +6219,12 @@ function openMusicControlsModal() {
   if (!musicControlsModal) return;
   musicControlsModal.hidden = false;
   musicControlsModal.style.display = "flex";
+  // Add modal-visible class for opacity transition
+  if (PREFERS_REDUCED_MOTION) {
+    musicControlsModal.classList.add("modal-visible");
+  } else {
+    requestAnimationFrame(() => musicControlsModal.classList.add("modal-visible"));
+  }
   lockBodyScroll(true);
   
   // Add class for chat spacing; CSS media query limits when this has an effect
@@ -6229,6 +6235,7 @@ function openMusicControlsModal() {
 
 function closeMusicControlsModal() {
   if (!musicControlsModal) return;
+  musicControlsModal.classList.remove("modal-visible");
   musicControlsModal.hidden = true;
   musicControlsModal.style.display = "none";
   lockBodyScroll(false);
@@ -17422,12 +17429,13 @@ function joinRoom(room){
   
   // Music room player management
   if (room === "music") {
+    // Always show the music player when entering music room
+    MusicRoomPlayer.show();
+    
     // Request current state when joining music room
     socket?.emit("music:getState", (state) => {
       if (state.current) {
         MusicRoomPlayer.playVideo(state.current.videoId, state.current.title, state.current.addedBy, state.current.startedAt);
-      } else {
-        MusicRoomPlayer.show();
       }
       if (state.queue) {
         MusicRoomPlayer.updateQueue(state.queue);
