@@ -7404,6 +7404,7 @@ const MusicRoomPlayer = (() => {
   const LOW_QUALITY_KEY = "music_low_quality";
   
   // Quality mapping for "low quality" mode
+  // Note: 'tiny' is the lowest quality and has no downgrade option
   const QUALITY_DOWNGRADE = {
     "highres": "hd2160",
     "hd2160": "hd1440",
@@ -7561,15 +7562,17 @@ const MusicRoomPlayer = (() => {
           targetQuality = QUALITY_DOWNGRADE[currentQuality] || currentQuality;
         }
         
-        // Set quality
+        // Set quality - use loadVideoById to maintain playback state
         const pos = player.getCurrentTime?.() || 0;
         const wasPlaying = player.getPlayerState?.() === window.YT?.PlayerState?.PLAYING;
         
         player.setPlaybackQuality?.(targetQuality);
-        player.cueVideoById?.({ videoId: currentVideo.videoId, startSeconds: pos, suggestedQuality: targetQuality });
         
         if (wasPlaying) {
-          setTimeout(() => { player.playVideo?.(); }, 100);
+          // Use loadVideoById to maintain playback state more reliably
+          player.loadVideoById?.({ videoId: currentVideo.videoId, startSeconds: pos, suggestedQuality: targetQuality });
+        } else {
+          player.cueVideoById?.({ videoId: currentVideo.videoId, startSeconds: pos, suggestedQuality: targetQuality });
         }
       }
     } catch (err) {

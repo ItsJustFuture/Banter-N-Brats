@@ -76,9 +76,6 @@ const MUSIC_ROOM_QUEUE = {
   nowPlaying: false
 };
 
-// YouTube link regex
-const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/gi;
-
 // Helper to extract YouTube video IDs from text
 function extractYouTubeIds(text) {
   const s = String(text || "");
@@ -19104,7 +19101,7 @@ if (!room) {
     if (room === "music") {
       const ytIds = extractYouTubeIds(sanitizedText);
       if (ytIds && ytIds.length > 0) {
-        // Process YouTube links in music room
+        // Process YouTube links in music room - they won't be saved as regular messages
         (async () => {
           for (const videoId of ytIds) {
             try {

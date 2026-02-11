@@ -1,9 +1,6 @@
 // Test script for music room YouTube player functionality
 "use strict";
 
-// YouTube link regex
-const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/gi;
-
 // Helper to extract YouTube video IDs from text
 function extractYouTubeIds(text) {
   const s = String(text || "");
