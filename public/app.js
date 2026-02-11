@@ -6220,7 +6220,11 @@ function openMusicControlsModal() {
   musicControlsModal.hidden = false;
   musicControlsModal.style.display = "flex";
   // Add modal-visible class for opacity transition
-  requestAnimationFrame(() => musicControlsModal.classList.add("modal-visible"));
+  if (PREFERS_REDUCED_MOTION) {
+    musicControlsModal.classList.add("modal-visible");
+  } else {
+    requestAnimationFrame(() => musicControlsModal.classList.add("modal-visible"));
+  }
   lockBodyScroll(true);
   
   // Add class for chat spacing; CSS media query limits when this has an effect
