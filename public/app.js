@@ -7730,6 +7730,13 @@ const MusicRoomPlayer = (() => {
   const OVERLAP_PREVENTION_DELAY_MS = 300; // Delay when a video is already loading
   const QUALITY_APPLY_DELAY_MS = 300; // Delay before applying quality settings after video loads
   
+  // Sync timing constants
+  const AUTOPLAY_DELAY_MS = 1000; // Delay before attempting autoplay after player ready
+  const INITIAL_SYNC_CHECK_DELAY_MS = 500; // Delay before initial sync check after video starts
+  const INITIAL_SYNC_THRESHOLD_SECONDS = 2; // Drift threshold for initial sync (higher due to loading variance)
+  const PERIODIC_SYNC_THRESHOLD_SECONDS = 1.5; // Drift threshold for periodic sync
+  const AUTOPLAY_CHECK_INTERVAL_MS = 3000; // Interval for checking if autoplay is needed
+  
   // Video aspect ratio
   const VIDEO_ASPECT_RATIO = 16 / 9;
   
@@ -8259,7 +8266,7 @@ const MusicRoomPlayer = (() => {
           // Ensure autoplay after a brief delay
           setTimeout(() => {
             ensureAutoplay();
-          }, 1000);
+          }, AUTOPLAY_DELAY_MS);
         },
         onStateChange: (event) => {
           if (event.data === YT.PlayerState.ENDED) {
@@ -8273,6 +8280,7 @@ const MusicRoomPlayer = (() => {
             }
           } else if (event.data === YT.PlayerState.PLAYING) {
             // When video starts playing, do an initial sync check
+            // Uses higher threshold than periodic sync due to loading variance
             setTimeout(() => {
               if (currentVideo && currentVideo.startedAt) {
                 const elapsedMs = Date.now() - currentVideo.startedAt;
@@ -8280,12 +8288,12 @@ const MusicRoomPlayer = (() => {
                 const currentPosition = player.getCurrentTime?.() || 0;
                 const drift = Math.abs(currentPosition - expectedPosition);
                 
-                if (drift > 2) {
+                if (drift > INITIAL_SYNC_THRESHOLD_SECONDS) {
                   console.log(`[MusicRoomPlayer] Initial sync correction: ${drift.toFixed(2)}s drift`);
                   player.seekTo(expectedPosition, true);
                 }
               }
-            }, 500);
+            }, INITIAL_SYNC_CHECK_DELAY_MS);
           }
         }
       }
@@ -8304,7 +8312,7 @@ const MusicRoomPlayer = (() => {
     if (!syncCheckInterval) {
       syncCheckInterval = setInterval(() => {
         ensureAutoplay();
-      }, 3000);
+      }, AUTOPLAY_CHECK_INTERVAL_MS);
     }
   }
 
@@ -8497,9 +8505,9 @@ const MusicRoomPlayer = (() => {
       const expectedPosition = syncData.position + networkLatency;
       const drift = Math.abs(currentTime - expectedPosition);
       
-      // Only sync if drift is significant (more than 1.5 seconds)
+      // Only sync if drift is significant
       // This prevents constant micro-adjustments
-      if (drift > 1.5) {
+      if (drift > PERIODIC_SYNC_THRESHOLD_SECONDS) {
         console.log(`[MusicRoomPlayer] Drift detected: ${drift.toFixed(2)}s, syncing to ${expectedPosition.toFixed(2)}s`);
         
         // Only seek if video is actually playing
@@ -8527,8 +8535,9 @@ const MusicRoomPlayer = (() => {
     try {
       const playerState = player.getPlayerState?.();
       
-      // If video is cued but not playing, try to play
-      if (playerState === YT.PlayerState.CUED || playerState === YT.PlayerState.PAUSED) {
+      // Only trigger autoplay for CUED state (video loaded but not started)
+      // Don't interfere with intentional user pause actions
+      if (playerState === YT.PlayerState.CUED) {
         player.playVideo?.();
         autoplayAttempted = true;
         
