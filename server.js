@@ -69,6 +69,43 @@ const DND_ADVANCE_COOLDOWN_MS = 2000;
 // Valid DnD room names (normalized - used in isDnDRoom)
 const VALID_DND_ROOM_NAMES = ["dnd", "dndstoryroom", "dndstory", "justdnd"];
 
+// Music Room Global Player Queue
+const MUSIC_ROOM_QUEUE = {
+  queue: [], // Array of { videoId, title, addedBy, addedAt }
+  currentVideo: null, // { videoId, title, startedAt, addedBy }
+  nowPlaying: false
+};
+
+// YouTube link regex
+const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/gi;
+
+// Helper to extract YouTube video IDs from text
+function extractYouTubeIds(text) {
+  const s = String(text || "");
+  const re = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/gi;
+  const hits = [];
+  let m;
+  while ((m = re.exec(s))) {
+    if (m[1]) hits.push(m[1]);
+  }
+  return hits.filter((id, idx) => hits.indexOf(id) === idx);
+}
+
+// Helper to fetch YouTube video title
+async function fetchYouTubeTitle(videoId) {
+  try {
+    const fetch = (await import("node-fetch")).default;
+    const url = `https://noembed.com/embed?url=https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data?.title || null;
+  } catch (err) {
+    console.warn("[YouTube] Failed to fetch title:", err);
+    return null;
+  }
+}
+
 // Tic Tac Toe (room-scoped, in-memory)
 const TICTACTOE_GAMES = new Map(); // room -> game state
 const TICTACTOE_DEFAULT_MODE = "classic";
@@ -19064,6 +19101,63 @@ if (!room) {
     // Sanitize the text
     const sanitizedText = validators.sanitizeText(validation.data.text);
 
+    // Music room: Check for YouTube links
+    if (room === "music") {
+      const ytIds = extractYouTubeIds(sanitizedText);
+      if (ytIds && ytIds.length > 0) {
+        // Process YouTube links in music room
+        (async () => {
+          for (const videoId of ytIds) {
+            try {
+              const title = await fetchYouTubeTitle(videoId) || "Unknown Video";
+              
+              // Add to queue
+              MUSIC_ROOM_QUEUE.queue.push({
+                videoId,
+                title,
+                addedBy: socket.user.username,
+                addedAt: Date.now()
+              });
+
+              // Send system message
+              const systemMsg = buildSystemPayload(room, `${socket.user.username} added: ${title}`);
+              io.to(room).emit("system", systemMsg);
+
+              // If nothing is playing, start this video
+              if (!MUSIC_ROOM_QUEUE.currentVideo && MUSIC_ROOM_QUEUE.queue.length === 1) {
+                const video = MUSIC_ROOM_QUEUE.queue.shift();
+                MUSIC_ROOM_QUEUE.currentVideo = {
+                  videoId: video.videoId,
+                  title: video.title,
+                  startedAt: Date.now(),
+                  addedBy: video.addedBy
+                };
+                MUSIC_ROOM_QUEUE.nowPlaying = true;
+                
+                // Broadcast current video to all in music room
+                io.to(room).emit("music:play", {
+                  videoId: video.videoId,
+                  title: video.title,
+                  addedBy: video.addedBy
+                });
+              } else {
+                // Broadcast queue update
+                io.to(room).emit("music:queue", {
+                  queue: MUSIC_ROOM_QUEUE.queue,
+                  current: MUSIC_ROOM_QUEUE.currentVideo
+                });
+              }
+            } catch (err) {
+              console.warn("[Music Room] Failed to process YouTube link:", err);
+            }
+          }
+        })();
+        
+        // Don't save the message with YouTube links
+        return;
+      }
+    }
+
     isPunished(socket.user.id, "ban", (banned) => {
       if (banned) return;
       isPunished(socket.user.id, "mute", (muted) => {
@@ -19276,6 +19370,81 @@ if (!room) {
         });
       }
     );
+  });
+
+  // Music Room Queue Handlers
+  socket.on("music:next", () => {
+    if (socket.currentRoom !== "music") return;
+    
+    // Move to next video in queue
+    if (MUSIC_ROOM_QUEUE.queue.length > 0) {
+      const video = MUSIC_ROOM_QUEUE.queue.shift();
+      MUSIC_ROOM_QUEUE.currentVideo = {
+        videoId: video.videoId,
+        title: video.title,
+        startedAt: Date.now(),
+        addedBy: video.addedBy
+      };
+      MUSIC_ROOM_QUEUE.nowPlaying = true;
+      
+      io.to("music").emit("music:play", {
+        videoId: video.videoId,
+        title: video.title,
+        addedBy: video.addedBy
+      });
+      
+      io.to("music").emit("music:queue", {
+        queue: MUSIC_ROOM_QUEUE.queue,
+        current: MUSIC_ROOM_QUEUE.currentVideo
+      });
+    } else {
+      // No more videos in queue
+      MUSIC_ROOM_QUEUE.currentVideo = null;
+      MUSIC_ROOM_QUEUE.nowPlaying = false;
+      io.to("music").emit("music:stop");
+    }
+  });
+
+  socket.on("music:ended", () => {
+    if (socket.currentRoom !== "music") return;
+    
+    // Auto-play next video when current one ends
+    if (MUSIC_ROOM_QUEUE.queue.length > 0) {
+      const video = MUSIC_ROOM_QUEUE.queue.shift();
+      MUSIC_ROOM_QUEUE.currentVideo = {
+        videoId: video.videoId,
+        title: video.title,
+        startedAt: Date.now(),
+        addedBy: video.addedBy
+      };
+      MUSIC_ROOM_QUEUE.nowPlaying = true;
+      
+      io.to("music").emit("music:play", {
+        videoId: video.videoId,
+        title: video.title,
+        addedBy: video.addedBy
+      });
+      
+      io.to("music").emit("music:queue", {
+        queue: MUSIC_ROOM_QUEUE.queue,
+        current: MUSIC_ROOM_QUEUE.currentVideo
+      });
+    } else {
+      MUSIC_ROOM_QUEUE.currentVideo = null;
+      MUSIC_ROOM_QUEUE.nowPlaying = false;
+    }
+  });
+
+  socket.on("music:getState", (callback) => {
+    if (socket.currentRoom !== "music") return;
+    
+    if (typeof callback === "function") {
+      callback({
+        current: MUSIC_ROOM_QUEUE.currentVideo,
+        queue: MUSIC_ROOM_QUEUE.queue,
+        nowPlaying: MUSIC_ROOM_QUEUE.nowPlaying
+      });
+    }
   });
 
   const logDeleteFailure = ({ scope, messageId, actorId, actorRole, reason, roomId, threadId }) => {
