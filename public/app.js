@@ -7637,6 +7637,11 @@ const MusicRoomPlayer = (() => {
   let resizeStartY = 0;
   let playerStartWidth = 0;
   let playerStartHeight = 0;
+  
+  // Event listener tracking to prevent duplicate listeners
+  let listenersAttached = false;
+  let mouseMoveHandler = null;
+  let mouseUpHandler = null;
 
   function loadApi() {
     if (window.YT?.Player) return Promise.resolve(window.YT);
@@ -7723,6 +7728,16 @@ const MusicRoomPlayer = (() => {
     // Setup drag and resize handlers (desktop only)
     setupDragAndResize();
     
+    // Re-apply positioning when window is resized (to handle desktop/mobile transitions)
+    // Debounced to avoid excessive calls during window resizing
+    let resizeTimeout;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        updatePlayerLayout(); // Only update layout, don't re-attach listeners
+      }, 250);
+    }, { passive: true });
+    
     // Load saved preferences
     loadUserPreferences();
   }
@@ -7808,18 +7823,48 @@ const MusicRoomPlayer = (() => {
     }
   }
 
-  function setupDragAndResize() {
+  function updatePlayerLayout() {
     if (!playerContainer) return;
     
     // Check if we're on desktop (width > 768px)
-    const isDesktop = () => window.innerWidth > 768;
+    const isDesktop = window.innerWidth > 768;
     
-    if (!isDesktop()) return; // Only enable on desktop
+    if (!isDesktop) {
+      // On mobile, clear any inline positioning/sizing to let CSS handle it
+      playerContainer.style.top = '';
+      playerContainer.style.left = '';
+      playerContainer.style.right = '';
+      playerContainer.style.width = '';
+      playerContainer.style.height = '';
+      
+      // Remove cursor styling from header
+      const header = document.getElementById("musicPlayerHeader");
+      if (header) {
+        header.style.cursor = '';
+      }
+      
+      // Remove event listeners if they were attached
+      if (listenersAttached) {
+        if (mouseMoveHandler) {
+          document.removeEventListener("mousemove", mouseMoveHandler);
+        }
+        if (mouseUpHandler) {
+          document.removeEventListener("mouseup", mouseUpHandler);
+        }
+        listenersAttached = false;
+      }
+      return;
+    }
     
+    // Desktop: Load and apply saved position and size
     const header = document.getElementById("musicPlayerHeader");
     const resizeHandle = document.getElementById("musicPlayerResizeHandle");
     
-    // Load saved position and size
+    // Set cursor for dragging
+    if (header) {
+      header.style.cursor = "move";
+    }
+    
     try {
       const savedPosition = localStorage.getItem(POSITION_KEY);
       const savedSize = localStorage.getItem(SIZE_KEY);
@@ -7851,11 +7896,25 @@ const MusicRoomPlayer = (() => {
     } catch (err) {
       console.warn("[MusicRoomPlayer] Failed to load position/size:", err);
     }
+  }
+
+  function setupDragAndResize() {
+    if (!playerContainer) return;
+    
+    // Apply initial layout
+    updatePlayerLayout();
+    
+    // Check if we're on desktop (width > 768px)
+    const isDesktop = window.innerWidth > 768;
+    
+    // Only attach event listeners on desktop and only once
+    if (!isDesktop || listenersAttached) return;
+    
+    const header = document.getElementById("musicPlayerHeader");
+    const resizeHandle = document.getElementById("musicPlayerResizeHandle");
     
     // Drag functionality
     if (header) {
-      header.style.cursor = "move";
-      
       header.addEventListener("mousedown", (e) => {
         // Don't drag if clicking on buttons
         if (e.target.closest(".iconBtn")) return;
@@ -7889,8 +7948,11 @@ const MusicRoomPlayer = (() => {
       });
     }
     
-    // Global mouse move handler
-    document.addEventListener("mousemove", (e) => {
+    // Global mouse move handler - store reference for cleanup
+    mouseMoveHandler = (e) => {
+      // Check if desktop at event time to prevent mobile drag/resize
+      if (window.innerWidth <= 768) return;
+      
       if (isDragging) {
         const deltaX = e.clientX - dragStartX;
         const deltaY = e.clientY - dragStartY;
@@ -7936,10 +7998,10 @@ const MusicRoomPlayer = (() => {
           }
         }
       }
-    });
+    };
     
-    // Global mouse up handler
-    document.addEventListener("mouseup", () => {
+    // Global mouse up handler - store reference for cleanup
+    mouseUpHandler = () => {
       if (isDragging) {
         isDragging = false;
         playerContainer.style.transition = "";
@@ -7971,7 +8033,13 @@ const MusicRoomPlayer = (() => {
           console.warn("[MusicRoomPlayer] Failed to save size:", err);
         }
       }
-    });
+    };
+    
+    // Attach global handlers
+    document.addEventListener("mousemove", mouseMoveHandler);
+    document.addEventListener("mouseup", mouseUpHandler);
+    
+    listenersAttached = true;
   }
 
   function applyQualitySettings() {
