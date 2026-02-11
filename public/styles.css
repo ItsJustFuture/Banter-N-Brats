@@ -4669,6 +4669,7 @@ body.sys-density-minimized .chat-main{
 .chat-main .msgItem.msg--main .time{
   font-size: var(--fx-time-size, 11px);
   opacity: .65;
+  color: var(--fx-name-color, inherit);
   text-shadow:var(--text-shadow-soft);
 }
 .toneBadge{
