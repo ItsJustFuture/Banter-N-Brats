@@ -67,7 +67,7 @@ const VIBE_TAGS = Object.freeze([
   { id: "adventurous-nsfw", label: "Adventurous (NSFW)", emoji: "🌶️", nsfw: true },
   { id: "experimental", label: "Experimental", emoji: "🧪", nsfw: true },
   { id: "passionate", label: "Passionate", emoji: "❤️‍🔥", nsfw: true },
-  { id: "bratty", label: "Bratty", emoji: "😈", nsfw: true }
+  { id: "bratty", label: "Bratty", emoji: "😼", nsfw: true }
 ]);
 
 module.exports = {

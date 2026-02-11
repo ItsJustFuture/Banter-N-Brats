@@ -23659,9 +23659,9 @@ function buildChatIdentityModal(){
   modal.setAttribute("aria-hidden", "true");
   
   modal.innerHTML = `
-    <div class="chatIdentityCard" role="dialog" aria-modal="true" aria-label="Chat & Identity Settings">
+    <div class="chatIdentityCard" role="dialog" aria-modal="true" aria-label="Chat and Identity Settings">
       <div class="chatIdentityHeader">
-        <div class="chatIdentityTitle">💬 Chat & Identity</div>
+        <div class="chatIdentityTitle"><span aria-hidden="true">💬</span> Chat & Identity</div>
         <button class="iconBtn" type="button" data-action="close-chat-identity" aria-label="Close">✕</button>
       </div>
       <div class="chatIdentityBody">
@@ -24044,9 +24044,28 @@ function setupChatIdentityModalListeners(){
     closeChatIdentityModal();
   });
   
+  let resetClickCount = 0;
+  let resetClickTimer = null;
+  
   resetBtn?.addEventListener("click", () => {
-    if (confirm("Reset all chat & identity settings to default?")) {
+    resetClickCount++;
+    
+    if (resetClickCount === 1) {
+      resetBtn.textContent = "Click again to confirm";
+      resetBtn.classList.add("btn-danger");
+      
+      if (resetClickTimer) clearTimeout(resetClickTimer);
+      resetClickTimer = setTimeout(() => {
+        resetClickCount = 0;
+        resetBtn.textContent = "Reset to Default";
+        resetBtn.classList.remove("btn-danger");
+      }, 3000);
+    } else if (resetClickCount >= 2) {
       resetChatIdentitySettings();
+      resetClickCount = 0;
+      if (resetClickTimer) clearTimeout(resetClickTimer);
+      resetBtn.textContent = "Reset to Default";
+      resetBtn.classList.remove("btn-danger");
     }
   });
   

@@ -73,6 +73,8 @@
   --gray: var(--muted);
   --line: var(--border);
   --shadow: var(--shadowLg);
+  --preview-gradient-light: 0.08;
+  --preview-gradient-dark: 0.12;
 }
 
 .hidden {
@@ -6085,7 +6087,7 @@ body:not(.polish-pack) .tonePicker{
 }
 
 .chatIdentityPreview{
-  background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.12));
+  background:linear-gradient(180deg, rgba(255,255,255,var(--preview-gradient-light)), rgba(0,0,0,var(--preview-gradient-dark)));
   border:1px solid var(--line);
   border-radius:14px;
   padding:14px;
