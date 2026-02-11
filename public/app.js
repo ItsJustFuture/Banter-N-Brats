@@ -7751,6 +7751,7 @@ const MusicRoomPlayer = (() => {
         if (collapseBtn) {
           collapseBtn.textContent = "▲";
           collapseBtn.title = "Expand player";
+          collapseBtn.setAttribute("aria-label", "Expand player");
         }
       }
       
@@ -7770,6 +7771,7 @@ const MusicRoomPlayer = (() => {
       if (collapseBtn) {
         collapseBtn.textContent = isCollapsed ? "▲" : "▼";
         collapseBtn.title = isCollapsed ? "Expand player" : "Collapse player";
+        collapseBtn.setAttribute("aria-label", isCollapsed ? "Expand player" : "Collapse player");
       }
       
       localStorage.setItem(COLLAPSED_KEY, isCollapsed ? "true" : "false");
@@ -7824,16 +7826,26 @@ const MusicRoomPlayer = (() => {
       
       if (savedPosition) {
         const { top, left } = JSON.parse(savedPosition);
-        playerContainer.style.top = `${top}px`;
-        playerContainer.style.left = `${left}px`;
+        // Clamp position to current viewport to handle resolution/zoom changes
+        const rect = playerContainer.getBoundingClientRect();
+        const clampedLeft = Math.max(0, Math.min(left, window.innerWidth - rect.width));
+        const clampedTop = Math.max(0, Math.min(top, window.innerHeight - rect.height));
+        playerContainer.style.top = `${clampedTop}px`;
+        playerContainer.style.left = `${clampedLeft}px`;
         playerContainer.style.right = 'auto';
       }
       
       if (savedSize) {
         const { width, height } = JSON.parse(savedSize);
-        playerContainer.style.width = `${width}px`;
+        // Apply the same min/max constraints used during resizing
+        const clampedWidth = Math.max(240, Math.min(width, 600));
+        const clampedHeight = Math.max(200, Math.min(height, 800));
+        // Also clamp to viewport dimensions
+        const maxWidth = Math.min(clampedWidth, window.innerWidth);
+        const maxHeight = Math.min(clampedHeight, window.innerHeight);
+        playerContainer.style.width = `${maxWidth}px`;
         if (height) {
-          playerContainer.style.height = `${height}px`;
+          playerContainer.style.height = `${maxHeight}px`;
         }
       }
     } catch (err) {
@@ -7913,6 +7925,15 @@ const MusicRoomPlayer = (() => {
         if (videoFrame) {
           const videoHeight = newWidth / VIDEO_ASPECT_RATIO;
           videoFrame.style.height = `${videoHeight}px`;
+
+          // Ensure the underlying YouTube player resizes with the UI
+          try {
+            if (typeof player !== "undefined" && player && typeof player.setSize === "function") {
+              player.setSize(newWidth, videoHeight);
+            }
+          } catch (err) {
+            console.warn("[MusicRoomPlayer] Failed to resize YouTube player:", err);
+          }
         }
       }
     });
@@ -8033,11 +8054,15 @@ const MusicRoomPlayer = (() => {
       },
       events: {
         onReady: () => {
-          // Set default volume to 50%
+          // Apply persisted volume if available, otherwise default to 50%
           try {
-            player.setVolume(50);
+            const storedVolumeRaw = localStorage.getItem("music_volume");
+            const parsedVolume = storedVolumeRaw != null ? Number(storedVolumeRaw) : NaN;
+            const hasValidStoredVolume = Number.isFinite(parsedVolume) && parsedVolume >= 0 && parsedVolume <= 100;
+            const volumeToSet = hasValidStoredVolume ? parsedVolume : 50;
+            player.setVolume(volumeToSet);
           } catch (err) {
-            console.warn("[MusicRoomPlayer] Failed to set default volume:", err);
+            console.warn("[MusicRoomPlayer] Failed to set volume:", err);
           }
           applyQualitySettings();
         },
@@ -8076,9 +8101,10 @@ const MusicRoomPlayer = (() => {
   }
 
   async function playVideo(videoId, title, addedBy, startedAt) {
-    // Prevent overlapping video loads
-    if (isLoadingVideo) {
-      console.log("[MusicRoomPlayer] Already loading a video, waiting...");
+    // Wait until any in-progress load has fully completed before continuing.
+    // This loops instead of using a single fixed delay to avoid overlapping loads
+    // when the first load takes longer than OVERLAP_PREVENTION_DELAY_MS.
+    while (isLoadingVideo) {
       await new Promise(resolve => setTimeout(resolve, OVERLAP_PREVENTION_DELAY_MS));
     }
     
