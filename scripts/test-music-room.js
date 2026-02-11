@@ -1,4 +1,9 @@
-// Test script for music room YouTube player functionality
+// Test script for music room YouTube player functionality.
+// 
+// This is a standalone developer test and is not wired into package.json or CI by default.
+// Run it manually whenever you change the music room YouTube link parsing logic, for example:
+//   node scripts/test-music-room.js
+//
 "use strict";
 
 // Helper to extract YouTube video IDs from text

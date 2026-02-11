@@ -7391,7 +7391,6 @@ const StickyYouTubePlayer = (()=>{
 const MusicRoomPlayer = (() => {
   let player = null;
   let playerContainer = null;
-  let queueContainer = null;
   let currentVideoEl = null;
   let queueListEl = null;
   let apiReadyPromise = null;
@@ -7399,7 +7398,6 @@ const MusicRoomPlayer = (() => {
   let queue = [];
   
   // Per-user quality settings
-  const QUALITY_STORAGE_KEY = "music_quality_mode";
   const AUDIO_ONLY_KEY = "music_audio_only";
   const LOW_QUALITY_KEY = "music_low_quality";
   
@@ -7443,9 +7441,9 @@ const MusicRoomPlayer = (() => {
         <div class="musicPlayerHeader">
           <div class="musicPlayerTitle">🎵 Music Room Player</div>
           <div class="musicPlayerControls">
-            <button class="iconBtn" id="musicSkipBtn" title="Skip to next">⏭</button>
-            <button class="iconBtn" id="musicAudioOnlyBtn" title="Audio only mode">🎵</button>
-            <button class="iconBtn" id="musicLowQualityBtn" title="Low quality mode">📶</button>
+            <button class="iconBtn" id="musicSkipBtn" title="Skip to next" aria-label="Skip to next">⏭</button>
+            <button class="iconBtn" id="musicAudioOnlyBtn" title="Audio only mode" aria-label="Audio only mode">🎵</button>
+            <button class="iconBtn" id="musicLowQualityBtn" title="Low quality mode" aria-label="Low quality mode">📶</button>
           </div>
         </div>
         <div class="musicPlayerBody">
@@ -7554,12 +7552,27 @@ const MusicRoomPlayer = (() => {
       // Apply quality settings
       if (player && currentVideo) {
         const availableQualities = player.getAvailableQualityLevels?.() || [];
-        let targetQuality = "hd720"; // Default to 720p
         
-        if (lowQuality && availableQualities.length > 0) {
-          // Find current quality and downgrade
-          const currentQuality = player.getPlaybackQuality?.() || "hd720";
-          targetQuality = QUALITY_DOWNGRADE[currentQuality] || currentQuality;
+        // Determine baseline quality: prefer 720p, otherwise highest available
+        let baselineQuality = "hd720";
+        if (availableQualities.length > 0) {
+          if (availableQualities.includes("hd720")) {
+            baselineQuality = "hd720";
+          } else {
+            // getAvailableQualityLevels() returns from highest to lowest
+            baselineQuality = availableQualities[0];
+          }
+        }
+
+        // From the baseline, optionally apply a low-quality downgrade
+        let targetQuality;
+        if (lowQuality) {
+          const downgraded = QUALITY_DOWNGRADE[baselineQuality];
+          targetQuality = (downgraded && availableQualities.includes(downgraded))
+            ? downgraded
+            : baselineQuality;
+        } else {
+          targetQuality = baselineQuality;
         }
         
         // Set quality - use loadVideoById to maintain playback state
@@ -7631,11 +7644,11 @@ const MusicRoomPlayer = (() => {
     }
   }
 
-  async function playVideo(videoId, title, addedBy) {
+  async function playVideo(videoId, title, addedBy, startedAt) {
     initDom();
     show();
     
-    currentVideo = { videoId, title, addedBy };
+    currentVideo = { videoId, title, addedBy, startedAt };
     
     // Update current video display
     if (currentVideoEl) {
@@ -7649,7 +7662,25 @@ const MusicRoomPlayer = (() => {
     
     if (player) {
       try {
-        player.loadVideoById?.(videoId);
+        // Calculate seek position based on when video started
+        let startSeconds = 0;
+        if (startedAt) {
+          const elapsedMs = Date.now() - startedAt;
+          startSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+        }
+        
+        // Determine baseline quality: prefer 720p, otherwise highest available
+        const availableQualities = player.getAvailableQualityLevels?.() || [];
+        let suggestedQuality = "hd720";
+        if (availableQualities.length > 0 && !availableQualities.includes("hd720")) {
+          suggestedQuality = availableQualities[0]; // Highest available
+        }
+        
+        player.loadVideoById?.({
+          videoId,
+          startSeconds,
+          suggestedQuality
+        });
         
         // Apply quality settings after a short delay
         setTimeout(() => {
@@ -16759,7 +16790,7 @@ function joinRoom(room){
     // Request current state when joining music room
     socket?.emit("music:getState", (state) => {
       if (state.current) {
-        MusicRoomPlayer.playVideo(state.current.videoId, state.current.title, state.current.addedBy);
+        MusicRoomPlayer.playVideo(state.current.videoId, state.current.title, state.current.addedBy, state.current.startedAt);
       } else {
         MusicRoomPlayer.show();
       }
@@ -24972,7 +25003,7 @@ socket.on("mod:case_event", (payload = {}) => {
   // Music Room Player events
   socket.on("music:play", (payload) => {
     if (currentRoom === "music") {
-      MusicRoomPlayer.playVideo(payload.videoId, payload.title, payload.addedBy);
+      MusicRoomPlayer.playVideo(payload.videoId, payload.title, payload.addedBy, payload.startedAt);
     }
   });
 

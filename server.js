@@ -71,10 +71,14 @@ const VALID_DND_ROOM_NAMES = ["dnd", "dndstoryroom", "dndstory", "justdnd"];
 
 // Music Room Global Player Queue
 const MUSIC_ROOM_QUEUE = {
-  queue: [], // Array of { videoId, title, addedBy, addedAt }
+  queue: [], // Array of { videoId, title, addedBy, addedAt, queueId }
   currentVideo: null, // { videoId, title, startedAt, addedBy }
-  nowPlaying: false
+  nowPlaying: false,
+  nextQueueId: 1, // Counter for queue ordering
+  lastEndedVideoId: null, // Track last ended video to prevent duplicate advances
+  lastEndedAt: 0
 };
+const MUSIC_QUEUE_MAX_SIZE = 100; // Maximum queue size
 
 // Helper to extract YouTube video IDs from text
 function extractYouTubeIds(text) {
@@ -19097,67 +19101,84 @@ if (!room) {
     // Sanitize the text
     const sanitizedText = validators.sanitizeText(validation.data.text);
 
-    // Music room: Check for YouTube links
-    if (room === "music") {
-      const ytIds = extractYouTubeIds(sanitizedText);
-      if (ytIds && ytIds.length > 0) {
-        // Process YouTube links in music room - they won't be saved as regular messages
-        (async () => {
-          for (const videoId of ytIds) {
-            try {
-              const title = await fetchYouTubeTitle(videoId) || "Unknown Video";
-              
-              // Add to queue
-              MUSIC_ROOM_QUEUE.queue.push({
-                videoId,
-                title,
-                addedBy: socket.user.username,
-                addedAt: Date.now()
-              });
-
-              // Send system message
-              const systemMsg = buildSystemPayload(room, `${socket.user.username} added: ${title}`);
-              io.to(room).emit("system", systemMsg);
-
-              // If nothing is playing, start this video
-              if (!MUSIC_ROOM_QUEUE.currentVideo && MUSIC_ROOM_QUEUE.queue.length === 1) {
-                const video = MUSIC_ROOM_QUEUE.queue.shift();
-                MUSIC_ROOM_QUEUE.currentVideo = {
-                  videoId: video.videoId,
-                  title: video.title,
-                  startedAt: Date.now(),
-                  addedBy: video.addedBy
-                };
-                MUSIC_ROOM_QUEUE.nowPlaying = true;
-                
-                // Broadcast current video to all in music room
-                io.to(room).emit("music:play", {
-                  videoId: video.videoId,
-                  title: video.title,
-                  addedBy: video.addedBy
-                });
-              } else {
-                // Broadcast queue update
-                io.to(room).emit("music:queue", {
-                  queue: MUSIC_ROOM_QUEUE.queue,
-                  current: MUSIC_ROOM_QUEUE.currentVideo
-                });
-              }
-            } catch (err) {
-              console.warn("[Music Room] Failed to process YouTube link:", err);
-            }
-          }
-        })();
-        
-        // Don't save the message with YouTube links
-        return;
-      }
-    }
-
     isPunished(socket.user.id, "ban", (banned) => {
       if (banned) return;
       isPunished(socket.user.id, "mute", (muted) => {
         if (muted) return;
+
+        // Music room: Check for YouTube links (after ban/mute checks)
+        if (room === "music") {
+          const ytIds = extractYouTubeIds(sanitizedText);
+          if (ytIds && ytIds.length > 0) {
+            // Check queue size limit
+            if (MUSIC_ROOM_QUEUE.queue.length >= MUSIC_QUEUE_MAX_SIZE) {
+              socket.emit("system", buildSystemPayload(room, "Queue is full. Please wait for some videos to finish playing."));
+              return;
+            }
+
+            // Process YouTube links in music room - they won't be saved as regular messages
+            (async () => {
+              for (const videoId of ytIds) {
+                try {
+                  // Check queue size again in case multiple links are being processed
+                  if (MUSIC_ROOM_QUEUE.queue.length >= MUSIC_QUEUE_MAX_SIZE) {
+                    socket.emit("system", buildSystemPayload(room, "Queue is full. Some videos were not added."));
+                    break;
+                  }
+
+                  // Add to queue with placeholder title first to preserve order
+                  const queueId = MUSIC_ROOM_QUEUE.nextQueueId++;
+                  const queueEntry = {
+                    videoId,
+                    title: "Loading...",
+                    addedBy: socket.user.username,
+                    addedAt: Date.now(),
+                    queueId
+                  };
+                  MUSIC_ROOM_QUEUE.queue.push(queueEntry);
+
+                  // Fetch title asynchronously and update
+                  const title = await fetchYouTubeTitle(videoId) || "Unknown Video";
+                  queueEntry.title = title;
+
+                  // Send system message using emitRoomSystem
+                  emitRoomSystem(room, `${socket.user.username} added: ${title}`);
+
+                  // If nothing is playing, start this video
+                  if (!MUSIC_ROOM_QUEUE.currentVideo && MUSIC_ROOM_QUEUE.queue.length === 1) {
+                    const video = MUSIC_ROOM_QUEUE.queue.shift();
+                    MUSIC_ROOM_QUEUE.currentVideo = {
+                      videoId: video.videoId,
+                      title: video.title,
+                      startedAt: Date.now(),
+                      addedBy: video.addedBy
+                    };
+                    MUSIC_ROOM_QUEUE.nowPlaying = true;
+                    
+                    // Broadcast current video to all in music room
+                    io.to(room).emit("music:play", {
+                      videoId: video.videoId,
+                      title: video.title,
+                      addedBy: video.addedBy,
+                      startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
+                    });
+                  } else {
+                    // Broadcast queue update
+                    io.to(room).emit("music:queue", {
+                      queue: MUSIC_ROOM_QUEUE.queue,
+                      current: MUSIC_ROOM_QUEUE.currentVideo
+                    });
+                  }
+                } catch (err) {
+                  console.warn("[Music Room] Failed to process YouTube link:", err);
+                }
+              }
+            })();
+            
+            // Don't save the message with YouTube links
+            return;
+          }
+        }
 
         const cleanText = sanitizedText;
         if (cleanText.length > MAX_CHAT_MESSAGE_CHARS) {
@@ -19372,6 +19393,12 @@ if (!room) {
   socket.on("music:next", () => {
     if (socket.currentRoom !== "music") return;
     
+    // Rate limit skip requests
+    if (!allowSocketEvent(socket, "music_skip", 3, 10000)) {
+      socket.emit("system", buildSystemPayload("music", "Please wait before skipping again."));
+      return;
+    }
+    
     // Move to next video in queue
     if (MUSIC_ROOM_QUEUE.queue.length > 0) {
       const video = MUSIC_ROOM_QUEUE.queue.shift();
@@ -19386,7 +19413,8 @@ if (!room) {
       io.to("music").emit("music:play", {
         videoId: video.videoId,
         title: video.title,
-        addedBy: video.addedBy
+        addedBy: video.addedBy,
+        startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
       });
       
       io.to("music").emit("music:queue", {
@@ -19404,6 +19432,21 @@ if (!room) {
   socket.on("music:ended", () => {
     if (socket.currentRoom !== "music") return;
     
+    // Dedupe: only process if current video matches and hasn't been processed recently
+    const currentVideoId = MUSIC_ROOM_QUEUE.currentVideo?.videoId;
+    if (!currentVideoId) return;
+    
+    const now = Date.now();
+    const isDuplicate = (
+      MUSIC_ROOM_QUEUE.lastEndedVideoId === currentVideoId &&
+      now - MUSIC_ROOM_QUEUE.lastEndedAt < 5000 // 5 second window
+    );
+    
+    if (isDuplicate) return;
+    
+    MUSIC_ROOM_QUEUE.lastEndedVideoId = currentVideoId;
+    MUSIC_ROOM_QUEUE.lastEndedAt = now;
+    
     // Auto-play next video when current one ends
     if (MUSIC_ROOM_QUEUE.queue.length > 0) {
       const video = MUSIC_ROOM_QUEUE.queue.shift();
@@ -19418,7 +19461,8 @@ if (!room) {
       io.to("music").emit("music:play", {
         videoId: video.videoId,
         title: video.title,
-        addedBy: video.addedBy
+        addedBy: video.addedBy,
+        startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
       });
       
       io.to("music").emit("music:queue", {

@@ -133,7 +133,8 @@ All findings from automated code review were addressed:
 3. **Secure Defaults**
    - Privacy-friendly YouTube embed domain
    - Safe quality settings
-   - No autoplay without user gesture
+   - Player configured to request autoplay (e.g., autoplay: 1, loadVideoById())
+   - Actual playback behavior subject to browser autoplay policies (may still require user gesture, especially for unmuted audio)
 
 4. **Fail Safely**
    - API failures don't crash app

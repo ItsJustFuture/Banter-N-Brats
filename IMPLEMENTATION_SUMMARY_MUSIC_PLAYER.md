@@ -5,7 +5,7 @@
 ### Core Functionality
 - ✅ **Modified YouTube embed globally active to all members in music room**
   - Global player shows for all users in music room
-  - Synchronized playback across all users
+  - Playback synchronized for late joiners via startedAt timestamp
   - Player shows/hides based on current room
 
 - ✅ **YouTube links shared in room play on global player**

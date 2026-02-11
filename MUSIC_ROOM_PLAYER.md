@@ -27,7 +27,8 @@ All quality settings are stored locally and do not affect other users' experienc
 
 #### Audio Only Mode
 - Toggleable with the 🎵 button
-- Hides the video player and shows only audio controls
+- Hides the video player while keeping the same minimal controls (skip, audio-only, and low quality)
+- Does not show standard YouTube controls such as pause/play button, seek bar, or volume slider
 - Saves bandwidth for users who only want to listen
 - Preference persists across sessions
 
