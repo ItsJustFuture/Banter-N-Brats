@@ -2900,24 +2900,23 @@ let dndUiEnabled = false;
 function enableDndUI() {
   dndDebugLog("enableDndUI called", { alreadyEnabled: dndUiEnabled });
   
-  // Show the Adventure buttons (top bar + input bar) when in the DnD room
-  if (dndNewOpenBtn) { // input bar
-    dndNewOpenBtn.hidden = false;
-    dndNewOpenBtn.setAttribute("aria-hidden", "false");
-  }
+  // Show only the topbar Adventure button when in the DnD room
   if (dndOpenBtn) { // top bar
     dndOpenBtn.hidden = false;
     dndOpenBtn.setAttribute("aria-hidden", "false");
   }
+  // Keep input bar and composer buttons hidden - only use topbar
+  if (dndNewOpenBtn) {
+    dndNewOpenBtn.hidden = true;
+    dndNewOpenBtn.setAttribute("aria-hidden", "true");
+  }
   if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) {
-    dndComposerBtn.hidden = false;
-    dndComposerBtn.setAttribute("aria-hidden", "false");
+    dndComposerBtn.hidden = true;
+    dndComposerBtn.setAttribute("aria-hidden", "true");
   }
   if (!dndUiListenersAttached) {
     dndUiListenersAttached = true;
     dndOpenBtn?.addEventListener("click", () => openDnDModal(DND_MODAL_TRIGGER_BUTTON)); // Top bar button
-    dndNewOpenBtn?.addEventListener("click", () => openDnDModal(DND_MODAL_TRIGGER_BUTTON)); // Input bar button
-    dndComposerBtn?.addEventListener("click", () => openDnDModal(DND_MODAL_TRIGGER_BUTTON));
     dndModalClose?.addEventListener("click", closeDndModal);
     dndModal?.addEventListener("click", (e) => {
       if (e.target === dndModal) closeDndModal();
@@ -2968,14 +2967,14 @@ function enableDndUI() {
 function disableDndUI() {
   dndDebugLog("disableDndUI called", { wasEnabled: dndUiEnabled });
   
-  // Hide the Adventure buttons (top bar + input bar) when leaving DnD room
-  if (dndNewOpenBtn) {
-    dndNewOpenBtn.hidden = true;
-    dndNewOpenBtn.setAttribute("aria-hidden", "true");
-  }
+  // Hide all DnD buttons when leaving DnD room
   if (dndOpenBtn) {
     dndOpenBtn.hidden = true;
     dndOpenBtn.setAttribute("aria-hidden", "true");
+  }
+  if (dndNewOpenBtn) {
+    dndNewOpenBtn.hidden = true;
+    dndNewOpenBtn.setAttribute("aria-hidden", "true");
   }
   if (typeof dndComposerBtn !== "undefined" && dndComposerBtn) {
     dndComposerBtn.hidden = true;
