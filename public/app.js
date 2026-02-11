@@ -7597,6 +7597,7 @@ const MusicRoomPlayer = (() => {
   // Per-user quality settings
   const AUDIO_ONLY_KEY = "music_audio_only";
   const LOW_QUALITY_KEY = "music_low_quality";
+  const COLLAPSED_KEY = "music_collapsed";
   
   // Quality mapping for "low quality" mode
   // Note: 'tiny' is the lowest quality and has no downgrade option
@@ -7638,6 +7639,7 @@ const MusicRoomPlayer = (() => {
         <div class="musicPlayerHeader">
           <div class="musicPlayerTitle">🎵 Music Room Player</div>
           <div class="musicPlayerControls">
+            <button class="iconBtn" id="musicCollapseBtn" title="Collapse player" aria-label="Collapse player">▼</button>
             <button class="iconBtn" id="musicSkipBtn" title="Skip to next" aria-label="Skip to next">⏭</button>
             <button class="iconBtn" id="musicAudioOnlyBtn" title="Audio only mode" aria-label="Audio only mode">🎵</button>
             <button class="iconBtn" id="musicLowQualityBtn" title="Low quality mode" aria-label="Low quality mode">📶</button>
@@ -7662,9 +7664,16 @@ const MusicRoomPlayer = (() => {
     queueListEl = document.getElementById("musicQueueList");
     
     // Setup controls
+    const collapseBtn = document.getElementById("musicCollapseBtn");
     const skipBtn = document.getElementById("musicSkipBtn");
     const audioOnlyBtn = document.getElementById("musicAudioOnlyBtn");
     const lowQualityBtn = document.getElementById("musicLowQualityBtn");
+    
+    if (collapseBtn) {
+      collapseBtn.addEventListener("click", () => {
+        toggleCollapse();
+      });
+    }
     
     if (skipBtn) {
       skipBtn.addEventListener("click", () => {
@@ -7692,6 +7701,7 @@ const MusicRoomPlayer = (() => {
     try {
       const audioOnly = localStorage.getItem(AUDIO_ONLY_KEY) === "true";
       const lowQuality = localStorage.getItem(LOW_QUALITY_KEY) === "true";
+      const collapsed = localStorage.getItem(COLLAPSED_KEY) === "true";
       
       const audioOnlyBtn = document.getElementById("musicAudioOnlyBtn");
       const lowQualityBtn = document.getElementById("musicLowQualityBtn");
@@ -7704,9 +7714,37 @@ const MusicRoomPlayer = (() => {
         lowQualityBtn.classList.toggle("active", lowQuality);
       }
       
+      // Apply collapsed state
+      if (collapsed && playerContainer) {
+        playerContainer.classList.add("collapsed");
+        const collapseBtn = document.getElementById("musicCollapseBtn");
+        if (collapseBtn) {
+          collapseBtn.textContent = "▲";
+          collapseBtn.title = "Expand player";
+        }
+      }
+      
       applyQualitySettings();
     } catch (err) {
       console.warn("[MusicRoomPlayer] Failed to load preferences:", err);
+    }
+  }
+
+  function toggleCollapse() {
+    try {
+      if (!playerContainer) return;
+      
+      const isCollapsed = playerContainer.classList.toggle("collapsed");
+      const collapseBtn = document.getElementById("musicCollapseBtn");
+      
+      if (collapseBtn) {
+        collapseBtn.textContent = isCollapsed ? "▲" : "▼";
+        collapseBtn.title = isCollapsed ? "Expand player" : "Collapse player";
+      }
+      
+      localStorage.setItem(COLLAPSED_KEY, isCollapsed ? "true" : "false");
+    } catch (err) {
+      console.warn("[MusicRoomPlayer] Failed to toggle collapse:", err);
     }
   }
 
@@ -7715,6 +7753,12 @@ const MusicRoomPlayer = (() => {
       const audioOnlyBtn = document.getElementById("musicAudioOnlyBtn");
       const isActive = audioOnlyBtn?.classList.toggle("active");
       localStorage.setItem(AUDIO_ONLY_KEY, isActive ? "true" : "false");
+      
+      // When audio-only is enabled, also collapse the player
+      if (isActive && playerContainer && !playerContainer.classList.contains("collapsed")) {
+        toggleCollapse();
+      }
+      
       applyQualitySettings();
     } catch (err) {
       console.warn("[MusicRoomPlayer] Failed to toggle audio only:", err);
@@ -7798,8 +7842,8 @@ const MusicRoomPlayer = (() => {
     if (!playerFrame) return null;
     
     player = new YT.Player(playerFrame, {
-      height: "180",
-      width: "320",
+      height: "158",
+      width: "280",
       host: "https://www.youtube-nocookie.com",
       playerVars: { 
         playsinline: 1, 
@@ -7812,6 +7856,12 @@ const MusicRoomPlayer = (() => {
       },
       events: {
         onReady: () => {
+          // Set default volume to 50%
+          try {
+            player.setVolume(50);
+          } catch (err) {
+            console.warn("[MusicRoomPlayer] Failed to set default volume:", err);
+          }
           applyQualitySettings();
         },
         onStateChange: (event) => {
