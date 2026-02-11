@@ -7606,6 +7606,10 @@ const MusicRoomPlayer = (() => {
   const VIDEO_STOP_DELAY_MS = 200; // Time to wait for video to stop before loading new one
   const VIDEO_LOAD_BUFFER_MS = 500; // Buffer time before allowing next video load
   const OVERLAP_PREVENTION_DELAY_MS = 300; // Delay when a video is already loading
+  const QUALITY_APPLY_DELAY_MS = 300; // Delay before applying quality settings after video loads
+  
+  // Video aspect ratio
+  const VIDEO_ASPECT_RATIO = 16 / 9;
   
   // Quality mapping for "low quality" mode
   // Note: 'tiny' is the lowest quality and has no downgrade option
@@ -7907,8 +7911,7 @@ const MusicRoomPlayer = (() => {
         // Update video frame size proportionally
         const videoFrame = document.getElementById("musicPlayerFrame");
         if (videoFrame) {
-          const aspectRatio = 16 / 9;
-          const videoHeight = newWidth / aspectRatio;
+          const videoHeight = newWidth / VIDEO_ASPECT_RATIO;
           videoFrame.style.height = `${videoHeight}px`;
         }
       }
@@ -8140,7 +8143,7 @@ const MusicRoomPlayer = (() => {
           // Apply quality settings after player has time to initialize
           setTimeout(() => {
             applyQualitySettings();
-          }, 300);
+          }, QUALITY_APPLY_DELAY_MS);
         } catch (err) {
           console.warn("[MusicRoomPlayer] Failed to play video:", err);
         }
