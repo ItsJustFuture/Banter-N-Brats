@@ -7723,6 +7723,11 @@ const MusicRoomPlayer = (() => {
     // Setup drag and resize handlers (desktop only)
     setupDragAndResize();
     
+    // Re-apply positioning when window is resized (to handle desktop/mobile transitions)
+    window.addEventListener("resize", () => {
+      setupDragAndResize();
+    }, { passive: true });
+    
     // Load saved preferences
     loadUserPreferences();
   }
@@ -7814,12 +7819,20 @@ const MusicRoomPlayer = (() => {
     // Check if we're on desktop (width > 768px)
     const isDesktop = () => window.innerWidth > 768;
     
-    if (!isDesktop()) return; // Only enable on desktop
+    // On mobile, clear any inline positioning/sizing to let CSS handle it
+    if (!isDesktop()) {
+      playerContainer.style.top = '';
+      playerContainer.style.left = '';
+      playerContainer.style.right = '';
+      playerContainer.style.width = '';
+      playerContainer.style.height = '';
+      return; // Only enable drag/resize on desktop
+    }
     
     const header = document.getElementById("musicPlayerHeader");
     const resizeHandle = document.getElementById("musicPlayerResizeHandle");
     
-    // Load saved position and size
+    // Load saved position and size (desktop only)
     try {
       const savedPosition = localStorage.getItem(POSITION_KEY);
       const savedSize = localStorage.getItem(SIZE_KEY);
