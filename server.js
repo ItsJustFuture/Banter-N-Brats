@@ -77,7 +77,10 @@ const MUSIC_ROOM_QUEUE = {
   nextQueueId: 1, // Counter for queue ordering
   lastEndedVideoId: null, // Track last ended video to prevent duplicate advances
   lastEndedAt: 0,
-  loopEnabled: false // Loop current video
+  loopEnabled: false, // Loop current video
+  isPaused: false, // Track if playback is paused
+  pausedAt: null, // Timestamp when paused (to calculate elapsed time)
+  elapsedBeforePause: 0 // Seconds elapsed before pause
 };
 const MUSIC_QUEUE_MAX_SIZE = 100; // Maximum queue size
 
@@ -85,7 +88,8 @@ const MUSIC_QUEUE_MAX_SIZE = 100; // Maximum queue size
 const MUSIC_VOTES = {
   skip: new Set(),
   clear: new Set(),
-  shuffle: new Set()
+  shuffle: new Set(),
+  pause: new Set()
 };
 
 // Helper to check if user is music moderator (can bypass votes)
@@ -169,6 +173,12 @@ function skipToNextVideo(io) {
       addedBy: video.addedBy
     };
     MUSIC_ROOM_QUEUE.nowPlaying = true;
+    
+    // Reset pause state when starting new video
+    MUSIC_ROOM_QUEUE.isPaused = false;
+    MUSIC_ROOM_QUEUE.pausedAt = null;
+    MUSIC_ROOM_QUEUE.elapsedBeforePause = 0;
+    MUSIC_VOTES.pause.clear();
     
     io.to("music").emit("music:play", {
       videoId: video.videoId,
@@ -19373,6 +19383,12 @@ if (!room) {
                     };
                     MUSIC_ROOM_QUEUE.nowPlaying = true;
                     
+                    // Reset pause state when starting new video
+                    MUSIC_ROOM_QUEUE.isPaused = false;
+                    MUSIC_ROOM_QUEUE.pausedAt = null;
+                    MUSIC_ROOM_QUEUE.elapsedBeforePause = 0;
+                    MUSIC_VOTES.pause.clear();
+                    
                     // Broadcast current video to all in music room
                     io.to(room).emit("music:play", {
                       videoId: video.videoId,
@@ -19628,6 +19644,12 @@ if (!room) {
       };
       MUSIC_ROOM_QUEUE.nowPlaying = true;
       
+      // Reset pause state when starting new video
+      MUSIC_ROOM_QUEUE.isPaused = false;
+      MUSIC_ROOM_QUEUE.pausedAt = null;
+      MUSIC_ROOM_QUEUE.elapsedBeforePause = 0;
+      MUSIC_VOTES.pause.clear();
+      
       io.to("music").emit("music:play", {
         videoId: video.videoId,
         title: video.title,
@@ -19676,6 +19698,12 @@ if (!room) {
       };
       MUSIC_ROOM_QUEUE.nowPlaying = true;
       
+      // Reset pause state when starting new video
+      MUSIC_ROOM_QUEUE.isPaused = false;
+      MUSIC_ROOM_QUEUE.pausedAt = null;
+      MUSIC_ROOM_QUEUE.elapsedBeforePause = 0;
+      MUSIC_VOTES.pause.clear();
+      
       io.to("music").emit("music:play", {
         videoId: video.videoId,
         title: video.title,
@@ -19702,10 +19730,14 @@ if (!room) {
         queue: MUSIC_ROOM_QUEUE.queue,
         nowPlaying: MUSIC_ROOM_QUEUE.nowPlaying,
         loopEnabled: MUSIC_ROOM_QUEUE.loopEnabled,
+        isPaused: MUSIC_ROOM_QUEUE.isPaused,
+        pausedAt: MUSIC_ROOM_QUEUE.pausedAt,
+        elapsedBeforePause: MUSIC_ROOM_QUEUE.elapsedBeforePause,
         votes: {
           skip: MUSIC_VOTES.skip.size,
           clear: MUSIC_VOTES.clear.size,
-          shuffle: MUSIC_VOTES.shuffle.size
+          shuffle: MUSIC_VOTES.shuffle.size,
+          pause: MUSIC_VOTES.pause.size
         }
       });
     }
@@ -19921,6 +19953,137 @@ if (!room) {
       queue: MUSIC_ROOM_QUEUE.queue,
       current: MUSIC_ROOM_QUEUE.currentVideo
     });
+  });
+
+  socket.on("music:vote:pause", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const userId = socket.user.id;
+    const remove = payload?.remove;
+    
+    if (remove) {
+      MUSIC_VOTES.pause.delete(userId);
+    } else {
+      MUSIC_VOTES.pause.add(userId);
+      const action = MUSIC_ROOM_QUEUE.isPaused ? "resume" : "pause";
+      emitRoomSystem("music", `⏸️ ${socket.user.username} voted to ${action} playback`);
+    }
+    
+    // Broadcast updated vote count
+    io.to("music").emit("music:voteUpdate", {
+      type: "pause",
+      count: MUSIC_VOTES.pause.size,
+      voters: Array.from(MUSIC_VOTES.pause)
+    });
+    
+    // Check if threshold is met
+    if (checkVoteThreshold(MUSIC_VOTES.pause, io)) {
+      const wasPaused = MUSIC_ROOM_QUEUE.isPaused;
+      
+      if (wasPaused) {
+        // Resume playback
+        emitRoomSystem("music", `▶️ Vote passed! Resuming playback...`);
+        
+        // Calculate new startedAt based on elapsed time before pause
+        const newStartedAt = Date.now() - (MUSIC_ROOM_QUEUE.elapsedBeforePause * 1000);
+        if (MUSIC_ROOM_QUEUE.currentVideo) {
+          MUSIC_ROOM_QUEUE.currentVideo.startedAt = newStartedAt;
+        }
+        
+        MUSIC_ROOM_QUEUE.isPaused = false;
+        MUSIC_ROOM_QUEUE.pausedAt = null;
+        
+        io.to("music").emit("music:resume", {
+          startedAt: newStartedAt,
+          elapsedBeforePause: MUSIC_ROOM_QUEUE.elapsedBeforePause
+        });
+      } else {
+        // Pause playback
+        emitRoomSystem("music", `⏸️ Vote passed! Pausing playback...`);
+        
+        // Calculate elapsed time
+        const elapsed = MUSIC_ROOM_QUEUE.currentVideo 
+          ? (Date.now() - MUSIC_ROOM_QUEUE.currentVideo.startedAt) / 1000 
+          : 0;
+        
+        MUSIC_ROOM_QUEUE.isPaused = true;
+        MUSIC_ROOM_QUEUE.pausedAt = Date.now();
+        MUSIC_ROOM_QUEUE.elapsedBeforePause = elapsed;
+        
+        io.to("music").emit("music:pause", {
+          pausedAt: MUSIC_ROOM_QUEUE.pausedAt,
+          elapsedBeforePause: elapsed
+        });
+      }
+      
+      MUSIC_VOTES.pause.clear();
+      
+      // Broadcast reset vote state so clients don't show stale votes
+      io.to("music").emit("music:voteUpdate", {
+        type: "pause",
+        count: 0,
+        voters: []
+      });
+    }
+  });
+
+  socket.on("music:pause", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const bypass = payload?.bypass && isMusicModerator(socket.user);
+    
+    if (!bypass) {
+      socket.emit("system", buildSystemPayload("music", "Only moderators can pause/resume without voting."));
+      return;
+    }
+    
+    const wasPaused = MUSIC_ROOM_QUEUE.isPaused;
+    MUSIC_VOTES.pause.clear();
+    
+    // Broadcast reset vote state
+    io.to("music").emit("music:voteUpdate", {
+      type: "pause",
+      count: 0,
+      voters: []
+    });
+    
+    if (wasPaused) {
+      // Resume playback
+      emitRoomSystem("music", `▶️ ${socket.user.username} resumed playback`);
+      
+      // Calculate new startedAt based on elapsed time before pause
+      const newStartedAt = Date.now() - (MUSIC_ROOM_QUEUE.elapsedBeforePause * 1000);
+      if (MUSIC_ROOM_QUEUE.currentVideo) {
+        MUSIC_ROOM_QUEUE.currentVideo.startedAt = newStartedAt;
+      }
+      
+      MUSIC_ROOM_QUEUE.isPaused = false;
+      MUSIC_ROOM_QUEUE.pausedAt = null;
+      
+      io.to("music").emit("music:resume", {
+        startedAt: newStartedAt,
+        elapsedBeforePause: MUSIC_ROOM_QUEUE.elapsedBeforePause
+      });
+    } else {
+      // Pause playback
+      emitRoomSystem("music", `⏸️ ${socket.user.username} paused playback`);
+      
+      // Calculate elapsed time
+      const elapsed = MUSIC_ROOM_QUEUE.currentVideo 
+        ? (Date.now() - MUSIC_ROOM_QUEUE.currentVideo.startedAt) / 1000 
+        : 0;
+      
+      MUSIC_ROOM_QUEUE.isPaused = true;
+      MUSIC_ROOM_QUEUE.pausedAt = Date.now();
+      MUSIC_ROOM_QUEUE.elapsedBeforePause = elapsed;
+      
+      io.to("music").emit("music:pause", {
+        pausedAt: MUSIC_ROOM_QUEUE.pausedAt,
+        elapsedBeforePause: elapsed
+      });
+    }
   });
 
   socket.on("music:loop", (payload) => {

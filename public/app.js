@@ -4262,25 +4262,31 @@ const musicControlsModal = document.getElementById("musicControlsModal");
 const musicControlsClose = document.getElementById("musicControlsClose");
 const voteSkipBtn = document.getElementById("voteSkipBtn");
 const voteClearQueueBtn = document.getElementById("voteClearQueueBtn");
+const votePauseBtn = document.getElementById("votePauseBtn");
 const loopVideoBtn = document.getElementById("loopVideoBtn");
 const shuffleQueueBtn = document.getElementById("shuffleQueueBtn");
 const musicVolumeSlider = document.getElementById("musicVolumeSlider");
 const musicVolumePercent = document.getElementById("musicVolumePercent");
 const skipVoteCount = document.getElementById("skipVoteCount");
 const clearVoteCount = document.getElementById("clearVoteCount");
+const pauseVoteCount = document.getElementById("pauseVoteCount");
 const shuffleVoteCount = document.getElementById("shuffleVoteCount");
 const loopStatus = document.getElementById("loopStatus");
+const pauseStatus = document.getElementById("pauseStatus");
 
 // Music controls state
 const musicControlsState = {
   skipVotes: new Set(),
   clearVotes: new Set(),
   shuffleVotes: new Set(),
+  pauseVotes: new Set(),
   loopEnabled: false,
+  isPaused: false,
   myVotes: {
     skip: false,
     clear: false,
-    shuffle: false
+    shuffle: false,
+    pause: false
   }
 };
 
@@ -6215,6 +6221,12 @@ function openMusicControlsModal() {
   musicControlsModal.hidden = false;
   musicControlsModal.style.display = "flex";
   lockBodyScroll(true);
+  
+  // Add class for mobile chat spacing
+  if (window.innerWidth <= 768) {
+    document.body.classList.add("musicControlsOpen");
+  }
+  
   updateMusicControlsUI();
 }
 
@@ -6223,6 +6235,9 @@ function closeMusicControlsModal() {
   musicControlsModal.hidden = true;
   musicControlsModal.style.display = "none";
   lockBodyScroll(false);
+  
+  // Remove mobile chat spacing class
+  document.body.classList.remove("musicControlsOpen");
 }
 
 function updateMusicControlsUI() {
@@ -6234,6 +6249,10 @@ function updateMusicControlsUI() {
   if (clearVoteCount) {
     const count = musicControlsState.clearVotes.size;
     clearVoteCount.textContent = count === 1 ? "1 vote" : `${count} votes`;
+  }
+  if (pauseVoteCount) {
+    const count = musicControlsState.pauseVotes.size;
+    pauseVoteCount.textContent = count === 1 ? "1 vote" : `${count} votes`;
   }
   if (shuffleVoteCount) {
     const count = musicControlsState.shuffleVotes.size;
@@ -6247,6 +6266,19 @@ function updateMusicControlsUI() {
   if (voteClearQueueBtn) {
     voteClearQueueBtn.classList.toggle("voted", musicControlsState.myVotes.clear);
   }
+  if (votePauseBtn) {
+    votePauseBtn.classList.toggle("voted", musicControlsState.myVotes.pause);
+    // Update button text based on current pause state
+    const icon = votePauseBtn.querySelector(".musicControlIcon");
+    const label = votePauseBtn.querySelector(".musicControlLabel");
+    if (musicControlsState.isPaused) {
+      if (icon) icon.textContent = "▶️";
+      if (label) label.textContent = "Vote to Resume";
+    } else {
+      if (icon) icon.textContent = "⏸️";
+      if (label) label.textContent = "Vote to Pause";
+    }
+  }
   if (shuffleQueueBtn) {
     shuffleQueueBtn.classList.toggle("voted", musicControlsState.myVotes.shuffle);
   }
@@ -6255,6 +6287,11 @@ function updateMusicControlsUI() {
   if (loopStatus && loopVideoBtn) {
     loopStatus.textContent = musicControlsState.loopEnabled ? "On" : "Off";
     loopVideoBtn.classList.toggle("active", musicControlsState.loopEnabled);
+  }
+  
+  // Update pause status
+  if (pauseStatus) {
+    pauseStatus.textContent = musicControlsState.isPaused ? "Paused" : "Playing";
   }
 }
 
@@ -6352,6 +6389,10 @@ if (voteSkipBtn) {
 
 if (voteClearQueueBtn) {
   voteClearQueueBtn.addEventListener("click", () => handleMusicVote("clear"));
+}
+
+if (votePauseBtn) {
+  votePauseBtn.addEventListener("click", () => handleMusicVote("pause"));
 }
 
 if (shuffleQueueBtn) {
@@ -8278,6 +8319,37 @@ const MusicRoomPlayer = (() => {
     }
   }
 
+  function pause() {
+    if (player && typeof player.pauseVideo === "function") {
+      try {
+        player.pauseVideo();
+      } catch (err) {
+        console.warn("[MusicRoomPlayer] Failed to pause:", err);
+      }
+    }
+  }
+
+  function resume(startedAt, elapsedBeforePause) {
+    if (player && currentVideo) {
+      try {
+        // Calculate where we should be in the video
+        const elapsed = elapsedBeforePause || ((Date.now() - startedAt) / 1000);
+        
+        // Seek to the correct position
+        if (typeof player.seekTo === "function") {
+          player.seekTo(elapsed, true);
+        }
+        
+        // Resume playback
+        if (typeof player.playVideo === "function") {
+          player.playVideo();
+        }
+      } catch (err) {
+        console.warn("[MusicRoomPlayer] Failed to resume:", err);
+      }
+    }
+  }
+
   function setVolume(volume) {
     if (player && typeof player.setVolume === "function") {
       player.setVolume(volume);
@@ -8290,6 +8362,8 @@ const MusicRoomPlayer = (() => {
     playVideo,
     updateQueue,
     stop,
+    pause,
+    resume,
     setVolume
   };
 })();
@@ -17364,10 +17438,21 @@ function joinRoom(room){
         if ("loopEnabled" in state) {
           musicControlsState.loopEnabled = state.loopEnabled;
         }
+        if ("isPaused" in state) {
+          musicControlsState.isPaused = state.isPaused;
+          
+          // If paused, apply pause state to player
+          if (state.isPaused && state.current) {
+            if (typeof MusicRoomPlayer !== "undefined" && MusicRoomPlayer && typeof MusicRoomPlayer.pause === "function") {
+              MusicRoomPlayer.pause();
+            }
+          }
+        }
         if ("votes" in state && state.votes) {
           // Initialize vote Sets from server state
           musicControlsState.skipVotes = new Set();
           musicControlsState.clearVotes = new Set();
+          musicControlsState.pauseVotes = new Set();
           musicControlsState.shuffleVotes = new Set();
           // We don't have individual voter IDs from getState, just counts
           // So we'll wait for voteUpdate events to populate the actual voters
@@ -25636,6 +25721,17 @@ socket.on("mod:case_event", (payload = {}) => {
       if (voteClearQueueBtn) {
         voteClearQueueBtn.classList.toggle("voted", hasVoted);
       }
+    } else if (type === "pause" && pauseVoteCount) {
+      pauseVoteCount.textContent = count === 1 ? "1 vote" : `${count} votes`;
+      musicControlsState.pauseVotes = new Set(voters);
+      const hasVoted = voters.includes(me?.id);
+      if (!musicControlsState.myVotes) {
+        musicControlsState.myVotes = {};
+      }
+      musicControlsState.myVotes.pause = hasVoted;
+      if (votePauseBtn) {
+        votePauseBtn.classList.toggle("voted", hasVoted);
+      }
     } else if (type === "shuffle" && shuffleVoteCount) {
       shuffleVoteCount.textContent = count === 1 ? "1 vote" : `${count} votes`;
       musicControlsState.shuffleVotes = new Set(voters);
@@ -25647,6 +25743,28 @@ socket.on("mod:case_event", (payload = {}) => {
       if (shuffleQueueBtn) {
         shuffleQueueBtn.classList.toggle("voted", hasVoted);
       }
+    }
+  });
+
+  socket.on("music:pause", (payload) => {
+    if (currentRoom !== "music") return;
+    
+    musicControlsState.isPaused = true;
+    updateMusicControlsUI();
+    
+    if (typeof MusicRoomPlayer !== "undefined" && MusicRoomPlayer && typeof MusicRoomPlayer.pause === "function") {
+      MusicRoomPlayer.pause();
+    }
+  });
+
+  socket.on("music:resume", (payload) => {
+    if (currentRoom !== "music") return;
+    
+    musicControlsState.isPaused = false;
+    updateMusicControlsUI();
+    
+    if (typeof MusicRoomPlayer !== "undefined" && MusicRoomPlayer && typeof MusicRoomPlayer.resume === "function") {
+      MusicRoomPlayer.resume(payload.startedAt, payload.elapsedBeforePause);
     }
   });
 

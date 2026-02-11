@@ -16092,3 +16092,23 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 #musicControlsBtn:hover {
   opacity: 0.8;
 }
+
+/* Mobile-specific styles for music controls modal */
+@media (max-width: 768px) {
+  #musicControlsModal {
+    /* On mobile, position at bottom instead of centering */
+    align-items: flex-end;
+    padding-bottom: max(env(safe-area-inset-bottom), 12px);
+  }
+  
+  #musicControlsModal .modalCard {
+    /* Prevent modal from taking full height on mobile */
+    max-height: 60vh;
+    margin-bottom: 0;
+  }
+  
+  /* When music controls modal is open on mobile, add padding to chat to prevent overlap */
+  body.musicControlsOpen #messages {
+    padding-bottom: calc(60vh + 20px);
+  }
+}
