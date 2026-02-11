@@ -139,6 +139,45 @@ async function fetchYouTubeTitle(videoId) {
   }
 }
 
+// Helper to shuffle an array using Fisher-Yates algorithm
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// Helper to skip to next video in music room
+function skipToNextVideo(io) {
+  if (MUSIC_ROOM_QUEUE.queue.length > 0) {
+    const video = MUSIC_ROOM_QUEUE.queue.shift();
+    MUSIC_ROOM_QUEUE.currentVideo = {
+      videoId: video.videoId,
+      title: video.title,
+      startedAt: Date.now(),
+      addedBy: video.addedBy
+    };
+    MUSIC_ROOM_QUEUE.nowPlaying = true;
+    
+    io.to("music").emit("music:play", {
+      videoId: video.videoId,
+      title: video.title,
+      addedBy: video.addedBy,
+      startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
+    });
+    
+    io.to("music").emit("music:queue", {
+      queue: MUSIC_ROOM_QUEUE.queue,
+      current: MUSIC_ROOM_QUEUE.currentVideo
+    });
+  } else {
+    MUSIC_ROOM_QUEUE.currentVideo = null;
+    MUSIC_ROOM_QUEUE.nowPlaying = false;
+    io.to("music").emit("music:stop");
+  }
+}
+
 // Tic Tac Toe (room-scoped, in-memory)
 const TICTACTOE_GAMES = new Map(); // room -> game state
 const TICTACTOE_DEFAULT_MODE = "classic";
@@ -19674,34 +19713,7 @@ if (!room) {
     if (checkVoteThreshold(MUSIC_VOTES.skip, io)) {
       emitRoomSystem("music", `⏭️ Vote passed! Skipping to next song...`);
       MUSIC_VOTES.skip.clear();
-      
-      // Skip to next video
-      if (MUSIC_ROOM_QUEUE.queue.length > 0) {
-        const video = MUSIC_ROOM_QUEUE.queue.shift();
-        MUSIC_ROOM_QUEUE.currentVideo = {
-          videoId: video.videoId,
-          title: video.title,
-          startedAt: Date.now(),
-          addedBy: video.addedBy
-        };
-        MUSIC_ROOM_QUEUE.nowPlaying = true;
-        
-        io.to("music").emit("music:play", {
-          videoId: video.videoId,
-          title: video.title,
-          addedBy: video.addedBy,
-          startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
-        });
-        
-        io.to("music").emit("music:queue", {
-          queue: MUSIC_ROOM_QUEUE.queue,
-          current: MUSIC_ROOM_QUEUE.currentVideo
-        });
-      } else {
-        MUSIC_ROOM_QUEUE.currentVideo = null;
-        MUSIC_ROOM_QUEUE.nowPlaying = false;
-        io.to("music").emit("music:stop");
-      }
+      skipToNextVideo(io);
     }
   });
 
@@ -19765,11 +19777,8 @@ if (!room) {
       emitRoomSystem("music", `🔀 Vote passed! Queue shuffled.`);
       MUSIC_VOTES.shuffle.clear();
       
-      // Shuffle the queue (Fisher-Yates algorithm)
-      for (let i = MUSIC_ROOM_QUEUE.queue.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [MUSIC_ROOM_QUEUE.queue[i], MUSIC_ROOM_QUEUE.queue[j]] = [MUSIC_ROOM_QUEUE.queue[j], MUSIC_ROOM_QUEUE.queue[i]];
-      }
+      // Shuffle the queue
+      shuffleArray(MUSIC_ROOM_QUEUE.queue);
       
       io.to("music").emit("music:queue", {
         queue: MUSIC_ROOM_QUEUE.queue,
@@ -19797,34 +19806,7 @@ if (!room) {
     
     emitRoomSystem("music", `⏭️ ${socket.user.username} skipped to next song`);
     MUSIC_VOTES.skip.clear();
-    
-    // Skip to next video
-    if (MUSIC_ROOM_QUEUE.queue.length > 0) {
-      const video = MUSIC_ROOM_QUEUE.queue.shift();
-      MUSIC_ROOM_QUEUE.currentVideo = {
-        videoId: video.videoId,
-        title: video.title,
-        startedAt: Date.now(),
-        addedBy: video.addedBy
-      };
-      MUSIC_ROOM_QUEUE.nowPlaying = true;
-      
-      io.to("music").emit("music:play", {
-        videoId: video.videoId,
-        title: video.title,
-        addedBy: video.addedBy,
-        startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
-      });
-      
-      io.to("music").emit("music:queue", {
-        queue: MUSIC_ROOM_QUEUE.queue,
-        current: MUSIC_ROOM_QUEUE.currentVideo
-      });
-    } else {
-      MUSIC_ROOM_QUEUE.currentVideo = null;
-      MUSIC_ROOM_QUEUE.nowPlaying = false;
-      io.to("music").emit("music:stop");
-    }
+    skipToNextVideo(io);
   });
 
   socket.on("music:clear", (payload) => {
@@ -19863,10 +19845,7 @@ if (!room) {
     MUSIC_VOTES.shuffle.clear();
     
     // Shuffle the queue
-    for (let i = MUSIC_ROOM_QUEUE.queue.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [MUSIC_ROOM_QUEUE.queue[i], MUSIC_ROOM_QUEUE.queue[j]] = [MUSIC_ROOM_QUEUE.queue[j], MUSIC_ROOM_QUEUE.queue[i]];
-    }
+    shuffleArray(MUSIC_ROOM_QUEUE.queue);
     
     io.to("music").emit("music:queue", {
       queue: MUSIC_ROOM_QUEUE.queue,
