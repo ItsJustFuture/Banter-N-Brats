@@ -19757,8 +19757,18 @@ if (!room) {
     if (socket.currentRoom !== "music") return;
     
     if (typeof callback === "function") {
+      // When paused, adjust startedAt so clients don't overshoot
+      // Client will compute: Date.now() - adjustedStartedAt = elapsedBeforePause
+      let currentVideoState = MUSIC_ROOM_QUEUE.currentVideo;
+      if (MUSIC_ROOM_QUEUE.isPaused && currentVideoState) {
+        currentVideoState = {
+          ...currentVideoState,
+          startedAt: Date.now() - (MUSIC_ROOM_QUEUE.elapsedBeforePause * 1000)
+        };
+      }
+      
       callback({
-        current: MUSIC_ROOM_QUEUE.currentVideo,
+        current: currentVideoState,
         queue: MUSIC_ROOM_QUEUE.queue,
         nowPlaying: MUSIC_ROOM_QUEUE.nowPlaying,
         loopEnabled: MUSIC_ROOM_QUEUE.loopEnabled,

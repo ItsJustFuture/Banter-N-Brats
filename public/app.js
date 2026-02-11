@@ -6221,10 +6221,8 @@ function openMusicControlsModal() {
   musicControlsModal.style.display = "flex";
   lockBodyScroll(true);
   
-  // Add class for mobile chat spacing
-  if (window.innerWidth <= 768) {
-    document.body.classList.add("musicControlsOpen");
-  }
+  // Add class for chat spacing; CSS media query limits when this has an effect
+  document.body.classList.add("musicControlsOpen");
   
   updateMusicControlsUI();
 }
