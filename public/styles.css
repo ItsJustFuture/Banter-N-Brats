@@ -16200,6 +16200,14 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 /* ============================================= */
 /* Music Controls Modal                          */
 /* ============================================= */
+#musicControlsModal .modalCard {
+  max-width: 340px;
+}
+
+#musicControlsModal .modalBody {
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom)) 12px;
+}
+
 .musicControlsGrid {
   display: flex;
   flex-direction: column;
