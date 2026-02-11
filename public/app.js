@@ -7593,6 +7593,7 @@ const MusicRoomPlayer = (() => {
   let apiReadyPromise = null;
   let currentVideo = null;
   let queue = [];
+  let isLoadingVideo = false; // Track if a video is currently being loaded
   
   // Per-user quality settings
   const AUDIO_ONLY_KEY = "music_audio_only";
@@ -7899,50 +7900,80 @@ const MusicRoomPlayer = (() => {
   }
 
   async function playVideo(videoId, title, addedBy, startedAt) {
-    initDom();
-    show();
-    
-    currentVideo = { videoId, title, addedBy, startedAt };
-    
-    // Update current video display
-    if (currentVideoEl) {
-      currentVideoEl.innerHTML = `
-        <div class="musicCurrentTitle">${escapeHtml(title)}</div>
-        <div class="musicCurrentMeta">Added by ${escapeHtml(addedBy)}</div>
-      `;
+    // Prevent overlapping video loads
+    if (isLoadingVideo) {
+      console.log("[MusicRoomPlayer] Already loading a video, waiting...");
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
     
-    await ensurePlayer();
+    isLoadingVideo = true;
     
-    if (player) {
-      try {
-        // Calculate seek position based on when video started
-        let startSeconds = 0;
-        if (startedAt) {
-          const elapsedMs = Date.now() - startedAt;
-          startSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-        }
-        
-        // Determine baseline quality: prefer 720p, otherwise highest available
-        const availableQualities = player.getAvailableQualityLevels?.() || [];
-        let suggestedQuality = "hd720";
-        if (availableQualities.length > 0 && !availableQualities.includes("hd720")) {
-          suggestedQuality = availableQualities[0]; // Highest available
-        }
-        
-        player.loadVideoById?.({
-          videoId,
-          startSeconds,
-          suggestedQuality
-        });
-        
-        // Apply quality settings after a short delay
-        setTimeout(() => {
-          applyQualitySettings();
-        }, 500);
-      } catch (err) {
-        console.warn("[MusicRoomPlayer] Failed to play video:", err);
+    try {
+      initDom();
+      show();
+      
+      currentVideo = { videoId, title, addedBy, startedAt };
+      
+      // Update current video display
+      if (currentVideoEl) {
+        currentVideoEl.innerHTML = `
+          <div class="musicCurrentTitle">${escapeHtml(title)}</div>
+          <div class="musicCurrentMeta">Added by ${escapeHtml(addedBy)}</div>
+        `;
       }
+      
+      await ensurePlayer();
+      
+      if (player) {
+        try {
+          // Stop any currently playing video first to prevent audio overlap
+          try {
+            const currentState = player.getPlayerState?.();
+            if (currentState === YT.PlayerState.PLAYING || 
+                currentState === YT.PlayerState.BUFFERING ||
+                currentState === YT.PlayerState.PAUSED) {
+              player.stopVideo?.();
+              // Wait a bit for the stop to complete
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+          } catch (err) {
+            console.warn("[MusicRoomPlayer] Failed to stop previous video:", err);
+          }
+          
+          // Calculate seek position based on when video started
+          let startSeconds = 0;
+          if (startedAt) {
+            const elapsedMs = Date.now() - startedAt;
+            startSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+          }
+          
+          // Determine baseline quality: prefer 720p, otherwise highest available
+          const availableQualities = player.getAvailableQualityLevels?.() || [];
+          let suggestedQuality = "hd720";
+          if (availableQualities.length > 0 && !availableQualities.includes("hd720")) {
+            suggestedQuality = availableQualities[0]; // Highest available
+          }
+          
+          // Use loadVideoById which automatically starts playback
+          player.loadVideoById?.({
+            videoId,
+            startSeconds,
+            suggestedQuality
+          });
+          
+          // Wait for the video to start loading before allowing next load
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Apply quality settings after player has time to initialize
+          setTimeout(() => {
+            applyQualitySettings();
+          }, 300);
+        } catch (err) {
+          console.warn("[MusicRoomPlayer] Failed to play video:", err);
+        }
+      }
+    } finally {
+      isLoadingVideo = false;
     }
   }
 
