@@ -2602,7 +2602,9 @@ function applyChatFxToBubble(bubble, fx, options = {}){
   const resolved = normalizeChatFx(fx);
   const effective = resolved;
   const textStyle = resolved.messageTextStyle || normalizeTextStyle(null, resolved);
+  const userNameStyle = resolved.userNameStyle || normalizeTextStyle(null, resolved);
   const textMode = textStyle.mode;
+  const nameMode = userNameStyle.mode;
   const intensityMap = { low: 0.4, med: 0.7, high: 1.0, ultra: 1.3 };
   const textGlowValue = textMode === "neon" ? (intensityMap[textStyle.neon.intensity] ?? 0.7) : 0;
   const neonPreset = textStyle.neon.presetId ? NEON_PRESET_MAP.get(textStyle.neon.presetId) : null;
@@ -2611,15 +2613,26 @@ function applyChatFxToBubble(bubble, fx, options = {}){
 
   // Lazy-load any selected Google fonts.
   const fontKey = textStyle.fontFamily || effective.font;
+  const nameFontKey = userNameStyle.fontFamily || effective.nameFont || fontKey;
   ensureGoogleFontLoaded(fontKey);
-  ensureGoogleFontLoaded(fontKey);
+  ensureGoogleFontLoaded(nameFontKey);
 
   const fontStack = CHAT_FX_FONT_STACKS[fontKey] || CHAT_FX_FONT_STACKS.system;
-  const nameFontStack = CHAT_FX_FONT_STACKS[fontKey] || fontStack;
+  const nameFontStack = CHAT_FX_FONT_STACKS[nameFontKey] || CHAT_FX_FONT_STACKS.system;
 
   bubble.style.setProperty("--fx-font-family", fontStack);
   bubble.style.setProperty("--fx-name-font-family", nameFontStack);
-  const nameColor = (effective.nameColor || "").trim();
+  
+  // Username color: prioritize userNameStyle, fall back to legacy nameColor
+  let nameColor = "";
+  if (nameMode === "color") {
+    nameColor = (userNameStyle.color || "").trim();
+  } else if (nameMode === "neon" && userNameStyle.neon) {
+    const nameNeonPreset = userNameStyle.neon.presetId ? NEON_PRESET_MAP.get(userNameStyle.neon.presetId) : null;
+    const nameNeonColor = userNameStyle.neon.color || nameNeonPreset?.baseColor || "";
+    nameColor = (nameNeonPreset?.textColor || nameNeonColor || "").trim();
+  }
+  if (!nameColor) nameColor = (effective.nameColor || "").trim();
   bubble.style.setProperty("--fx-name-color", nameColor);
   bubble.style.setProperty("--fx-accent", (textMode === "neon" && neonColor) ? neonColor : (effective.accent || "var(--accent)"));
   // Text colour: explicit override beats auto-contrast.
