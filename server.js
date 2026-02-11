@@ -76,9 +76,52 @@ const MUSIC_ROOM_QUEUE = {
   nowPlaying: false,
   nextQueueId: 1, // Counter for queue ordering
   lastEndedVideoId: null, // Track last ended video to prevent duplicate advances
-  lastEndedAt: 0
+  lastEndedAt: 0,
+  loopEnabled: false // Loop current video
 };
 const MUSIC_QUEUE_MAX_SIZE = 100; // Maximum queue size
+
+// Music Room Voting System
+const MUSIC_VOTES = {
+  skip: new Set(),
+  clear: new Set(),
+  shuffle: new Set()
+};
+
+// Helper to check if user is music moderator (can bypass votes)
+function isMusicModerator(user) {
+  if (!user || !user.role) return false;
+  const privilegedRoles = ["Moderator", "Admin", "Co-Owner", "Owner"];
+  return privilegedRoles.includes(user.role);
+}
+
+// Helper to get music room user count
+function getMusicRoomUserCount(io) {
+  try {
+    const room = io.sockets.adapter.rooms.get("music");
+    return room ? room.size : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+// Helper to check if vote threshold is met (at least half of room, rounded up)
+// For odd-numbered rooms, this requires a majority (e.g., 2 votes for 3 users = 66.67%)
+// For even-numbered rooms, this requires at least half (e.g., 2 votes for 4 users = 50%)
+function checkVoteThreshold(voteSet, io) {
+  const roomCount = getMusicRoomUserCount(io);
+  if (roomCount === 0) return false;
+  const threshold = Math.ceil(roomCount / 2);
+  return voteSet.size >= threshold;
+}
+
+// Remove a user's votes from all music vote types (to be called on room change/disconnect).
+function clearUserMusicVotes(userId) {
+  if (!userId) return;
+  for (const voteSet of Object.values(MUSIC_VOTES)) {
+    voteSet.delete(userId);
+  }
+}
 
 // Helper to extract YouTube video IDs from text
 function extractYouTubeIds(text) {
@@ -103,6 +146,45 @@ async function fetchYouTubeTitle(videoId) {
   } catch (err) {
     console.warn("[YouTube] Failed to fetch title:", err);
     return null;
+  }
+}
+
+// Helper to shuffle an array using Fisher-Yates algorithm
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// Helper to skip to next video in music room
+function skipToNextVideo(io) {
+  if (MUSIC_ROOM_QUEUE.queue.length > 0) {
+    const video = MUSIC_ROOM_QUEUE.queue.shift();
+    MUSIC_ROOM_QUEUE.currentVideo = {
+      videoId: video.videoId,
+      title: video.title,
+      startedAt: Date.now(),
+      addedBy: video.addedBy
+    };
+    MUSIC_ROOM_QUEUE.nowPlaying = true;
+    
+    io.to("music").emit("music:play", {
+      videoId: video.videoId,
+      title: video.title,
+      addedBy: video.addedBy,
+      startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
+    });
+    
+    io.to("music").emit("music:queue", {
+      queue: MUSIC_ROOM_QUEUE.queue,
+      current: MUSIC_ROOM_QUEUE.currentVideo
+    });
+  } else {
+    MUSIC_ROOM_QUEUE.currentVideo = null;
+    MUSIC_ROOM_QUEUE.nowPlaying = false;
+    io.to("music").emit("music:stop");
   }
 }
 
@@ -12903,6 +12985,133 @@ app.post("/api/dnd-story/spectate/influence", dndLimiter, requireLogin, express.
   }
 });
 
+// Character templates endpoints
+app.get("/api/dnd-story/character-templates", requireLogin, async (req, res) => {
+  try {
+    const userId = Number(req.session?.user?.id);
+    if (!userId) return res.status(401).send("Unauthorized");
+    
+    const templates = await dndDb.getCharacterTemplates(pgPool, userId);
+    return res.json({ templates });
+  } catch (e) {
+    console.warn("[dnd] get templates failed", e?.message || e);
+    return res.status(500).send("Failed");
+  }
+});
+
+app.post("/api/dnd-story/character-templates", requireLogin, express.json({ limit: "16kb" }), async (req, res) => {
+  try {
+    const userId = Number(req.session?.user?.id);
+    if (!userId) return res.status(401).send("Unauthorized");
+    
+    const templateName = sanitizeDisplayName(req.body?.templateName || "").trim().slice(0, 40);
+    if (!templateName) {
+      return res.status(400).json({ message: "Template name is required" });
+    }
+    
+    // Reuse the same validation logic as character creation
+    const normalizeMeta = (value, maxLen) => {
+      const cleaned = sanitizeDisplayName(value || "").trim();
+      if (!cleaned) return null;
+      return cleaned.slice(0, maxLen);
+    };
+    
+    const user = req.session.user;
+    const rawName = req.body?.name;
+    const nameInput = normalizeMeta(rawName, 40);
+    // If a name was explicitly provided but sanitizes to empty, reject it
+    if (rawName != null && rawName !== "" && !nameInput) {
+      return res.status(400).json({ message: "Invalid character name" });
+    }
+    const displayName = nameInput || user.username;
+    const race = normalizeMeta(req.body?.race, 32);
+    const gender = normalizeMeta(req.body?.gender, 32);
+    const background = normalizeMeta(req.body?.background, 40);
+    
+    let age = null;
+    if (req.body?.age != null) {
+      age = Number(req.body.age);
+      if (isNaN(age) || age < 18 || age > 999) {
+        return res.status(400).json({ message: "Age must be between 18 and 999" });
+      }
+    }
+    
+    const traits = normalizeMeta(req.body?.traits, 300);
+    const abilities = normalizeMeta(req.body?.abilities, 300);
+    
+    // Validate attributes
+    const attributes = req.body?.attributes || {};
+    const attrValidation = dndCharacterSystem.validateAttributes(attributes);
+    if (!attrValidation.valid) {
+      return res.status(400).json({ message: attrValidation.error });
+    }
+    
+    // Validate skills
+    const skills = req.body?.skills || [];
+    const skillValidation = dndCharacterSystem.validateSkills(skills);
+    if (!skillValidation.valid) {
+      return res.status(400).json({ message: skillValidation.error });
+    }
+    
+    // Validate perks
+    const perks = req.body?.perks || [];
+    const perkValidation = dndCharacterSystem.validatePerks(perks);
+    if (!perkValidation.valid) {
+      return res.status(400).json({ message: perkValidation.error });
+    }
+    
+    // Apply skill bonuses
+    const { attributes: finalAttributes } = dndCharacterSystem.applySkillBonuses(attributes, skills);
+    const finalAttrValidation = dndCharacterSystem.validateAttributes(finalAttributes);
+    if (!finalAttrValidation.valid) {
+      return res.status(400).json({ message: finalAttrValidation.error });
+    }
+    
+    const template = await dndDb.createCharacterTemplate(pgPool, {
+      userId,
+      templateName,
+      displayName,
+      race,
+      gender,
+      age,
+      background,
+      traits,
+      abilities,
+      attributes: finalAttributes,
+      skills,
+      perks
+    });
+    
+    return res.json({ ok: true, template });
+  } catch (e) {
+    console.warn("[dnd] create template failed", e?.message || e);
+    if (e.message && e.message.includes("duplicate key")) {
+      return res.status(400).json({ message: "A template with this name already exists" });
+    }
+    return res.status(500).send("Failed");
+  }
+});
+
+app.delete("/api/dnd-story/character-templates/:id", requireLogin, async (req, res) => {
+  try {
+    const userId = Number(req.session?.user?.id);
+    if (!userId) return res.status(401).send("Unauthorized");
+    
+    const templateId = Number(req.params.id);
+    if (!templateId) return res.status(400).json({ message: "Invalid template ID" });
+    
+    const success = await dndDb.deleteCharacterTemplate(pgPool, templateId, userId);
+    if (!success) {
+      return res.status(404).json({ message: "Template not found" });
+    }
+    
+    return res.json({ ok: true });
+  } catch (e) {
+    console.warn("[dnd] delete template failed", e?.message || e);
+    return res.status(500).send("Failed");
+  }
+});
+
 // ---- Room structure management (Owner-only)
 app.post("/api/room-masters", strictLimiter, requireAdminPlus, express.json({ limit: "16kb" }), async (req, res) => {
   const name = sanitizeRoomGroupName(req.body?.name || "");
@@ -17308,6 +17517,10 @@ io.on("connection", async (socket) => {
         set.delete(socket.id);
         if (!set.size) sessionByUserId.delete(uid);
       }
+      // Clear music votes when user disconnects
+      if (uid) {
+        clearUserMusicVotes(uid);
+      }
     } catch (err) {
       if (IS_DEV_MODE) {
         console.error("[socket] disconnect cleanup error", err);
@@ -17838,6 +18051,11 @@ function doJoin(room, status) {
     if (set) {
       set.delete(socket.user.username);
       broadcastTyping(previousRoom);
+    }
+    
+    // Clear music votes when leaving music room
+    if (previousRoom === "music" && socket.user?.id) {
+      clearUserMusicVotes(socket.user.id);
     }
 
     emitUserList(previousRoom);
@@ -19482,9 +19700,240 @@ if (!room) {
       callback({
         current: MUSIC_ROOM_QUEUE.currentVideo,
         queue: MUSIC_ROOM_QUEUE.queue,
-        nowPlaying: MUSIC_ROOM_QUEUE.nowPlaying
+        nowPlaying: MUSIC_ROOM_QUEUE.nowPlaying,
+        loopEnabled: MUSIC_ROOM_QUEUE.loopEnabled,
+        votes: {
+          skip: MUSIC_VOTES.skip.size,
+          clear: MUSIC_VOTES.clear.size,
+          shuffle: MUSIC_VOTES.shuffle.size
+        }
       });
     }
+  });
+
+  // Music voting handlers
+  socket.on("music:vote:skip", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const userId = socket.user.id;
+    const remove = payload?.remove;
+    
+    if (remove) {
+      MUSIC_VOTES.skip.delete(userId);
+    } else {
+      MUSIC_VOTES.skip.add(userId);
+      emitRoomSystem("music", `🎵 ${socket.user.username} voted to skip the current song`);
+    }
+    
+    // Broadcast updated vote count
+    io.to("music").emit("music:voteUpdate", {
+      type: "skip",
+      count: MUSIC_VOTES.skip.size,
+      voters: Array.from(MUSIC_VOTES.skip)
+    });
+    
+    // Check if threshold is met
+    if (checkVoteThreshold(MUSIC_VOTES.skip, io)) {
+      emitRoomSystem("music", `⏭️ Vote passed! Skipping to next song...`);
+      MUSIC_VOTES.skip.clear();
+      
+      // Broadcast reset vote state so clients don't show stale votes
+      io.to("music").emit("music:voteUpdate", {
+        type: "skip",
+        count: 0,
+        voters: []
+      });
+      
+      skipToNextVideo(io);
+    }
+  });
+
+  socket.on("music:vote:clear", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const userId = socket.user.id;
+    const remove = payload?.remove;
+    
+    if (remove) {
+      MUSIC_VOTES.clear.delete(userId);
+    } else {
+      MUSIC_VOTES.clear.add(userId);
+      emitRoomSystem("music", `🗑️ ${socket.user.username} voted to clear the queue`);
+    }
+    
+    // Broadcast updated vote count
+    io.to("music").emit("music:voteUpdate", {
+      type: "clear",
+      count: MUSIC_VOTES.clear.size,
+      voters: Array.from(MUSIC_VOTES.clear)
+    });
+    
+    // Check if threshold is met
+    if (checkVoteThreshold(MUSIC_VOTES.clear, io)) {
+      emitRoomSystem("music", `🗑️ Vote passed! Queue cleared.`);
+      MUSIC_VOTES.clear.clear();
+      
+      // Broadcast reset vote state so clients don't show stale votes
+      io.to("music").emit("music:voteUpdate", {
+        type: "clear",
+        count: 0,
+        voters: []
+      });
+      
+      MUSIC_ROOM_QUEUE.queue = [];
+      
+      io.to("music").emit("music:queue", {
+        queue: MUSIC_ROOM_QUEUE.queue,
+        current: MUSIC_ROOM_QUEUE.currentVideo
+      });
+    }
+  });
+
+  socket.on("music:vote:shuffle", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const userId = socket.user.id;
+    const remove = payload?.remove;
+    
+    if (remove) {
+      MUSIC_VOTES.shuffle.delete(userId);
+    } else {
+      MUSIC_VOTES.shuffle.add(userId);
+      emitRoomSystem("music", `🔀 ${socket.user.username} voted to shuffle the queue`);
+    }
+    
+    // Broadcast updated vote count
+    io.to("music").emit("music:voteUpdate", {
+      type: "shuffle",
+      count: MUSIC_VOTES.shuffle.size,
+      voters: Array.from(MUSIC_VOTES.shuffle)
+    });
+    
+    // Check if threshold is met
+    if (checkVoteThreshold(MUSIC_VOTES.shuffle, io)) {
+      emitRoomSystem("music", `🔀 Vote passed! Queue shuffled.`);
+      MUSIC_VOTES.shuffle.clear();
+      
+      // Broadcast reset vote state so clients don't show stale votes
+      io.to("music").emit("music:voteUpdate", {
+        type: "shuffle",
+        count: 0,
+        voters: []
+      });
+      
+      // Shuffle the queue
+      shuffleArray(MUSIC_ROOM_QUEUE.queue);
+      
+      io.to("music").emit("music:queue", {
+        queue: MUSIC_ROOM_QUEUE.queue,
+        current: MUSIC_ROOM_QUEUE.currentVideo
+      });
+    }
+  });
+
+  socket.on("music:skip", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const bypass = payload?.bypass && isMusicModerator(socket.user);
+    
+    if (!bypass) {
+      socket.emit("system", buildSystemPayload("music", "Only moderators can skip without voting."));
+      return;
+    }
+    
+    // Rate limit skip requests
+    if (!allowSocketEvent(socket, "music_skip", 3, 10000)) {
+      socket.emit("system", buildSystemPayload("music", "Please wait before skipping again."));
+      return;
+    }
+    
+    emitRoomSystem("music", `⏭️ ${socket.user.username} skipped to next song`);
+    MUSIC_VOTES.skip.clear();
+    
+    // Broadcast reset vote state
+    io.to("music").emit("music:voteUpdate", {
+      type: "skip",
+      count: 0,
+      voters: []
+    });
+    
+    skipToNextVideo(io);
+  });
+
+  socket.on("music:clear", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const bypass = payload?.bypass && isMusicModerator(socket.user);
+    
+    if (!bypass) {
+      socket.emit("system", buildSystemPayload("music", "Only moderators can clear queue without voting."));
+      return;
+    }
+    
+    emitRoomSystem("music", `🗑️ ${socket.user.username} cleared the queue`);
+    MUSIC_VOTES.clear.clear();
+    
+    // Broadcast reset vote state
+    io.to("music").emit("music:voteUpdate", {
+      type: "clear",
+      count: 0,
+      voters: []
+    });
+    
+    MUSIC_ROOM_QUEUE.queue = [];
+    
+    io.to("music").emit("music:queue", {
+      queue: MUSIC_ROOM_QUEUE.queue,
+      current: MUSIC_ROOM_QUEUE.currentVideo
+    });
+  });
+
+  socket.on("music:shuffle", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const bypass = payload?.bypass && isMusicModerator(socket.user);
+    
+    if (!bypass) {
+      socket.emit("system", buildSystemPayload("music", "Only moderators can shuffle without voting."));
+      return;
+    }
+    
+    emitRoomSystem("music", `🔀 ${socket.user.username} shuffled the queue`);
+    MUSIC_VOTES.shuffle.clear();
+    
+    // Broadcast reset vote state
+    io.to("music").emit("music:voteUpdate", {
+      type: "shuffle",
+      count: 0,
+      voters: []
+    });
+    
+    // Shuffle the queue
+    shuffleArray(MUSIC_ROOM_QUEUE.queue);
+    
+    io.to("music").emit("music:queue", {
+      queue: MUSIC_ROOM_QUEUE.queue,
+      current: MUSIC_ROOM_QUEUE.currentVideo
+    });
+  });
+
+  socket.on("music:loop", (payload) => {
+    if (socket.currentRoom !== "music") return;
+    if (!socket.user) return;
+    
+    const enabled = !!payload?.enabled;
+    MUSIC_ROOM_QUEUE.loopEnabled = enabled;
+    
+    io.to("music").emit("music:loopUpdate", { enabled });
+    
+    const status = enabled ? "enabled" : "disabled";
+    emitRoomSystem("music", `🔁 ${socket.user.username} ${status} loop`);
   });
 
   const logDeleteFailure = ({ scope, messageId, actorId, actorRole, reason, roomId, threadId }) => {

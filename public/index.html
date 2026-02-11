@@ -702,6 +702,7 @@
 
   <!-- unified media button + pop-up menu -->
   <button class="iconBtn" id="mediaBtn" title="Media" type="button">＋</button>
+  <button aria-label="Music Controls" class="iconBtn" hidden id="musicControlsBtn" title="Music Controls" type="button">🎵</button>
   <button aria-label="Open DnD" class="iconBtn dndNewOpenBtn" hidden id="dndNewOpenBtn" title="Open DnD" type="button">🎲</button>
   <button aria-label="Open DnD Controls" class="iconBtn dndComposerBtn" hidden id="dndComposerBtn" title="DnD Controls" type="button">🎲</button>
   <div class="diceVariantWrap" id="diceVariantWrap">
@@ -3055,6 +3056,60 @@
         <button class="btn" id="roomCreateSubmitBtn" type="button">Create</button>
         <button class="btn secondary" id="roomCreateCancelBtn" type="button">Cancel</button>
         <div class="msgline" id="roomCreateMsg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Music Controls Modal -->
+<div class="modal" hidden id="musicControlsModal" role="dialog" aria-labelledby="musicControlsTitle" aria-modal="true">
+  <div class="modalCard" style="max-width: 420px;">
+    <div class="modalHeader">
+      <h2 id="musicControlsTitle">Music Controls</h2>
+      <button aria-label="Close" class="modalClose" id="musicControlsClose" type="button">&times;</button>
+    </div>
+    <div class="modalBody" style="padding: 16px;">
+      <div class="musicControlsGrid">
+        <!-- Vote to Skip -->
+        <button class="musicControlBtn" id="voteSkipBtn" type="button">
+          <span class="musicControlIcon">⏭️</span>
+          <span class="musicControlLabel">Vote to Skip</span>
+          <span class="musicControlVotes" id="skipVoteCount">0 votes</span>
+        </button>
+        
+        <!-- Vote to Clear Queue -->
+        <button class="musicControlBtn" id="voteClearQueueBtn" type="button">
+          <span class="musicControlIcon">🗑️</span>
+          <span class="musicControlLabel">Vote to Clear Queue</span>
+          <span class="musicControlVotes" id="clearVoteCount">0 votes</span>
+        </button>
+        
+        <!-- Loop Current Video -->
+        <button class="musicControlBtn" id="loopVideoBtn" type="button">
+          <span class="musicControlIcon">🔁</span>
+          <span class="musicControlLabel">Loop Current Video</span>
+          <span class="musicControlStatus" id="loopStatus">Off</span>
+        </button>
+        
+        <!-- Shuffle Queue -->
+        <button class="musicControlBtn" id="shuffleQueueBtn" type="button">
+          <span class="musicControlIcon">🔀</span>
+          <span class="musicControlLabel">Vote to Shuffle</span>
+          <span class="musicControlVotes" id="shuffleVoteCount">0 votes</span>
+        </button>
+        
+        <!-- Volume Control -->
+        <div class="musicControlVolume">
+          <label for="musicVolumeSlider">
+            <span class="musicControlIcon">🔊</span>
+            <span class="musicControlLabel">Volume</span>
+          </label>
+          <input type="range" id="musicVolumeSlider" min="0" max="100" value="100" step="1">
+          <span class="musicVolumePercent" id="musicVolumePercent">100%</span>
+        </div>
+      </div>
+      <div class="small muted" style="margin-top: 12px; text-align: center;">
+        Most actions require 50% of room to vote. Moderators+ can bypass votes.
       </div>
     </div>
   </div>
