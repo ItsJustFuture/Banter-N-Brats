@@ -2470,6 +2470,66 @@ function applyNameFxToEl(el, fx){
   applyTextStyleToEl(el, resolved.userNameStyle, { fallbackColor: resolved.nameColor });
 }
 
+function applyNameFxFromNormalized(el, normalizedFx, { preserveCssFontWeight = false } = {}){
+  if (!el) return;
+  // Fast path for pre-normalized FX (skips redundant normalizeChatFx call)
+  const userNameStyle = normalizedFx?.userNameStyle || normalizedFx || {};
+  const nameColor = normalizedFx?.nameColor || "";
+  
+  // Use normalized text style directly (skip normalizeTextStyle if already normalized)
+  const normalized = userNameStyle.mode ? userNameStyle : normalizeTextStyle(userNameStyle);
+  const stack = CHAT_FX_FONT_STACKS[normalized.fontFamily] || CHAT_FX_FONT_STACKS.system;
+  ensureGoogleFontLoaded(normalized.fontFamily);
+  el.style.fontFamily = stack;
+  
+  // Preserve CSS font-weight when user hasn't explicitly chosen bold/italic
+  // This prevents overriding CSS defaults (e.g., .chat-main .name: 700, .mName: 900, .dmMetaUser: 800)
+  const shouldPreserveFontWeight = preserveCssFontWeight && normalized.fontStyle === "normal";
+  if (!shouldPreserveFontWeight) {
+    el.style.fontWeight = normalized.fontStyle === "bold" ? "700" : "400";
+  }
+  el.style.fontStyle = normalized.fontStyle === "italic" ? "italic" : "normal";
+  
+  el.style.textShadow = "";
+  el.style.backgroundImage = "";
+  el.classList.remove("textStyleGradient");
+  el.style.color = "";
+  el.style.removeProperty("--text-gradient-shadow");
+  el.style.removeProperty("--text-gradient-stroke");
+  el.style.removeProperty("--text-gradient-stroke-color");
+
+  if (normalized.mode === "gradient") {
+    const preset = normalized.gradient.presetId ? GRADIENT_PRESET_MAP.get(normalized.gradient.presetId) : null;
+    const css = normalized.gradient.css || (preset ? buildGradientCss(preset) : "");
+    if (css) {
+      const profile = gradientVisibilityProfile(normalized.gradient.intensity);
+      el.style.backgroundImage = css;
+      el.style.setProperty("--text-gradient-shadow", profile.shadow);
+      el.style.setProperty("--text-gradient-stroke", profile.stroke);
+      el.style.setProperty("--text-gradient-stroke-color", profile.strokeColor);
+      el.classList.add("textStyleGradient");
+      applyTextEffect(el, normalized.effectId);
+      return;
+    }
+  }
+
+  if (normalized.mode === "neon") {
+    const preset = normalized.neon.presetId ? NEON_PRESET_MAP.get(normalized.neon.presetId) : null;
+    const baseColor = normalized.neon.color || preset?.baseColor || "";
+    if (baseColor) {
+      const textColor = preset?.textColor || baseColor;
+      el.style.color = brightenHexColor(textColor, 0.2);
+      el.style.textShadow = buildNeonTextShadow(baseColor, normalized.neon.intensity);
+      applyTextEffect(el, normalized.effectId);
+      return;
+    }
+  }
+
+  const color = normalized.color || nameColor;
+  if (color) el.style.color = color;
+  applyTextEffect(el, normalized.effectId);
+}
+
 function parseCssRgbToTuple(cssColor){
   const raw = String(cssColor || "").trim();
   // rgb(r, g, b) or rgba(r, g, b, a)
@@ -11711,6 +11771,10 @@ try{
 
   const bubbleEl = item.querySelector(".bubble");
   applyChatFxToBubble(bubbleEl, resolvedFx, { groupBody: body });
+  // Apply username styling at render time for live updates
+  // Use fast path: resolvedFx is already normalized, preserve CSS font-weight
+  const unameEl = item.querySelector(".unameText");
+  if (unameEl) applyNameFxFromNormalized(unameEl, resolvedFx, { preserveCssFontWeight: true });
   applyIdentityGlow(item, { username: senderName, role: senderRole, vibe_tags: m?.vibe_tags, couple: m?.couple });
   body.appendChild(item);
   maybeShowIrisLolaSharedMoment({
@@ -13021,6 +13085,12 @@ function renderFriendsList(list){
       uname.textContent = f.username;
       name.appendChild(ico);
       name.appendChild(uname);
+      // Apply username styling at render time using pre-normalized FX from userFxMap
+      // Preserve CSS bold default (.mName has font-weight:900)
+      const unameFx = userFxMap[f.username];
+      if (unameFx) {
+        try { applyNameFxFromNormalized(uname, unameFx, { preserveCssFontWeight: true }); } catch {}
+      }
 
       const sub = document.createElement('div');
       sub.className = 'mSub';
@@ -14366,6 +14436,10 @@ function renderDmMessages(threadId){
     if (gClass !== " g-start" && gClass !== " g-solo") {
       u.textContent = ""; // grouped: avoid repeating the username
       u.style.display = "none";
+    } else {
+      // Apply username styling at render time for live updates
+      // Use fast path: resolvedFx is already normalized, preserve CSS font-weight
+      applyNameFxFromNormalized(u, resolvedFx, { preserveCssFontWeight: true });
     }
     const t = document.createElement("span");
     t.className = "dmMetaTime";
