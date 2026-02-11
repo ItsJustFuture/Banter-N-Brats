@@ -15717,7 +15717,7 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  z-index: 350;
+  z-index: 100;
   overflow: hidden;
   transition: transform 0.3s ease, opacity 0.3s ease, height 0.3s ease;
 }

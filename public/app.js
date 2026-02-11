@@ -2627,7 +2627,7 @@ function applyChatFxToBubble(bubble, fx, options = {}){
   let nameColor = "";
   if (nameMode === "color") {
     nameColor = (userNameStyle.color || "").trim();
-  } else if (nameMode === "neon") {
+  } else if (nameMode === "neon" && userNameStyle.neon) {
     const nameNeonPreset = userNameStyle.neon.presetId ? NEON_PRESET_MAP.get(userNameStyle.neon.presetId) : null;
     const nameNeonColor = userNameStyle.neon.color || nameNeonPreset?.baseColor || "";
     nameColor = (nameNeonPreset?.textColor || nameNeonColor || "").trim();
