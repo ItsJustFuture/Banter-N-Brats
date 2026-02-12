@@ -8298,6 +8298,21 @@ const MusicRoomPlayer = (() => {
               }
             }, INITIAL_SYNC_CHECK_DELAY_MS);
           }
+        },
+        onError: (event) => {
+          // Handle YouTube player errors
+          const errorCode = event?.data;
+          console.warn("[MusicRoomPlayer] Video error:", errorCode);
+          
+          // Notify server to skip to next video
+          // Error codes: 2 (invalid parameter), 5 (HTML5 error), 100 (not found), 101/150 (not embeddable/restricted)
+          if (currentVideo) {
+            socket?.emit("music:videoError", {
+              videoId: currentVideo.videoId,
+              title: currentVideo.title,
+              errorCode
+            });
+          }
         }
       }
     });

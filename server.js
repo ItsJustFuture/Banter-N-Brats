@@ -19806,6 +19806,43 @@ if (!room) {
     }
   });
 
+  socket.on("music:videoError", (payload = {}) => {
+    if (socket.currentRoom !== "music") return;
+    
+    const videoId = String(payload.videoId || "");
+    const title = String(payload.title || "Untitled");
+    const errorCode = payload.errorCode;
+    
+    // Only process if this error is for the currently playing video
+    if (!MUSIC_ROOM_QUEUE.currentVideo || MUSIC_ROOM_QUEUE.currentVideo.videoId !== videoId) {
+      return;
+    }
+    
+    // Determine error message based on error code
+    let errorMsg = "Video unavailable";
+    if (errorCode === 100) {
+      errorMsg = "Video not found";
+    } else if (errorCode === 101 || errorCode === 150) {
+      errorMsg = "Video cannot be embedded";
+    } else if (errorCode === 2) {
+      errorMsg = "Invalid video";
+    } else if (errorCode === 5) {
+      errorMsg = "Video playback error";
+    }
+    
+    // Send error message to room
+    const systemPayload = buildSystemPayload(
+      "music",
+      `⚠️ ${errorMsg}: "${title}" - Skipping...`,
+      null,
+      "room"
+    );
+    io.to("music").emit("system", systemPayload);
+    
+    // Skip to next video in queue or stop playback
+    skipToNextVideo(io);
+  });
+
   socket.on("music:getState", (callback) => {
     if (socket.currentRoom !== "music") return;
     
