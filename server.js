@@ -4708,13 +4708,15 @@ async function chessFinalizeGame(game, { result, status, reason }) {
 
   const winnerId = result === "white" ? whiteId : result === "black" ? blackId : null;
   if (winnerId) {
-    fetchUsersByIds([winnerId])
+    const loserId = result === "white" ? blackId : result === "black" ? whiteId : null;
+    fetchUsersByIds([winnerId, loserId])
       .then((rows) => {
-        const winner = rows?.[0];
+        const winner = rows?.find(r => r.id === winnerId);
+        const loser = rows?.find(r => r.id === loserId);
         if (winner?.username) {
           // Record chess win activity
           void recordActivity(winner.username, 'chess_win', {
-            opponent: result === "white" ? blackName : whiteName,
+            opponent: loser?.username || 'Unknown',
             elo_change: result === "white" ? whiteDelta : blackDelta
           }, true);
           
