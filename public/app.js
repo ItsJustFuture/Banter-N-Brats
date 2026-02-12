@@ -26865,21 +26865,39 @@ socket.on("mod:case_event", (payload = {}) => {
     }
     if (!room) return;
     
-    // Step 8: Hard room filter - defensive filtering to prevent UI bleed
-    // Check both resolvedRoomId and payload.roomId
-    if (payload.roomId && payload.roomId !== currentRoomId && payload.roomId !== getRoomIdFromName(currentRoom)) {
+    // Step 8: Multi-layer defensive room filtering to prevent UI bleed
+    // Layer 1: Direct payload.roomId check (most explicit)
+    if (payload.roomId && currentRoomId && payload.roomId !== currentRoomId) {
       if (IS_DEV) {
-        console.warn("[system] Filtered message from wrong room", { 
+        console.warn("[system] Filtered: payload.roomId mismatch", { 
           payloadRoomId: payload.roomId, 
-          currentRoomId, 
-          currentRoom 
+          currentRoomId 
         });
       }
       return;
     }
     
-    if (resolvedRoomId && currentRoomId && resolvedRoomId !== currentRoomId) return;
-    if (!resolvedRoomId && room !== currentRoom) return;
+    // Layer 2: Resolved room ID check (handles room name -> ID mapping)
+    if (resolvedRoomId && currentRoomId && resolvedRoomId !== currentRoomId) {
+      if (IS_DEV) {
+        console.warn("[system] Filtered: resolvedRoomId mismatch", { 
+          resolvedRoomId, 
+          currentRoomId 
+        });
+      }
+      return;
+    }
+    
+    // Layer 3: Fallback room name check (when IDs not available)
+    if (!resolvedRoomId && room !== currentRoom) {
+      if (IS_DEV) {
+        console.warn("[system] Filtered: room name mismatch", { 
+          room, 
+          currentRoom 
+        });
+      }
+      return;
+    }
 
     if (meta && typeof meta === "object" && meta.kind === "tictactoe") {
       if (renderTicTacToeSystemMessage(payload)) return;

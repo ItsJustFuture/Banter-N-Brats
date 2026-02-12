@@ -18431,14 +18431,15 @@ enforceVipGate(desired, (allowed) => {
 
   // Dice Room mini-game
   socket.on("dice:roll", (payload = {}) => {
-    const room = socket.currentRoom;
-    
-    // Hard room validation guard (Step 7)
+    // Hard room validation guard (Step 7) - prevents cross-room dice rolls
     if (!socket.currentRoom || socket.currentRoom !== "diceroom") {
       socket.emit("dice:error", "You can only roll dice in Dice Room.");
       return;
     }
     
+    const room = socket.currentRoom; // Already validated as "diceroom"
+    
+    // Additional validation: if payload specifies a room, it must match current room
     const requestedRoom = typeof payload.room === "string" ? sanitizeRoomName(payload.room) : null;
     if (requestedRoom && requestedRoom !== room) {
       socket.emit("dice:error", "Invalid room for dice roll.");
