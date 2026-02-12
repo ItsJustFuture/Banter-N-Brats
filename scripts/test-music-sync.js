@@ -67,7 +67,6 @@ test("Server emits music:sync event", () => {
 
 // Test 5: Server starts sync when playing
 test("Server starts sync broadcast when playing", () => {
-  const playEmitCount = (serverCode.match(/io\.to\([^)]*\)\.emit\("music:play"/g) || []).length;
   const startSyncCount = (serverCode.match(/startSyncBroadcast\(\)/g) || []).length;
   
   // Should have at least 3 places where we start sync (matching music:play emits)
