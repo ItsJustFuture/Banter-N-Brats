@@ -178,10 +178,16 @@ async function syncOfflineMessages() {
   
   for (const request of requests) {
     try {
-      await fetch(request.clone());
-      await cache.delete(request);
+      const response = await fetch(request.clone());
+      // Only delete from cache if request was successful
+      if (response.ok) {
+        await cache.delete(request);
+      } else {
+        console.error('[SW] Failed to sync message, will retry later:', response.status);
+      }
     } catch (err) {
-      console.error('Failed to sync message:', err);
+      console.error('[SW] Failed to sync message:', err);
+      // Keep in cache for retry
     }
   }
 }

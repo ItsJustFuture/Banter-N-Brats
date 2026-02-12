@@ -25946,7 +25946,13 @@ function renderActivityFeed() {
   if (!container) return;
   
   container.innerHTML = activityFeed.map(activity => {
-    const data = JSON.parse(activity.activity_data || '{}');
+    let data = {};
+    try {
+      data = JSON.parse(activity.activity_data || '{}');
+    } catch (err) {
+      console.warn('[ActivityFeed] Invalid JSON in activity_data:', err);
+    }
+    
     let icon = '🎉';
     let message = '';
     
@@ -25957,15 +25963,15 @@ function renderActivityFeed() {
         break;
       case 'level_up':
         icon = '⬆️';
-        message = `reached level ${data.level}!`;
+        message = `reached level ${data.level || '?'}!`;
         break;
       case 'achievement':
         icon = '🏆';
-        message = `earned "${data.name}"`;
+        message = `earned "${data.name || 'an achievement'}"`;
         break;
       case 'theme_unlock':
         icon = '🎨';
-        message = `unlocked ${data.theme} theme`;
+        message = `unlocked ${data.theme || 'a'} theme`;
         break;
       default:
         message = activity.activity_type;
@@ -26288,7 +26294,9 @@ initAppealsDurationSelect();
     // Refresh friend requests list if visible
     try {
       socket.emit('getPendingFriendRequests');
-    } catch {}
+    } catch (err) {
+      console.debug('[Friends] Failed to refresh requests:', err);
+    }
   });
   
   socket.on('friendRequestAccepted', ({ user }) => {
@@ -26296,7 +26304,9 @@ initAppealsDurationSelect();
     // Refresh friends list
     try {
       socket.emit('getFriendsList');
-    } catch {}
+    } catch (err) {
+      console.debug('[Friends] Failed to refresh list:', err);
+    }
   });
   
   socket.on('friendPresenceUpdate', ({ username, status, currentRoom, timestamp }) => {
@@ -26308,7 +26318,9 @@ initAppealsDurationSelect();
       // Re-render friends list if visible
       try {
         renderFriendsList();
-      } catch {}
+      } catch (err) {
+        console.debug('[Friends] Failed to render list:', err);
+      }
       
       // Show notification if friend came online (only if user has it enabled)
       if (status === 'online') {

@@ -4056,10 +4056,11 @@ function safeJsonParse(str, fallback) {
 // For development, we'll use placeholders if not set
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+const VAPID_EMAIL = process.env.VAPID_EMAIL || 'mailto:admin@example.com';
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webPush.setVapidDetails(
-    'mailto:admin@banterandbrats.com',
+    VAPID_EMAIL,
     VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY
   );
@@ -17810,6 +17811,20 @@ io.on("connection", async (socket) => {
     if (!fromUser) return;
     
     try {
+      // Check if friendship already exists in either direction
+      const existing = await dbGetAsync(`
+        SELECT id, status FROM friendships 
+        WHERE (user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)
+      `, [fromUser, toUser, toUser, fromUser]);
+      
+      if (existing) {
+        const errorMsg = existing.status === 'accepted' 
+          ? 'You are already friends' 
+          : 'Friend request already sent';
+        socket.emit('friendRequestSent', { to: toUser, success: false, error: errorMsg });
+        return;
+      }
+      
       // Insert friend request
       await dbRunAsync(`
         INSERT INTO friendships (user1, user2, status, requested_by, created_at)
@@ -17835,7 +17850,8 @@ io.on("connection", async (socket) => {
       
       socket.emit('friendRequestSent', { to: toUser, success: true });
     } catch (err) {
-      socket.emit('friendRequestSent', { to: toUser, success: false, error: 'Request already exists' });
+      console.error('[Friends] sendFriendRequest error:', err);
+      socket.emit('friendRequestSent', { to: toUser, success: false, error: 'Failed to send request' });
     }
   });
   
@@ -17843,27 +17859,32 @@ io.on("connection", async (socket) => {
     const toUser = socket.user?.username;
     if (!toUser) return;
     
-    await dbRunAsync(`
-      UPDATE friendships 
-      SET status = 'accepted' 
-      WHERE user1 = ? AND user2 = ? AND status = 'pending'
-    `, [fromUser, toUser]);
-    
-    await dbRunAsync(`
-      UPDATE friend_requests_new 
-      SET read_at = ? 
-      WHERE from_user = ? AND to_user = ?
-    `, [Date.now(), fromUser, toUser]);
-    
-    // Notify both users
-    const requesterSockets = USER_SOCKET_MAP.get(fromUser);
-    if (requesterSockets) {
-      for (const socketId of requesterSockets) {
-        io.to(socketId).emit('friendRequestAccepted', { user: toUser });
+    try {
+      // Update friendship regardless of order
+      await dbRunAsync(`
+        UPDATE friendships 
+        SET status = 'accepted' 
+        WHERE ((user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)) AND status = 'pending'
+      `, [fromUser, toUser, toUser, fromUser]);
+      
+      await dbRunAsync(`
+        UPDATE friend_requests_new 
+        SET read_at = ? 
+        WHERE from_user = ? AND to_user = ?
+      `, [Date.now(), fromUser, toUser]);
+      
+      // Notify both users
+      const requesterSockets = USER_SOCKET_MAP.get(fromUser);
+      if (requesterSockets) {
+        for (const socketId of requesterSockets) {
+          io.to(socketId).emit('friendRequestAccepted', { user: toUser });
+        }
       }
+      
+      socket.emit('friendRequestAccepted', { user: fromUser });
+    } catch (err) {
+      console.error('[Friends] acceptFriendRequest error:', err);
     }
-    
-    socket.emit('friendRequestAccepted', { user: fromUser });
   });
   
   socket.on('getFriendsList', async () => {
@@ -21499,6 +21520,8 @@ async function startServer() {
   });
   
   // Start periodic presence cleanup (mark idle users)
+  // Check every 60 seconds (less frequently than broadcast interval)
+  const PRESENCE_CLEANUP_INTERVAL_MS = 60 * 1000;
   setInterval(async () => {
     const now = Date.now();
     for (const [socketId, presence] of USER_PRESENCE_MAP.entries()) {
@@ -21506,7 +21529,7 @@ async function startServer() {
         await updateUserPresence(presence.username, 'idle', presence.room, socketId);
       }
     }
-  }, PRESENCE_BROADCAST_INTERVAL_MS);
+  }, PRESENCE_CLEANUP_INTERVAL_MS);
   
   return httpServer;
 }
