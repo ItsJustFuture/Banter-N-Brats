@@ -18828,7 +18828,7 @@ async function renderDailyChallenges() {
       <h3>Daily Challenges</h3>
       <div class="challengeList">
         ${(challenges || []).map((c) => {
-          const target = getTargetForChallenge(c.challenge_id);
+          const target = c.target || getTargetForChallenge(c.challenge_id);
           const progress = Math.max(0, Number(c.progress || 0));
           const pct = target > 0 ? Math.min(100, (progress / target) * 100) : 0;
           const completed = !!c.completed;
