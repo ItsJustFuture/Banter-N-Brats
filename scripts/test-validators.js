@@ -25,13 +25,12 @@ function runTests() {
   
   // Test 2: Empty message (should fail)
   console.log("\n📝 Test 2: Empty message");
-  const invalid1 = validators.validate(validators.ChatMessageSchema, {
+  const valid2 = validators.validate(validators.ChatMessageSchema, {
     room: "main",
     text: ""
   });
-  assert(invalid1.success === false, "Empty message should fail");
-  assert(invalid1.error.includes("text"), "Error should mention text field");
-  console.log("✓ Empty message rejected");
+  assert(valid2.success === true, "Empty message should pass (for media attachments)");
+  console.log("✓ Empty message allowed (for media attachments)");
   
   // Test 3: Message too long (should fail)
   console.log("\n📝 Test 3: Message too long");

@@ -18828,7 +18828,7 @@ async function renderDailyChallenges() {
       <h3>Daily Challenges</h3>
       <div class="challengeList">
         ${(challenges || []).map((c) => {
-          const target = getTargetForChallenge(c.challenge_id);
+          const target = c.target || getTargetForChallenge(c.challenge_id);
           const progress = Math.max(0, Number(c.progress || 0));
           const pct = target > 0 ? Math.min(100, (progress / target) * 100) : 0;
           const completed = !!c.completed;
@@ -25932,7 +25932,7 @@ function initializePresenceSystem() {
   socket.emit('getPendingFriendRequests');
 }
 
-function renderFriendsList() {
+function renderSocialFriendsList() {
   const container = document.getElementById('friends-list');
   if (!container) return;
   
@@ -26402,7 +26402,7 @@ initAppealsDurationSelect();
       
       // Re-render friends list if visible
       try {
-        renderFriendsList();
+        renderSocialFriendsList();
       } catch (err) {
         console.debug('[Friends] Failed to render list:', err);
       }
@@ -26416,7 +26416,7 @@ initAppealsDurationSelect();
   
   socket.on('friendsList', (friends) => {
     friendsList = friends || [];
-    renderFriendsList();
+    renderSocialFriendsList();
   });
   
   socket.on('activityFeed', (activities) => {

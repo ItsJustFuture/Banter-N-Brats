@@ -9975,6 +9975,18 @@ function dayKeyNow() {
   return `${y}-${m}-${da}`;
 }
 
+// Helper function to check if a message has valid content
+function hasValidMessageContent(text, attachmentUrl) {
+  const hasText = text && String(text).trim().length > 0;
+  const hasAttachment = attachmentUrl && String(attachmentUrl).trim().length > 0;
+  return hasText || hasAttachment;
+}
+
+// Helper function to build composite challenge key
+function buildChallengeKey(challengeId, goal) {
+  return `${challengeId}_goal_${goal}`;
+}
+
 const GAMIFICATION_CHALLENGE_TARGETS = {
   "daily-messages-50": 50,
   "daily-chess-3": 3,
@@ -9982,8 +9994,31 @@ const GAMIFICATION_CHALLENGE_TARGETS = {
   "daily-dice-5": 5,
 };
 
-function getGamificationChallengeTarget(challengeId) {
-  return GAMIFICATION_CHALLENGE_TARGETS[challengeId] || 1;
+function getGamificationChallengeTarget(challengeId, rewardValue) {
+  // First check if it's an old-style challenge
+  if (GAMIFICATION_CHALLENGE_TARGETS[challengeId]) {
+    return GAMIFICATION_CHALLENGE_TARGETS[challengeId];
+  }
+  
+  // Try to extract goal from composite key (format: "challenge_id_goal_N")
+  const match = challengeId.match(/_goal_(\d+)$/);
+  if (match) {
+    return parseInt(match[1], 10);
+  }
+  
+  // Try to extract goal from reward_value JSON
+  if (rewardValue) {
+    try {
+      const parsed = typeof rewardValue === 'string' ? JSON.parse(rewardValue) : rewardValue;
+      if (parsed && parsed.goal) {
+        return parsed.goal;
+      }
+    } catch (e) {
+      // Ignore parse errors
+    }
+  }
+  
+  return 1; // Default fallback
 }
 
 async function fetchDailyChallengesForDate(dayKey) {
@@ -10194,6 +10229,59 @@ function pickDailyChallenges(dayKey = dayKeyNow()) {
   return selected;
 }
 
+async function ensureDailyChallengesExist(dayKey = dayKeyNow()) {
+  // Check if challenges already exist for this day
+  const existing = await fetchDailyChallengesForDate(dayKey);
+  if (existing && existing.length > 0) {
+    return; // Challenges already exist
+  }
+
+  // Pick challenges for the day
+  const selected = pickDailyChallenges(dayKey);
+  
+  // Insert challenges for both SQLite and PostgreSQL
+  try {
+    // Try PostgreSQL first
+    if (await pgUsersEnabled()) {
+      for (const challenge of selected) {
+        const compositeKey = buildChallengeKey(challenge.id, challenge.goal);
+        await pgPool.query(
+          `INSERT INTO daily_challenges (challenge_id, title, description, reward_type, reward_value, active_date)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (challenge_id, active_date) DO NOTHING`,
+          [
+            compositeKey, // Use composite key as challenge_id
+            challenge.label,
+            `Complete this challenge to earn ${challenge.rewardXp} XP and ${challenge.rewardGold} gold`,
+            'combined',
+            JSON.stringify({ xp: challenge.rewardXp, gold: challenge.rewardGold, goal: challenge.goal }),
+            dayKey
+          ]
+        );
+      }
+    }
+  } catch (e) {
+    console.warn('[daily challenges][pg seed] failed, using sqlite:', e?.message || e);
+  }
+
+  // Always insert to SQLite as fallback
+  for (const challenge of selected) {
+    const compositeKey = buildChallengeKey(challenge.id, challenge.goal);
+    await dbRunAsync(
+      `INSERT OR IGNORE INTO daily_challenges (challenge_id, title, description, reward_type, reward_value, active_date)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        compositeKey, // Use composite key as challenge_id
+        challenge.label,
+        `Complete this challenge to earn ${challenge.rewardXp} XP and ${challenge.rewardGold} gold`,
+        'combined',
+        JSON.stringify({ xp: challenge.rewardXp, gold: challenge.rewardGold, goal: challenge.goal }),
+        dayKey
+      ]
+    );
+  }
+}
+
 async function loadDailyProgress(userId, dayKey) {
   const now = Date.now();
   // prefer PG if user exists there
@@ -10364,16 +10452,19 @@ app.post("/api/challenges/claim", strictLimiter, requireLogin, express.json({ li
 app.get("/api/challenges/daily", requireLogin, async (req, res) => {
   try {
     const today = dayKeyNow();
+    // Ensure challenges exist for today
+    await ensureDailyChallengesExist(today);
     const challenges = await fetchDailyChallengesForDate(today);
     const progressRows = await fetchUserChallengeProgress(req.session.user.username, today, req.session.user.id);
     const progressMap = new Map(progressRows.map((row) => [row.challenge_id, row]));
     const enriched = challenges.map((challenge) => {
       const progressRow = progressMap.get(challenge.challenge_id);
       const progress = Number(progressRow?.progress || 0);
-      const target = getGamificationChallengeTarget(challenge.challenge_id);
+      const target = getGamificationChallengeTarget(challenge.challenge_id, challenge.reward_value);
       return {
         ...challenge,
         progress,
+        target, // Include target in response for client
         completed: progress >= target,
         claimed: Number(progressRow?.completed || 0) === 1,
       };
@@ -19924,6 +20015,12 @@ if (!room) {
 
     // Sanitize the text
     const sanitizedText = validators.sanitizeText(validation.data.text);
+    
+    // Ensure message has either text or attachment
+    if (!hasValidMessageContent(sanitizedText, payload.attachmentUrl)) {
+      socket.emit('system', buildSystemPayload(room, 'Message must contain text or an attachment.'));
+      return;
+    }
 
     isPunished(socket.user.id, "ban", (banned) => {
       if (banned) return;
