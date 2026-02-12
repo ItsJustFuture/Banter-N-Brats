@@ -16504,6 +16504,13 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   font-style: italic;
 }
 
+.friend-last-seen {
+  font-size: 0.85em;
+  color: var(--text-secondary, #9aa0a6);
+  font-style: italic;
+  opacity: 0.8;
+}
+
 .btn-message-friend {
   background: none;
   border: none;

@@ -1331,12 +1331,34 @@ async function awardBadge(username, badge_id) {
   const safeName = String(username || "").trim();
   const safeBadge = String(badge_id || "").trim();
   if (!safeName || !safeBadge) return null;
+  
+  // Check if badge already exists
+  const existing = await all(
+    `SELECT id FROM user_badges WHERE username COLLATE NOCASE = ? AND badge_id = ? LIMIT 1`,
+    [safeName, safeBadge]
+  );
+  if (existing && existing.length > 0) {
+    // Already has badge - return success but indicate it's already owned
+    const badgeInfo = await all(
+      `SELECT name, emoji FROM badge_definitions WHERE badge_id = ? LIMIT 1`,
+      [safeBadge]
+    );
+    return { success: true, alreadyOwned: true, badgeInfo: badgeInfo[0] || {} };
+  }
+  
   await run(
     `INSERT OR IGNORE INTO user_badges (username, badge_id, earned_at)
      VALUES (?, ?, ?)`,
     [safeName, safeBadge, Date.now()]
   );
-  return true;
+  
+  // Get badge info for activity feed
+  const badgeInfo = await all(
+    `SELECT name, emoji FROM badge_definitions WHERE badge_id = ? LIMIT 1`,
+    [safeBadge]
+  );
+  
+  return { success: true, alreadyOwned: false, badgeInfo: badgeInfo[0] || {} };
 }
 
 async function seedDevUser({ username, password, role }) {

@@ -25936,23 +25936,61 @@ function renderFriendsList() {
   const container = document.getElementById('friends-list');
   if (!container) return;
   
-  // Sort friends by status
+  // Sort friends: online first, then idle, then offline (by last seen)
   const sorted = friendsList.sort((a, b) => {
-    const statusOrder = { online: 0, idle: 1, dnd: 2, offline: 3 };
-    return statusOrder[a.status] - statusOrder[b.status];
+    // Online friends first
+    if (a.online && !b.online) return -1;
+    if (!a.online && b.online) return 1;
+    
+    // If both online or both offline, sort by name
+    if (a.online === b.online) {
+      return (a.username || '').localeCompare(b.username || '');
+    }
+    
+    // Sort offline by last seen (most recent first)
+    if (!a.online && !b.online) {
+      const aTime = Number(a.lastSeen || 0);
+      const bTime = Number(b.lastSeen || 0);
+      return bTime - aTime;
+    }
+    
+    return 0;
   });
   
-  container.innerHTML = sorted.map(friend => `
-    <div class="friend-item ${escapeHtml(friend.status)}" data-username="${escapeHtml(friend.username)}">
-      <span class="friend-status-dot ${escapeHtml(friend.status)}"></span>
-      <span class="friend-name">${escapeHtml(friend.username)}</span>
-      ${friend.status !== 'offline' && friend.currentRoom ? 
-        `<span class="friend-room">${escapeHtml(friend.currentRoom)}</span>` : ''}
-      <button class="btn-message-friend" data-username="${escapeHtml(friend.username)}">
-        💬
-      </button>
-    </div>
-  `).join('');
+  container.innerHTML = sorted.map(friend => {
+    const online = friend.online;
+    const status = friend.lastStatus || 'offline';
+    let statusIndicator = '⚫'; // offline/gray
+    let statusClass = 'offline';
+    
+    if (online) {
+      if (status === 'idle' || status === 'away') {
+        statusIndicator = '🟡'; // yellow for idle
+        statusClass = 'idle';
+      } else {
+        statusIndicator = '🟢'; // green for online
+        statusClass = 'online';
+      }
+    }
+    
+    let locationText = '';
+    if (online && friend.currentRoom) {
+      locationText = `<span class="friend-room">in ${escapeHtml(friend.currentRoom)}</span>`;
+    } else if (!online && friend.lastSeen) {
+      locationText = `<span class="friend-last-seen">${formatLastSeen(friend.lastSeen)}</span>`;
+    }
+    
+    return `
+      <div class="friend-item ${statusClass}" data-username="${escapeHtml(friend.username)}">
+        <span class="friend-status-dot">${statusIndicator}</span>
+        <span class="friend-name">${escapeHtml(friend.username)}</span>
+        ${locationText}
+        <button class="btn-message-friend" data-username="${escapeHtml(friend.username)}" title="Send message">
+          💬
+        </button>
+      </div>
+    `;
+  }).join('');
   
   // Add event listeners for DM buttons
   container.querySelectorAll('.btn-message-friend').forEach(btn => {
@@ -25962,6 +26000,16 @@ function renderFriendsList() {
       openDmPicker("create", null, [username]);
     });
   });
+}
+
+function formatLastSeen(timestamp) {
+  if (!timestamp) return 'Last seen: unknown';
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return 'Last seen: just now';
+  if (seconds < 3600) return `Last seen: ${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `Last seen: ${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 86400 * 7) return `Last seen: ${Math.floor(seconds / 86400)}d ago`;
+  return 'Last seen: over a week ago';
 }
 
 function renderActivityFeed() {
@@ -25988,13 +26036,17 @@ function renderActivityFeed() {
         icon = '⬆️';
         message = `reached level ${data.level || '?'}!`;
         break;
+      case 'badge_earned':
+        icon = data.badge_emoji || '🏆';
+        message = `earned the ${data.badge_name || 'badge'}!`;
+        break;
       case 'achievement':
         icon = '🏆';
         message = `earned "${data.name || 'an achievement'}"`;
         break;
       case 'theme_unlock':
         icon = '🎨';
-        message = `unlocked ${data.theme || 'a'} theme`;
+        message = `unlocked the ${data.theme_name || 'a theme'}!`;
         break;
       default:
         message = activity.activity_type;
@@ -26004,7 +26056,7 @@ function renderActivityFeed() {
       <div class="activity-item">
         <span class="activity-icon">${icon}</span>
         <span class="activity-text">
-          <strong>${activity.username}</strong> ${message}
+          <strong>${escapeHtml(activity.username)}</strong> ${message}
         </span>
         <span class="activity-time">${formatTimeAgo(activity.created_at)}</span>
       </div>
@@ -26339,12 +26391,15 @@ initAppealsDurationSelect();
     }
   });
   
-  socket.on('friendPresenceUpdate', ({ username, status, currentRoom, timestamp }) => {
+  socket.on('friendPresenceUpdate', ({ username, status, currentRoom, online, lastSeen }) => {
     // Update friend in list
     const friend = friendsList.find(f => f.username === username);
     if (friend) {
-      friend.status = status;
+      friend.lastStatus = status;
       friend.currentRoom = currentRoom;
+      friend.online = online !== undefined ? online : (status !== 'offline');
+      if (lastSeen !== undefined) friend.lastSeen = lastSeen;
+      
       // Re-render friends list if visible
       try {
         renderFriendsList();
@@ -26353,7 +26408,7 @@ initAppealsDurationSelect();
       }
       
       // Show notification if friend came online (only if user has it enabled)
-      if (status === 'online') {
+      if (online && status === 'online') {
         // Could show a subtle notification here
       }
     }
