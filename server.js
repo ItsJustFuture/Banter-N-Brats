@@ -19811,24 +19811,25 @@ if (!room) {
     
     const videoId = String(payload.videoId || "");
     const title = String(payload.title || "Untitled");
-    const errorCode = payload.errorCode;
+    const errorCode = typeof payload.errorCode === "number" ? payload.errorCode : null;
     
     // Only process if this error is for the currently playing video
     if (!MUSIC_ROOM_QUEUE.currentVideo || MUSIC_ROOM_QUEUE.currentVideo.videoId !== videoId) {
       return;
     }
     
-    // Determine error message based on error code
-    let errorMsg = "Video unavailable";
-    if (errorCode === 100) {
-      errorMsg = "Video not found";
-    } else if (errorCode === 101 || errorCode === 150) {
-      errorMsg = "Video cannot be embedded";
-    } else if (errorCode === 2) {
-      errorMsg = "Invalid video";
-    } else if (errorCode === 5) {
-      errorMsg = "Video playback error";
-    }
+    // Map error codes to user-friendly messages
+    const ERROR_MESSAGES = {
+      2: "Invalid video",
+      5: "Video playback error",
+      100: "Video not found",
+      101: "Video cannot be embedded",
+      150: "Video cannot be embedded"
+    };
+    
+    const errorMsg = errorCode && ERROR_MESSAGES[errorCode] 
+      ? ERROR_MESSAGES[errorCode] 
+      : "Video unavailable";
     
     // Send error message to room
     const systemPayload = buildSystemPayload(
