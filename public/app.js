@@ -17664,6 +17664,13 @@ function joinRoom(room){
   socket?.emit("join room", { room, status: normalizeStatusLabel(statusSelect.value, "Online") });
   closeDrawers();
   
+  // Update presence when changing rooms
+  if (currentUserPresence) {
+    currentUserPresence.room = room;
+    socket?.emit('updatePresence', { status: currentUserPresence.status, room });
+    socket?.emit('getRoomPresence', room);
+  }
+  
   // Music room player management
   if (room === "music") {
     // Always show the music player when entering music room
@@ -25984,6 +25991,71 @@ function formatTimeAgo(timestamp) {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
+// Push Notification Subscription
+async function subscribeToPushNotifications() {
+  // Check if service worker and push are supported
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.log('[Push] Push notifications not supported');
+    return;
+  }
+
+  try {
+    // Wait for service worker to be ready
+    const registration = await navigator.serviceWorker.ready;
+    
+    // Get VAPID public key from server
+    const response = await fetch('/api/push/vapid-public-key');
+    if (!response.ok) {
+      console.log('[Push] Push notifications not configured on server');
+      return;
+    }
+    
+    const { publicKey } = await response.json();
+    
+    // Check if already subscribed
+    let subscription = await registration.pushManager.getSubscription();
+    
+    if (!subscription) {
+      // Subscribe to push notifications
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey)
+      });
+      
+      console.log('[Push] Subscribed to push notifications');
+    }
+    
+    // Send subscription to server
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ subscription })
+    });
+    
+    console.log('[Push] Subscription saved to server');
+  } catch (err) {
+    console.error('[Push] Failed to subscribe:', err);
+  }
+}
+
+// Helper to convert VAPID key
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 // ========== END PRESENCE SYSTEM FUNCTIONS ==========
 
 // start app
@@ -26031,6 +26103,11 @@ initAppealsDurationSelect();
   await loadUserPrefs();
   await loadProgression();
   renderLevelProgress(progression, true);
+  
+  // Subscribe to push notifications (async, don't wait)
+  subscribeToPushNotifications().catch(err => {
+    console.error('[Push] Subscription failed:', err);
+  });
 
   setRightPanelMode("rooms");
   setMenuTab(activeMenuTab);
