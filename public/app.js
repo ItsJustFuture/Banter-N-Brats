@@ -25865,7 +25865,22 @@ refreshLogsBtn.addEventListener("click", refreshLogs);
 
 // ========== PRESENCE SYSTEM FUNCTIONS ==========
 
+// One-time initialization guard to prevent duplicate listeners on reconnect
+let presenceSystemInitialized = false;
+let presenceIdleInterval = null;
+let presenceHeartbeatInterval = null;
+
 function initializePresenceSystem() {
+  // Guard against multiple initializations
+  if (presenceSystemInitialized) {
+    // Just update presence on reconnect
+    currentUserPresence.room = currentRoom;
+    socket.emit('updatePresence', { status: 'online', room: currentRoom });
+    return;
+  }
+  
+  presenceSystemInitialized = true;
+  
   // Update presence on load
   currentUserPresence.room = currentRoom;
   socket.emit('updatePresence', { status: 'online', room: currentRoom });
@@ -25883,8 +25898,15 @@ function initializePresenceSystem() {
     }, { passive: true });
   });
   
+  // Send periodic heartbeat to keep lastSeen updated (every 2 minutes)
+  presenceHeartbeatInterval = setInterval(() => {
+    if (socket && socket.connected) {
+      socket.emit('updatePresence', { status: currentUserPresence.status, room: currentRoom });
+    }
+  }, 120000);
+  
   // Check for idle every 30 seconds
-  setInterval(() => {
+  presenceIdleInterval = setInterval(() => {
     const idleTime = Date.now() - lastActivity;
     if (idleTime > 5 * 60 * 1000 && currentUserPresence.status === 'online') {
       currentUserPresence.status = 'idle';
@@ -25921,12 +25943,12 @@ function renderFriendsList() {
   });
   
   container.innerHTML = sorted.map(friend => `
-    <div class="friend-item ${friend.status}" data-username="${friend.username}">
-      <span class="friend-status-dot ${friend.status}"></span>
-      <span class="friend-name">${friend.username}</span>
+    <div class="friend-item ${escapeHtml(friend.status)}" data-username="${escapeHtml(friend.username)}">
+      <span class="friend-status-dot ${escapeHtml(friend.status)}"></span>
+      <span class="friend-name">${escapeHtml(friend.username)}</span>
       ${friend.status !== 'offline' && friend.currentRoom ? 
-        `<span class="friend-room">${friend.currentRoom}</span>` : ''}
-      <button class="btn-message-friend" data-username="${friend.username}">
+        `<span class="friend-room">${escapeHtml(friend.currentRoom)}</span>` : ''}
+      <button class="btn-message-friend" data-username="${escapeHtml(friend.username)}">
         💬
       </button>
     </div>
@@ -25936,7 +25958,8 @@ function renderFriendsList() {
   container.querySelectorAll('.btn-message-friend').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const username = e.target.dataset.username;
-      openDm(username);
+      // Use the existing DM picker to start a conversation
+      openDmPicker("create", null, [username]);
     });
   });
 }
@@ -26277,14 +26300,21 @@ initAppealsDurationSelect();
         <span class="presence-count">${users.length} online</span>
       </div>
       <div class="presence-list">
-        ${users.map(user => `
-          <div class="presence-user" data-username="${user.username}">
-            <span class="presence-status ${user.status}"></span>
-            <span class="presence-username" style="color: var(--role-${user.role}-color)">
-              ${user.username}
-            </span>
-          </div>
-        `).join('')}
+        ${users.map(user => {
+          // Escape HTML and normalize role for data attribute
+          const safeUsername = escapeHtml(user.username);
+          const safeStatus = escapeHtml(user.status);
+          const safeRole = String(user.role || 'User').toLowerCase().replace(/\s+/g, '-');
+          
+          return `
+            <div class="presence-user" data-username="${safeUsername}" data-role="${safeRole}">
+              <span class="presence-status ${safeStatus}"></span>
+              <span class="presence-username">
+                ${safeUsername}
+              </span>
+            </div>
+          `;
+        }).join('')}
       </div>
     `;
   });

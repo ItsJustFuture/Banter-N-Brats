@@ -121,12 +121,26 @@ self.addEventListener('fetch', (event) => {
 
 // Push notification handler
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
+  let data = {};
+
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (err) {
+      // Fallback: try to use raw text payload as the notification body
+      try {
+        const text = event.data.text();
+        data = { body: text };
+      } catch (innerErr) {
+        data = {};
+      }
+    }
+  }
   
   const options = {
     body: data.body || 'New message',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/badge-72.png',
+    icon: '/uploads/icon-192x192.png',
+    badge: '/uploads/icon-192x192.png',
     tag: data.tag || 'default',
     data: {
       url: data.url || '/',
@@ -147,19 +161,20 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
   const urlToOpen = event.notification.data?.url || '/';
+  const absoluteUrlToOpen = new URL(urlToOpen, self.location.origin).href;
   
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
         // Check if window is already open
         for (const client of clientList) {
-          if (client.url === urlToOpen && 'focus' in client) {
+          if (client.url === absoluteUrlToOpen && 'focus' in client) {
             return client.focus();
           }
         }
         // Open new window
         if (clients.openWindow) {
-          return clients.openWindow(urlToOpen);
+          return clients.openWindow(absoluteUrlToOpen);
         }
       })
   );
