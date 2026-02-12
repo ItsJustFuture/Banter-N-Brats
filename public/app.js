@@ -26864,6 +26864,20 @@ socket.on("mod:case_event", (payload = {}) => {
       return;
     }
     if (!room) return;
+    
+    // Step 8: Hard room filter - defensive filtering to prevent UI bleed
+    // Check both resolvedRoomId and payload.roomId
+    if (payload.roomId && payload.roomId !== currentRoomId && payload.roomId !== getRoomIdFromName(currentRoom)) {
+      if (IS_DEV) {
+        console.warn("[system] Filtered message from wrong room", { 
+          payloadRoomId: payload.roomId, 
+          currentRoomId, 
+          currentRoom 
+        });
+      }
+      return;
+    }
+    
     if (resolvedRoomId && currentRoomId && resolvedRoomId !== currentRoomId) return;
     if (!resolvedRoomId && room !== currentRoom) return;
 

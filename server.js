@@ -18413,18 +18413,35 @@ enforceVipGate(desired, (allowed) => {
 
       });
 
+  // Alias handler for joinRoom (compatibility with Step 1 spec)
+  // Delegates to existing doJoin function which properly handles leave/join logic
+  socket.on("joinRoom", async (roomId) => {
+    try {
+      if (!roomId || typeof roomId !== "string") {
+        console.error("joinRoom: Invalid roomId");
+        return;
+      }
+      
+      // Use existing doJoin which handles all the proper leave/join logic
+      doJoin(roomId, socket.user?.status || "Online");
+    } catch (err) {
+      console.error("Join room error:", err);
+    }
+  });
+
   // Dice Room mini-game
   socket.on("dice:roll", (payload = {}) => {
     const room = socket.currentRoom;
+    
+    // Hard room validation guard (Step 7)
+    if (!socket.currentRoom || socket.currentRoom !== "diceroom") {
+      socket.emit("dice:error", "You can only roll dice in Dice Room.");
+      return;
+    }
+    
     const requestedRoom = typeof payload.room === "string" ? sanitizeRoomName(payload.room) : null;
     if (requestedRoom && requestedRoom !== room) {
       socket.emit("dice:error", "Invalid room for dice roll.");
-      return;
-
-
-    }
-    if (room !== "diceroom") {
-      socket.emit("dice:error", "You can only roll dice in Dice Room.");
       return;
     }
 
@@ -18766,6 +18783,25 @@ function doJoin(room, status) {
   }
   socket.currentRoom = targetRoom;
   socket.data.currentRoom = targetRoom;
+  
+  // Step 9: Verify no multi-room subscriptions (debug mode)
+  if (DEBUG_ROOMS && socket.rooms) {
+    const rooms = Array.from(socket.rooms);
+    console.log("[rooms] socket.rooms verification", { 
+      socketId: socket.id, 
+      rooms: rooms,
+      currentRoom: targetRoom 
+    });
+    // Expected: socket.rooms should contain socket.id (private room) and one chat room
+    const chatRooms = rooms.filter(r => r !== socket.id && !r.startsWith('dm:') && !r.startsWith('chess:'));
+    if (chatRooms.length > 1) {
+      console.warn("[rooms] WARNING: Socket in multiple chat rooms!", { 
+        socketId: socket.id, 
+        chatRooms 
+      });
+    }
+  }
+  
   if (previousRoom && previousRoom !== targetRoom) {
     handleTicTacToePlayerExit(previousRoom, socket.user, "room-change");
   }
