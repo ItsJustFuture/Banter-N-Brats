@@ -8382,7 +8382,7 @@ const MusicRoomPlayer = (() => {
           let startSeconds = 0;
           if (startedAt) {
             const elapsedMs = Date.now() - startedAt;
-            startSeconds = Math.max(0, elapsedMs / MS_TO_SECONDS);  // Use float for precision
+            startSeconds = Math.max(0, elapsedMs / MS_TO_SECONDS);  // Use float division (not Math.floor) for sub-second precision when seeking
           }
           
           // Reset autoplay flag for new video
@@ -8563,7 +8563,7 @@ const MusicRoomPlayer = (() => {
     pause,
     resume,
     setVolume,
-    handleSync  // Expose handleSync
+    handleSync  // Expose for socket event handler to call
   };
 })();
 

@@ -258,7 +258,7 @@ function skipToNextVideo(io) {
       startedAt: MUSIC_ROOM_QUEUE.currentVideo.startedAt
     });
     
-    // Start periodic sync broadcast
+    // Start sync broadcast now that video playback has begun
     startSyncBroadcast();
     
     io.to("music").emit("music:queue", {
@@ -269,7 +269,7 @@ function skipToNextVideo(io) {
     MUSIC_ROOM_QUEUE.currentVideo = null;
     MUSIC_ROOM_QUEUE.nowPlaying = false;
     io.to("music").emit("music:stop");
-    stopSyncBroadcast();  // Stop sync when no video playing
+    stopSyncBroadcast();  // Stop sync to prevent emitting events for non-existent video
   }
 }
 

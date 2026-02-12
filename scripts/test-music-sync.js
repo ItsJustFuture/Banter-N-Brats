@@ -113,7 +113,7 @@ test("Client has ensureAutoplay function", () => {
 
 // Test 11: Client exposes handleSync in return statement
 test("Client exposes handleSync in MusicRoomPlayer", () => {
-  if (!appCode.includes('handleSync  // Expose handleSync')) {
+  if (!appCode.includes('handleSync  // Expose for socket event handler to call')) {
     throw new Error('handleSync not exposed in MusicRoomPlayer return statement');
   }
 });
@@ -140,7 +140,7 @@ test("Client has sync state variables", () => {
 
 // Test 14: Client uses float precision for startSeconds
 test("Client uses float precision for startSeconds", () => {
-  if (!appCode.includes('startSeconds = Math.max(0, elapsedMs / MS_TO_SECONDS);  // Use float for precision')) {
+  if (!appCode.includes('startSeconds = Math.max(0, elapsedMs / MS_TO_SECONDS);  // Use float division (not Math.floor) for sub-second precision when seeking')) {
     throw new Error('Float precision not used for startSeconds');
   }
 });
