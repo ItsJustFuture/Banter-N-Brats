@@ -118,3 +118,70 @@ self.addEventListener('fetch', (event) => {
       })
   );
 });
+
+// Push notification handler
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : {};
+  
+  const options = {
+    body: data.body || 'New message',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/badge-72.png',
+    tag: data.tag || 'default',
+    data: {
+      url: data.url || '/',
+      timestamp: Date.now()
+    },
+    actions: data.actions || [],
+    vibrate: [200, 100, 200],
+    requireInteraction: data.requireInteraction || false
+  };
+  
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Banter & Brats', options)
+  );
+});
+
+// Notification click handler
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  
+  const urlToOpen = event.notification.data?.url || '/';
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Check if window is already open
+        for (const client of clientList) {
+          if (client.url === urlToOpen && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        // Open new window
+        if (clients.openWindow) {
+          return clients.openWindow(urlToOpen);
+        }
+      })
+  );
+});
+
+// Background sync for offline messages
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-messages') {
+    event.waitUntil(syncOfflineMessages());
+  }
+});
+
+async function syncOfflineMessages() {
+  const cache = await caches.open('offline-messages');
+  const requests = await cache.keys();
+  
+  for (const request of requests) {
+    try {
+      await fetch(request.clone());
+      await cache.delete(request);
+    } catch (err) {
+      console.error('Failed to sync message:', err);
+    }
+  }
+}

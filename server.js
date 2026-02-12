@@ -89,6 +89,12 @@ const MUSIC_QUEUE_MAX_SIZE = 100; // Maximum queue size
 const SYNC_BROADCAST_INTERVAL_MS = 2000; // Interval for broadcasting sync updates (2 seconds)
 const MS_TO_SECONDS = 1000; // Milliseconds to seconds conversion
 
+// Presence System Constants
+const USER_PRESENCE_MAP = new Map(); // socketId -> { username, status, room, lastSeen }
+const USER_SOCKET_MAP = new Map(); // username -> Set of socketIds (multiple tabs)
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const PRESENCE_BROADCAST_INTERVAL_MS = 30 * 1000; // 30 seconds
+
 // Broadcast current playback state for client synchronization
 function broadcastMusicSync() {
   if (!MUSIC_ROOM_QUEUE.currentVideo || MUSIC_ROOM_QUEUE.isPaused) return;
@@ -231,6 +237,98 @@ function shuffleArray(array) {
     [array[i], array[j]] = [array[j], array[i]];
   }
   return array;
+}
+
+// ========== PRESENCE SYSTEM HELPERS ==========
+
+// Presence update helper
+async function updateUserPresence(username, status, currentRoom = null, socketId = null) {
+  const now = Date.now();
+  
+  // Update database
+  try {
+    await dbRunAsync(`
+      INSERT INTO user_presence (username, status, last_seen, current_room, socket_id)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(username) DO UPDATE SET
+        status = excluded.status,
+        last_seen = excluded.last_seen,
+        current_room = excluded.current_room,
+        socket_id = excluded.socket_id
+    `, [username, status, now, currentRoom, socketId]);
+  } catch (err) {
+    console.error('[Presence] Failed to update database:', err);
+  }
+  
+  // Update in-memory map
+  if (socketId) {
+    USER_PRESENCE_MAP.set(socketId, { username, status, room: currentRoom, lastSeen: now });
+    
+    if (!USER_SOCKET_MAP.has(username)) {
+      USER_SOCKET_MAP.set(username, new Set());
+    }
+    USER_SOCKET_MAP.get(username).add(socketId);
+  }
+  
+  // Broadcast presence update to friends
+  await broadcastPresenceToFriends(username, status, currentRoom);
+}
+
+// Get room presence
+async function getRoomPresence(roomId) {
+  const users = [];
+  
+  for (const [socketId, presence] of USER_PRESENCE_MAP.entries()) {
+    if (presence.room === roomId) {
+      try {
+        const userRow = await dbGetAsync('SELECT username, role FROM users WHERE username = ?', [presence.username]);
+        if (userRow) {
+          users.push({
+            username: presence.username,
+            status: presence.status,
+            role: userRow.role,
+            lastSeen: presence.lastSeen
+          });
+        }
+      } catch (err) {
+        console.error('[Presence] Failed to get user role:', err);
+      }
+    }
+  }
+  
+  return users;
+}
+
+// Broadcast presence to user's friends
+async function broadcastPresenceToFriends(username, status, currentRoom) {
+  try {
+    // Get user's friends
+    const friends = await dbAllAsync(`
+      SELECT CASE 
+        WHEN user1 = ? THEN user2 
+        ELSE user1 
+      END as friend_username
+      FROM friendships 
+      WHERE (user1 = ? OR user2 = ?) AND status = 'accepted'
+    `, [username, username, username]);
+    
+    // Get socket IDs for all friends
+    for (const friend of friends) {
+      const friendSockets = USER_SOCKET_MAP.get(friend.friend_username);
+      if (friendSockets) {
+        for (const socketId of friendSockets) {
+          io.to(socketId).emit('friendPresenceUpdate', {
+            username,
+            status,
+            currentRoom,
+            timestamp: Date.now()
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Presence] Failed to broadcast to friends:', err);
+  }
 }
 
 // Helper to skip to next video in music room
@@ -554,6 +652,7 @@ process.on("uncaughtException", (err) => {
 const { Server } = require("socket.io");
 const { createAdapter } = require("@socket.io/redis-adapter");
 const { createClient } = require("redis");
+const webPush = require("web-push");
 
 const {
   db,
@@ -3950,6 +4049,72 @@ function safeJsonParse(str, fallback) {
     return fallback;
   }
 }
+
+// ========== WEB PUSH SETUP ==========
+
+// Set VAPID keys for web push (generate with: npx web-push generate-vapid-keys)
+// For development, we'll use placeholders if not set
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webPush.setVapidDetails(
+    'mailto:admin@banterandbrats.com',
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  );
+  console.log('[WebPush] VAPID keys configured');
+} else {
+  console.log('[WebPush] VAPID keys not configured - push notifications disabled');
+}
+
+// Send push notification helper
+async function sendPushNotification(username, title, body, data = {}) {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+    return; // Push notifications not configured
+  }
+  
+  try {
+    const subscriptions = await dbAllAsync(
+      'SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE username = ?',
+      [username]
+    );
+    
+    const payload = JSON.stringify({
+      title,
+      body,
+      data,
+      timestamp: Date.now()
+    });
+    
+    const promises = subscriptions.map(async (sub) => {
+      try {
+        await webPush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: {
+              p256dh: sub.p256dh,
+              auth: sub.auth
+            }
+          },
+          payload
+        );
+      } catch (err) {
+        // Remove invalid subscription
+        if (err.statusCode === 410) {
+          await dbRunAsync('DELETE FROM push_subscriptions WHERE endpoint = ?', [sub.endpoint]);
+        }
+      }
+    });
+    
+    await Promise.all(promises);
+  } catch (err) {
+    console.error('[WebPush] Failed to send notification:', err);
+  }
+}
+
+// ========== END WEB PUSH SETUP ==========
+
 
 async function getConfigJson(key, fallback = {}) {
   const raw = await getConfigValue(key, null);
@@ -10790,6 +10955,45 @@ function enforceTextEffectAccess(customization, role) {
   };
 }
 
+// Push notification subscription endpoint
+app.post('/api/push/subscribe', requireLogin, express.json({ limit: '16kb' }), async (req, res) => {
+  try {
+    const { subscription } = req.body;
+    const username = req.session.user.username;
+    
+    if (!subscription || !subscription.endpoint || !subscription.keys) {
+      return res.status(400).json({ error: 'Invalid subscription' });
+    }
+    
+    await dbRunAsync(`
+      INSERT INTO push_subscriptions (username, endpoint, p256dh, auth, created_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(username, endpoint) DO UPDATE SET
+        p256dh = excluded.p256dh,
+        auth = excluded.auth
+    `, [
+      username,
+      subscription.endpoint,
+      subscription.keys.p256dh,
+      subscription.keys.auth,
+      Date.now()
+    ]);
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[PushSubscribe] Error:', err);
+    res.status(500).json({ error: 'Failed to save subscription' });
+  }
+});
+
+// Get VAPID public key for push notifications
+app.get('/api/push/vapid-public-key', (_req, res) => {
+  if (!VAPID_PUBLIC_KEY) {
+    return res.status(503).json({ error: 'Push notifications not configured' });
+  }
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
 app.post("/api/messages/:messageId/react", strictLimiter, requireLogin, async (req, res) => {
   try {
     const messageId = Number(req.params.messageId);
@@ -17586,6 +17790,149 @@ io.on("connection", async (socket) => {
     void emitLuckStateToSocket(socket);
   });
 
+  // === PRESENCE SYSTEM EVENT HANDLERS ===
+  
+  socket.on('updatePresence', async ({ status, room }) => {
+    const username = socket.user?.username;
+    if (username) {
+      await updateUserPresence(username, status, room, socket.id);
+    }
+  });
+  
+  socket.on('getRoomPresence', async (roomId) => {
+    const presence = await getRoomPresence(roomId);
+    socket.emit('roomPresence', { roomId, users: presence });
+  });
+  
+  // Friend system events
+  socket.on('sendFriendRequest', async ({ toUser, message }) => {
+    const fromUser = socket.user?.username;
+    if (!fromUser) return;
+    
+    try {
+      // Insert friend request
+      await dbRunAsync(`
+        INSERT INTO friendships (user1, user2, status, requested_by, created_at)
+        VALUES (?, ?, 'pending', ?, ?)
+      `, [fromUser, toUser, fromUser, Date.now()]);
+      
+      await dbRunAsync(`
+        INSERT INTO friend_requests_new (from_user, to_user, message, created_at)
+        VALUES (?, ?, ?, ?)
+      `, [fromUser, toUser, message || '', Date.now()]);
+      
+      // Notify recipient
+      const recipientSockets = USER_SOCKET_MAP.get(toUser);
+      if (recipientSockets) {
+        for (const socketId of recipientSockets) {
+          io.to(socketId).emit('friendRequestReceived', {
+            from: fromUser,
+            message: message || '',
+            timestamp: Date.now()
+          });
+        }
+      }
+      
+      socket.emit('friendRequestSent', { to: toUser, success: true });
+    } catch (err) {
+      socket.emit('friendRequestSent', { to: toUser, success: false, error: 'Request already exists' });
+    }
+  });
+  
+  socket.on('acceptFriendRequest', async ({ fromUser }) => {
+    const toUser = socket.user?.username;
+    if (!toUser) return;
+    
+    await dbRunAsync(`
+      UPDATE friendships 
+      SET status = 'accepted' 
+      WHERE user1 = ? AND user2 = ? AND status = 'pending'
+    `, [fromUser, toUser]);
+    
+    await dbRunAsync(`
+      UPDATE friend_requests_new 
+      SET read_at = ? 
+      WHERE from_user = ? AND to_user = ?
+    `, [Date.now(), fromUser, toUser]);
+    
+    // Notify both users
+    const requesterSockets = USER_SOCKET_MAP.get(fromUser);
+    if (requesterSockets) {
+      for (const socketId of requesterSockets) {
+        io.to(socketId).emit('friendRequestAccepted', { user: toUser });
+      }
+    }
+    
+    socket.emit('friendRequestAccepted', { user: fromUser });
+  });
+  
+  socket.on('getFriendsList', async () => {
+    const username = socket.user?.username;
+    if (!username) return;
+    
+    const friends = await dbAllAsync(`
+      SELECT 
+        CASE WHEN user1 = ? THEN user2 ELSE user1 END as friend_username,
+        status
+      FROM friendships 
+      WHERE (user1 = ? OR user2 = ?) AND status = 'accepted'
+    `, [username, username, username]);
+    
+    // Enrich with presence data
+    const enrichedFriends = await Promise.all(friends.map(async (f) => {
+      const presence = await dbGetAsync(
+        'SELECT status, last_seen, current_room FROM user_presence WHERE username = ?',
+        [f.friend_username]
+      );
+      return {
+        username: f.friend_username,
+        status: presence?.status || 'offline',
+        lastSeen: presence?.last_seen,
+        currentRoom: presence?.current_room
+      };
+    }));
+    
+    socket.emit('friendsList', enrichedFriends);
+  });
+  
+  socket.on('getPendingFriendRequests', async () => {
+    const username = socket.user?.username;
+    if (!username) return;
+    
+    const requests = await dbAllAsync(`
+      SELECT from_user, message, created_at 
+      FROM friend_requests_new 
+      WHERE to_user = ? AND read_at IS NULL
+      ORDER BY created_at DESC
+    `, [username]);
+    
+    socket.emit('pendingFriendRequests', requests);
+  });
+  
+  // Activity feed
+  socket.on('getActivityFeed', async ({ limit = 20 }) => {
+    const username = socket.user?.username;
+    if (!username) return;
+    
+    // Get activity from user's friends and self
+    const activities = await dbAllAsync(`
+      SELECT a.username, a.activity_type, a.activity_data, a.created_at
+      FROM activity_feed a
+      WHERE a.is_public = 1 AND (
+        a.username = ? OR
+        a.username IN (
+          SELECT CASE WHEN user1 = ? THEN user2 ELSE user1 END
+          FROM friendships
+          WHERE (user1 = ? OR user2 = ?) AND status = 'accepted'
+        )
+      )
+      ORDER BY a.created_at DESC
+      LIMIT ?
+    `, [username, username, username, username, limit]);
+    
+    socket.emit('activityFeed', activities);
+  });
+
   socket.on("disconnect", (reason) => {
     if (IS_DEV_MODE) {
       console.log("[socket] disconnect", {
@@ -17605,6 +17952,22 @@ io.on("connection", async (socket) => {
       // Clear music votes when user disconnects
       if (uid) {
         clearUserMusicVotes(uid);
+      }
+      
+      // Handle presence cleanup
+      const username = socket.user?.username;
+      if (username) {
+        const userSockets = USER_SOCKET_MAP.get(username);
+        if (userSockets) {
+          userSockets.delete(socket.id);
+          
+          // If no more sockets, mark as offline
+          if (userSockets.size === 0) {
+            void updateUserPresence(username, 'offline', null, null);
+            USER_SOCKET_MAP.delete(username);
+          }
+        }
+        USER_PRESENCE_MAP.delete(socket.id);
       }
     } catch (err) {
       if (IS_DEV_MODE) {
@@ -21134,6 +21497,17 @@ async function startServer() {
       resolve();
     });
   });
+  
+  // Start periodic presence cleanup (mark idle users)
+  setInterval(async () => {
+    const now = Date.now();
+    for (const [socketId, presence] of USER_PRESENCE_MAP.entries()) {
+      if (presence.status === 'online' && (now - presence.lastSeen) > IDLE_TIMEOUT_MS) {
+        await updateUserPresence(presence.username, 'idle', presence.room, socketId);
+      }
+    }
+  }, PRESENCE_BROADCAST_INTERVAL_MS);
+  
   return httpServer;
 }
 
