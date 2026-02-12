@@ -1132,6 +1132,94 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
     ('lovebirds', 'Lovebirds', 'Coupled for 6+ months', '💝', 'rare', 'special')
   `);
 
+  // --- Presence System Tables
+  await run(`
+    CREATE TABLE IF NOT EXISTS user_presence (
+      username TEXT PRIMARY KEY,
+      status TEXT DEFAULT 'offline',
+      last_seen INTEGER NOT NULL,
+      current_room TEXT,
+      socket_id TEXT
+    )
+  `);
+  await run(`CREATE INDEX IF NOT EXISTS idx_presence_status ON user_presence(status)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_presence_room ON user_presence(current_room)`);
+
+  // Note: friendships table uses username strings instead of user IDs for compatibility
+  await run(`
+    CREATE TABLE IF NOT EXISTS friendships (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user1 TEXT NOT NULL,
+      user2 TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      requested_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE(user1, user2)
+    )
+  `);
+  await run(`CREATE INDEX IF NOT EXISTS idx_friendships_user1 ON friendships(user1)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_friendships_user2 ON friendships(user2)`);
+  // Add canonical ordering constraint to prevent duplicate friendships in reverse order
+  await run(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_friendships_pair_canonical
+    ON friendships (
+      CASE WHEN user1 < user2 THEN user1 ELSE user2 END,
+      CASE WHEN user1 < user2 THEN user2 ELSE user1 END
+    )
+  `);
+
+  // Note: friend_requests_new uses username strings for the new friend system
+  await run(`
+    CREATE TABLE IF NOT EXISTS friend_requests_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_user TEXT NOT NULL,
+      to_user TEXT NOT NULL,
+      message TEXT,
+      created_at INTEGER NOT NULL,
+      read_at INTEGER,
+      UNIQUE(from_user, to_user)
+    )
+  `);
+  await run(`CREATE INDEX IF NOT EXISTS idx_friend_requests_new_to_user_read_at ON friend_requests_new(to_user, read_at)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_friend_requests_new_from_user ON friend_requests_new(from_user)`);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS activity_feed (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL,
+      activity_type TEXT NOT NULL,
+      activity_data TEXT,
+      created_at INTEGER NOT NULL,
+      is_public INTEGER DEFAULT 1
+    )
+  `);
+  await run(`CREATE INDEX IF NOT EXISTS idx_activity_feed_user ON activity_feed(username)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_activity_feed_time ON activity_feed(created_at)`);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS notification_settings (
+      username TEXT PRIMARY KEY,
+      friend_online INTEGER DEFAULT 1,
+      mentions INTEGER DEFAULT 1,
+      direct_messages INTEGER DEFAULT 1,
+      activity_feed INTEGER DEFAULT 1,
+      sound_enabled INTEGER DEFAULT 1
+    )
+  `);
+
+  // Push subscriptions for PWA notifications
+  await run(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE(username, endpoint)
+    )
+  `);
+
 
 // --- Fixed role assignments
   await run("UPDATE users SET role='Owner' WHERE lower(username)='iri'");

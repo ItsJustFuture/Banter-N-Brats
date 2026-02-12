@@ -1,12 +1,13 @@
 {
   "name": "Banter & Brats",
-  "short_name": "Banter & Brats",
-  "description": "18+ community chat built for rooms, DMs, and a little chaos.",
+  "short_name": "B&B",
+  "description": "Real-time chat with games, themes, and friends",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a2e",
-  "theme_color": "#6c5ce7",
-  "orientation": "portrait-primary",
+  "theme_color": "#7c3aed",
+  "orientation": "any",
+  "scope": "/",
   "icons": [
     {
       "src": "/uploads/icon-192x192.png",
@@ -22,6 +23,19 @@
     }
   ],
   "categories": ["social", "entertainment"],
-  "scope": "/",
-  "lang": "en-US"
+  "lang": "en-US",
+  "shortcuts": [
+    {
+      "name": "Main Chat",
+      "short_name": "Chat",
+      "description": "Open main chat room",
+      "url": "/?room=main"
+    },
+    {
+      "name": "Friends",
+      "short_name": "Friends",
+      "description": "View friends list",
+      "url": "/?view=friends"
+    }
+  ]
 }

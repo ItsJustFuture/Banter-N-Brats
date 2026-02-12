@@ -961,6 +961,16 @@ let profileLikeState = { count: 0, liked: false, isSelf: false };
 let modalFriendInfo = null;
 let currentRoom = "main";
 let featureFlags = {};
+
+// Presence System State
+let currentUserPresence = {
+  status: 'online',
+  room: null
+};
+let friendsList = [];
+let activityFeed = [];
+let pendingFriendRequests = [];
+
 let memoryFeatureAvailable = false;
 let memoryEnabled = false;
 let memorySettingsLoaded = false;
@@ -17654,6 +17664,13 @@ function joinRoom(room){
   socket?.emit("join room", { room, status: normalizeStatusLabel(statusSelect.value, "Online") });
   closeDrawers();
   
+  // Update presence when changing rooms
+  if (currentUserPresence) {
+    currentUserPresence.room = room;
+    socket?.emit('updatePresence', { status: currentUserPresence.status, room });
+    socket?.emit('getRoomPresence', room);
+  }
+  
   // Music room player management
   if (room === "music") {
     // Always show the music player when entering music room
@@ -25846,6 +25863,230 @@ async function refreshLogs(){
 }
 refreshLogsBtn.addEventListener("click", refreshLogs);
 
+// ========== PRESENCE SYSTEM FUNCTIONS ==========
+
+// One-time initialization guard to prevent duplicate listeners on reconnect
+let presenceSystemInitialized = false;
+let presenceIdleInterval = null;
+let presenceHeartbeatInterval = null;
+
+function initializePresenceSystem() {
+  // Guard against multiple initializations
+  if (presenceSystemInitialized) {
+    // Just update presence on reconnect
+    currentUserPresence.room = currentRoom;
+    socket.emit('updatePresence', { status: 'online', room: currentRoom });
+    return;
+  }
+  
+  presenceSystemInitialized = true;
+  
+  // Update presence on load
+  currentUserPresence.room = currentRoom;
+  socket.emit('updatePresence', { status: 'online', room: currentRoom });
+  
+  // Track user activity for idle detection
+  let lastActivity = Date.now();
+  
+  ['mousemove', 'keypress', 'click', 'scroll', 'touchstart'].forEach(event => {
+    document.addEventListener(event, () => {
+      lastActivity = Date.now();
+      if (currentUserPresence.status === 'idle') {
+        currentUserPresence.status = 'online';
+        socket.emit('updatePresence', { status: 'online', room: currentRoom });
+      }
+    }, { passive: true });
+  });
+  
+  // Send periodic heartbeat to keep lastSeen updated (every 2 minutes)
+  presenceHeartbeatInterval = setInterval(() => {
+    if (socket && socket.connected) {
+      socket.emit('updatePresence', { status: currentUserPresence.status, room: currentRoom });
+    }
+  }, 120000);
+  
+  // Check for idle every 30 seconds
+  presenceIdleInterval = setInterval(() => {
+    const idleTime = Date.now() - lastActivity;
+    if (idleTime > 5 * 60 * 1000 && currentUserPresence.status === 'online') {
+      currentUserPresence.status = 'idle';
+      socket.emit('updatePresence', { status: 'idle', room: currentRoom });
+    }
+  }, 30000);
+  
+  // Handle visibility change (tab focus)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      // Tab is hidden - could mark as idle after delay
+    } else {
+      // Tab is visible - mark as online
+      lastActivity = Date.now();
+      currentUserPresence.status = 'online';
+      socket.emit('updatePresence', { status: 'online', room: currentRoom });
+    }
+  });
+  
+  // Load friends and activity feed
+  socket.emit('getFriendsList');
+  socket.emit('getActivityFeed', { limit: 20 });
+  socket.emit('getPendingFriendRequests');
+}
+
+function renderFriendsList() {
+  const container = document.getElementById('friends-list');
+  if (!container) return;
+  
+  // Sort friends by status
+  const sorted = friendsList.sort((a, b) => {
+    const statusOrder = { online: 0, idle: 1, dnd: 2, offline: 3 };
+    return statusOrder[a.status] - statusOrder[b.status];
+  });
+  
+  container.innerHTML = sorted.map(friend => `
+    <div class="friend-item ${escapeHtml(friend.status)}" data-username="${escapeHtml(friend.username)}">
+      <span class="friend-status-dot ${escapeHtml(friend.status)}"></span>
+      <span class="friend-name">${escapeHtml(friend.username)}</span>
+      ${friend.status !== 'offline' && friend.currentRoom ? 
+        `<span class="friend-room">${escapeHtml(friend.currentRoom)}</span>` : ''}
+      <button class="btn-message-friend" data-username="${escapeHtml(friend.username)}">
+        💬
+      </button>
+    </div>
+  `).join('');
+  
+  // Add event listeners for DM buttons
+  container.querySelectorAll('.btn-message-friend').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const username = e.target.dataset.username;
+      // Use the existing DM picker to start a conversation
+      openDmPicker("create", null, [username]);
+    });
+  });
+}
+
+function renderActivityFeed() {
+  const container = document.getElementById('activity-feed');
+  if (!container) return;
+  
+  container.innerHTML = activityFeed.map(activity => {
+    let data = {};
+    try {
+      data = JSON.parse(activity.activity_data || '{}');
+    } catch (err) {
+      console.warn('[ActivityFeed] Invalid JSON in activity_data:', err);
+    }
+    
+    let icon = '🎉';
+    let message = '';
+    
+    switch(activity.activity_type) {
+      case 'chess_win':
+        icon = '♟️';
+        message = `won a chess game!`;
+        break;
+      case 'level_up':
+        icon = '⬆️';
+        message = `reached level ${data.level || '?'}!`;
+        break;
+      case 'achievement':
+        icon = '🏆';
+        message = `earned "${data.name || 'an achievement'}"`;
+        break;
+      case 'theme_unlock':
+        icon = '🎨';
+        message = `unlocked ${data.theme || 'a'} theme`;
+        break;
+      default:
+        message = activity.activity_type;
+    }
+    
+    return `
+      <div class="activity-item">
+        <span class="activity-icon">${icon}</span>
+        <span class="activity-text">
+          <strong>${activity.username}</strong> ${message}
+        </span>
+        <span class="activity-time">${formatTimeAgo(activity.created_at)}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function formatTimeAgo(timestamp) {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+// Push Notification Subscription
+async function subscribeToPushNotifications() {
+  // Check if service worker and push are supported
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.log('[Push] Push notifications not supported');
+    return;
+  }
+
+  try {
+    // Wait for service worker to be ready
+    const registration = await navigator.serviceWorker.ready;
+    
+    // Get VAPID public key from server
+    const response = await fetch('/api/push/vapid-public-key');
+    if (!response.ok) {
+      console.log('[Push] Push notifications not configured on server');
+      return;
+    }
+    
+    const { publicKey } = await response.json();
+    
+    // Check if already subscribed
+    let subscription = await registration.pushManager.getSubscription();
+    
+    if (!subscription) {
+      // Subscribe to push notifications
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey)
+      });
+      
+      console.log('[Push] Subscribed to push notifications');
+    }
+    
+    // Send subscription to server
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ subscription })
+    });
+    
+    console.log('[Push] Subscription saved to server');
+  } catch (err) {
+    console.error('[Push] Failed to subscribe:', err);
+  }
+}
+
+// Helper to convert VAPID key
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// ========== END PRESENCE SYSTEM FUNCTIONS ==========
+
 // start app
 async function initChatApp(){
   const sessionUser = await validateSession();
@@ -25891,6 +26132,11 @@ initAppealsDurationSelect();
   await loadUserPrefs();
   await loadProgression();
   renderLevelProgress(progression, true);
+  
+  // Subscribe to push notifications (async, don't wait)
+  subscribeToPushNotifications().catch(err => {
+    console.error('[Push] Subscription failed:', err);
+  });
 
   setRightPanelMode("rooms");
   setMenuTab(activeMenuTab);
@@ -26038,6 +26284,101 @@ initAppealsDurationSelect();
     }
     // Process queued messages now that server is ready
     processOutgoingQueue();
+    
+    // Initialize presence system
+    initializePresenceSystem();
+  });
+
+  // === PRESENCE SYSTEM EVENT HANDLERS ===
+  
+  socket.on('roomPresence', ({ roomId, users }) => {
+    const presenceContainer = document.getElementById('room-presence');
+    if (!presenceContainer) return;
+    
+    presenceContainer.innerHTML = `
+      <div class="presence-header">
+        <span class="presence-count">${users.length} online</span>
+      </div>
+      <div class="presence-list">
+        ${users.map(user => {
+          // Escape HTML and normalize role for data attribute
+          const safeUsername = escapeHtml(user.username);
+          const safeStatus = escapeHtml(user.status);
+          const safeRole = String(user.role || 'User').toLowerCase().replace(/\s+/g, '-');
+          
+          return `
+            <div class="presence-user" data-username="${safeUsername}" data-role="${safeRole}">
+              <span class="presence-status ${safeStatus}"></span>
+              <span class="presence-username">
+                ${safeUsername}
+              </span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  });
+  
+  socket.on('friendRequestReceived', ({ from, message, timestamp }) => {
+    showToast(`Friend Request from ${from}`, { durationMs: 3000 });
+    // Refresh friend requests list if visible
+    try {
+      socket.emit('getPendingFriendRequests');
+    } catch (err) {
+      console.debug('[Friends] Failed to refresh requests:', err);
+    }
+  });
+  
+  socket.on('friendRequestAccepted', ({ user }) => {
+    showToast(`${user} accepted your friend request!`, { durationMs: 3000 });
+    // Refresh friends list
+    try {
+      socket.emit('getFriendsList');
+    } catch (err) {
+      console.debug('[Friends] Failed to refresh list:', err);
+    }
+  });
+  
+  socket.on('friendPresenceUpdate', ({ username, status, currentRoom, timestamp }) => {
+    // Update friend in list
+    const friend = friendsList.find(f => f.username === username);
+    if (friend) {
+      friend.status = status;
+      friend.currentRoom = currentRoom;
+      // Re-render friends list if visible
+      try {
+        renderFriendsList();
+      } catch (err) {
+        console.debug('[Friends] Failed to render list:', err);
+      }
+      
+      // Show notification if friend came online (only if user has it enabled)
+      if (status === 'online') {
+        // Could show a subtle notification here
+      }
+    }
+  });
+  
+  socket.on('friendsList', (friends) => {
+    friendsList = friends || [];
+    renderFriendsList();
+  });
+  
+  socket.on('activityFeed', (activities) => {
+    activityFeed = activities || [];
+    renderActivityFeed();
+  });
+  
+  socket.on('pendingFriendRequests', (requests) => {
+    pendingFriendRequests = requests || [];
+    // Update UI badge count if present
+    const badge = document.getElementById('friend-requests-badge');
+    if (badge && pendingFriendRequests.length > 0) {
+      badge.textContent = pendingFriendRequests.length;
+      badge.style.display = 'inline-block';
+    } else if (badge) {
+      badge.style.display = 'none';
+    }
   });
 
   socket.on("restriction:status", async (payload) => {

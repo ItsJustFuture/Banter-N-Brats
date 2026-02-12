@@ -118,3 +118,91 @@ self.addEventListener('fetch', (event) => {
       })
   );
 });
+
+// Push notification handler
+self.addEventListener('push', (event) => {
+  let data = {};
+
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (err) {
+      // Fallback: try to use raw text payload as the notification body
+      try {
+        const text = event.data.text();
+        data = { body: text };
+      } catch (innerErr) {
+        data = {};
+      }
+    }
+  }
+  
+  const options = {
+    body: data.body || 'New message',
+    icon: '/uploads/icon-192x192.png',
+    badge: '/uploads/icon-192x192.png',
+    tag: data.tag || 'default',
+    data: {
+      url: data.url || '/',
+      timestamp: Date.now()
+    },
+    actions: data.actions || [],
+    vibrate: [200, 100, 200],
+    requireInteraction: data.requireInteraction || false
+  };
+  
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Banter & Brats', options)
+  );
+});
+
+// Notification click handler
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  
+  const urlToOpen = event.notification.data?.url || '/';
+  const absoluteUrlToOpen = new URL(urlToOpen, self.location.origin).href;
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Check if window is already open
+        for (const client of clientList) {
+          if (client.url === absoluteUrlToOpen && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        // Open new window
+        if (clients.openWindow) {
+          return clients.openWindow(absoluteUrlToOpen);
+        }
+      })
+  );
+});
+
+// Background sync for offline messages
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-messages') {
+    event.waitUntil(syncOfflineMessages());
+  }
+});
+
+async function syncOfflineMessages() {
+  const cache = await caches.open('offline-messages');
+  const requests = await cache.keys();
+  
+  for (const request of requests) {
+    try {
+      const response = await fetch(request.clone());
+      // Only delete from cache if request was successful
+      if (response.ok) {
+        await cache.delete(request);
+      } else {
+        console.error('[SW] Failed to sync message, will retry later:', response.status);
+      }
+    } catch (err) {
+      console.error('[SW] Failed to sync message:', err);
+      // Keep in cache for retry
+    }
+  }
+}
