@@ -9975,6 +9975,18 @@ function dayKeyNow() {
   return `${y}-${m}-${da}`;
 }
 
+// Helper function to check if a message has valid content
+function hasValidMessageContent(text, attachmentUrl) {
+  const hasText = text && String(text).trim().length > 0;
+  const hasAttachment = attachmentUrl && String(attachmentUrl).trim().length > 0;
+  return hasText || hasAttachment;
+}
+
+// Helper function to build composite challenge key
+function buildChallengeKey(challengeId, goal) {
+  return `${challengeId}_goal_${goal}`;
+}
+
 const GAMIFICATION_CHALLENGE_TARGETS = {
   "daily-messages-50": 50,
   "daily-chess-3": 3,
@@ -10227,20 +10239,12 @@ async function ensureDailyChallengesExist(dayKey = dayKeyNow()) {
   // Pick challenges for the day
   const selected = pickDailyChallenges(dayKey);
   
-  // Create a mapping of challenge_id to goal for retrieval
-  const goalMap = {};
-  selected.forEach(ch => {
-    // Store goal using challenge ID + goal as a composite key
-    const compositeKey = `${ch.id}_goal_${ch.goal}`;
-    goalMap[compositeKey] = ch.goal;
-  });
-  
   // Insert challenges for both SQLite and PostgreSQL
   try {
     // Try PostgreSQL first
     if (await pgUsersEnabled()) {
       for (const challenge of selected) {
-        const compositeKey = `${challenge.id}_goal_${challenge.goal}`;
+        const compositeKey = buildChallengeKey(challenge.id, challenge.goal);
         await pgPool.query(
           `INSERT INTO daily_challenges (challenge_id, title, description, reward_type, reward_value, active_date)
            VALUES ($1, $2, $3, $4, $5, $6)
@@ -10262,7 +10266,7 @@ async function ensureDailyChallengesExist(dayKey = dayKeyNow()) {
 
   // Always insert to SQLite as fallback
   for (const challenge of selected) {
-    const compositeKey = `${challenge.id}_goal_${challenge.goal}`;
+    const compositeKey = buildChallengeKey(challenge.id, challenge.goal);
     await dbRunAsync(
       `INSERT OR IGNORE INTO daily_challenges (challenge_id, title, description, reward_type, reward_value, active_date)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -20013,9 +20017,7 @@ if (!room) {
     const sanitizedText = validators.sanitizeText(validation.data.text);
     
     // Ensure message has either text or attachment
-    const hasText = sanitizedText.trim().length > 0;
-    const hasAttachment = payload.attachmentUrl && String(payload.attachmentUrl).trim().length > 0;
-    if (!hasText && !hasAttachment) {
+    if (!hasValidMessageContent(sanitizedText, payload.attachmentUrl)) {
       socket.emit('system', buildSystemPayload(room, 'Message must contain text or an attachment.'));
       return;
     }
