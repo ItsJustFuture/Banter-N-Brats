@@ -4712,6 +4712,12 @@ async function chessFinalizeGame(game, { result, status, reason }) {
       .then((rows) => {
         const winner = rows?.[0];
         if (winner?.username) {
+          // Record chess win activity
+          void recordActivity(winner.username, 'chess_win', {
+            opponent: result === "white" ? blackName : whiteName,
+            elo_change: result === "white" ? whiteDelta : blackDelta
+          }, true);
+          
           return updateUserChallengeProgress(winner.username, dayKeyNow(), "daily-chess-3", 1, winnerId);
         }
       })
@@ -6142,6 +6148,41 @@ function getLevelRewards(level) {
   return rewards;
 }
 
+// Activity Feed Recording
+async function recordActivity(username, activityType, activityData = {}, isPublic = true) {
+  try {
+    const now = Date.now();
+    await dbRunAsync(
+      `INSERT INTO activity_feed (username, activity_type, activity_data, created_at, is_public)
+       VALUES (?, ?, ?, ?, ?)`,
+      [username, activityType, JSON.stringify(activityData), now, isPublic ? 1 : 0]
+    );
+    
+    // Broadcast to connected friends
+    const friends = await dbAllAsync(`
+      SELECT CASE WHEN user1 = ? THEN user2 ELSE user1 END as friend_username
+      FROM friendships
+      WHERE (user1 = ? OR user2 = ?) AND status = 'accepted'
+    `, [username, username, username]);
+    
+    for (const friend of friends) {
+      const friendSockets = USER_SOCKET_MAP.get(friend.friend_username);
+      if (friendSockets) {
+        for (const socketId of friendSockets) {
+          io.to(socketId).emit('newActivity', {
+            username,
+            activity_type: activityType,
+            activity_data: activityData,
+            created_at: now
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[activity] failed to record:", e?.message || e);
+  }
+}
+
 function emitLevelUp(userId, newLevel, rewards = []) {
   const sid = socketIdByUserId.get(userId);
   if (!sid) return;
@@ -6161,7 +6202,15 @@ async function processLevelRewards(userId, level, rewards = getLevelRewards(leve
   if (!identity?.username) return;
   for (const reward of rewards) {
     if (reward.type === "badge") {
-      await awardBadge(identity.username, reward.id);
+      const result = await awardBadge(identity.username, reward.id);
+      if (result && result.success && result.badgeInfo) {
+        // Record activity for badge earned
+        void recordActivity(identity.username, 'badge_earned', {
+          badge_id: reward.id,
+          badge_name: result.badgeInfo.name,
+          badge_emoji: result.badgeInfo.emoji
+        }, true);
+      }
     }
     // Process other reward types...
   }
@@ -6400,6 +6449,12 @@ async function applyXpGain(userId, delta, opts = {}) {
       emitLevelUp(userId, info.level, rewards);
       void maybeCreateLevelMemories(userId, prevLevel, info.level);
       void processLevelRewards(userId, info.level, rewards);
+      
+      // Record activity feed for level up
+      const identity = await getUserIdentityForMemory(userId);
+      if (identity?.username) {
+        void recordActivity(identity.username, 'level_up', { level: info.level }, true);
+      }
     }
     emitProgressionUpdate(userId);
     emitLeaderboardUpdateThrottled();
@@ -10362,7 +10417,16 @@ app.post("/api/challenges/:challengeId/claim", strictLimiter, requireLogin, asyn
         emitToast: true,
       });
     } else if (challenge.reward_type === "badge") {
-      await awardBadge(req.session.user.username, challenge.reward_value);
+      const result = await awardBadge(req.session.user.username, challenge.reward_value);
+      if (result && result.success && result.badgeInfo) {
+        // Record activity for badge earned
+        void recordActivity(req.session.user.username, 'badge_earned', {
+          badge_id: challenge.reward_value,
+          badge_name: result.badgeInfo.name,
+          badge_emoji: result.badgeInfo.emoji,
+          source: 'challenge'
+        }, true);
+      }
     }
 
     res.json({ success: true });
@@ -10598,6 +10662,18 @@ app.post("/api/themes/purchase", strictLimiter, requireLogin, express.json({ lim
           JSON.stringify(nextPrefs),
           userId,
         ]);
+        
+        // Record theme unlock activity
+        fetchUsersByIds([userId]).then((rows) => {
+          const user = rows?.[0];
+          if (user?.username) {
+            void recordActivity(user.username, 'theme_unlock', {
+              theme_id: themeId,
+              theme_name: theme.name || themeId
+            }, true);
+          }
+        }).catch(() => {});
+        
         return res.json({ ok: true, gold: nextGold, ownedThemeIds: nextPrefs.ownedThemeIds });
       } catch (e) {
         await client.query("ROLLBACK");
@@ -10629,6 +10705,18 @@ app.post("/api/themes/purchase", strictLimiter, requireLogin, express.json({ lim
       [nextGold, JSON.stringify(nextPrefs), userId],
       (err2) => {
         if (err2) return res.status(500).json({ ok: false, error: "purchase_failed" });
+        
+        // Record theme unlock activity
+        fetchUsersByIds([userId]).then((rows) => {
+          const user = rows?.[0];
+          if (user?.username) {
+            void recordActivity(user.username, 'theme_unlock', {
+              theme_id: themeId,
+              theme_name: theme.name || themeId
+            }, true);
+          }
+        }).catch(() => {});
+        
         return res.json({ ok: true, gold: nextGold, ownedThemeIds: nextPrefs.ownedThemeIds });
       }
     );
@@ -16024,6 +16112,123 @@ app.post("/api/friends/remove", strictLimiter, requireLogin, async (req, res) =>
   } catch (e) {
     console.warn('[friends] remove failed:', e?.message || e);
     return res.status(500).send('Could not remove friend');
+  }
+});
+
+// ---- Admin Analytics Dashboard ----
+app.get("/admin/analytics", requireAdminPlus, (req, res) => {
+  return res.sendFile(path.join(PUBLIC_DIR, "analytics.html"));
+});
+
+app.get("/api/admin/analytics/metrics", requireAdminPlus, async (req, res) => {
+  try {
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const weekMs = 7 * dayMs;
+    const monthMs = 30 * dayMs;
+    
+    // DAU, WAU, MAU - users who have been active (logged in or sent messages)
+    const dauThreshold = now - dayMs;
+    const wauThreshold = now - weekMs;
+    const mauThreshold = now - monthMs;
+    
+    const dauQuery = `SELECT COUNT(DISTINCT id) as count FROM users WHERE last_seen > ?`;
+    const dauResult = await dbAllAsync(dauQuery, [dauThreshold]);
+    const dau = dauResult[0]?.count || 0;
+    
+    const wauResult = await dbAllAsync(dauQuery, [wauThreshold]);
+    const wau = wauResult[0]?.count || 0;
+    
+    const mauResult = await dbAllAsync(dauQuery, [mauThreshold]);
+    const mau = mauResult[0]?.count || 0;
+    
+    // Total users
+    const totalUsersResult = await dbAllAsync(`SELECT COUNT(*) as count FROM users`);
+    const totalUsers = totalUsersResult[0]?.count || 0;
+    
+    // XP distribution
+    const xpDistribution = await dbAllAsync(`
+      SELECT 
+        CASE 
+          WHEN level < 5 THEN 'Levels 1-4'
+          WHEN level < 10 THEN 'Levels 5-9'
+          WHEN level < 20 THEN 'Levels 10-19'
+          WHEN level < 50 THEN 'Levels 20-49'
+          ELSE 'Levels 50+'
+        END as level_range,
+        COUNT(*) as count
+      FROM users
+      WHERE level IS NOT NULL
+      GROUP BY level_range
+      ORDER BY MIN(level)
+    `);
+    
+    // Recent activity counts (last 7 days)
+    const recentActivities = await dbAllAsync(`
+      SELECT 
+        DATE(created_at / 1000, 'unixepoch') as date,
+        COUNT(*) as count
+      FROM activity_feed
+      WHERE created_at > ?
+      GROUP BY date
+      ORDER BY date DESC
+      LIMIT 7
+    `, [now - weekMs]);
+    
+    // Activity type breakdown
+    const activityTypes = await dbAllAsync(`
+      SELECT 
+        activity_type,
+        COUNT(*) as count
+      FROM activity_feed
+      WHERE created_at > ?
+      GROUP BY activity_type
+      ORDER BY count DESC
+    `, [now - monthMs]);
+    
+    // Badge statistics
+    const badgeStats = await dbAllAsync(`
+      SELECT 
+        bd.name as badge_name,
+        bd.emoji,
+        COUNT(*) as earned_count
+      FROM user_badges ub
+      JOIN badge_definitions bd ON ub.badge_id = bd.badge_id
+      GROUP BY bd.badge_id, bd.name, bd.emoji
+      ORDER BY earned_count DESC
+      LIMIT 10
+    `);
+    
+    // Chess statistics
+    const chessStats = await dbAllAsync(`
+      SELECT 
+        COUNT(*) as total_games,
+        AVG(chess_elo) as avg_elo,
+        MAX(chess_elo) as max_elo
+      FROM chess_user_stats
+      WHERE chess_games_played > 0
+    `);
+    
+    // Online users count
+    const onlineCount = socketIdByUserId.size;
+    
+    res.json({
+      userMetrics: {
+        dau,
+        wau,
+        mau,
+        totalUsers,
+        onlineCount
+      },
+      xpDistribution,
+      recentActivities,
+      activityTypes,
+      badgeStats,
+      chessStats: chessStats[0] || { total_games: 0, avg_elo: 1200, max_elo: 1200 }
+    });
+  } catch (err) {
+    console.error('[Analytics] Error fetching metrics:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
   }
 });
 
