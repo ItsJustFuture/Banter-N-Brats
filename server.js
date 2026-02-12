@@ -19806,6 +19806,60 @@ if (!room) {
     }
   });
 
+  socket.on("music:videoError", (payload = {}) => {
+    if (socket.currentRoom !== "music") return;
+    
+    // Rate limit to prevent queue draining abuse (similar to music:ended dedupe)
+    if (!allowSocketEvent(socket, "music_video_error", 3, 10000)) {
+      return;
+    }
+    
+    const videoId = String(payload.videoId || "");
+    const errorCode = typeof payload.errorCode === "number" ? payload.errorCode : null;
+    
+    // Only process if this error is for the currently playing video
+    if (!MUSIC_ROOM_QUEUE.currentVideo || MUSIC_ROOM_QUEUE.currentVideo.videoId !== videoId) {
+      return;
+    }
+    
+    // Dedupe: prevent processing same video error multiple times
+    const now = Date.now();
+    const lastErrorVideoId = MUSIC_ROOM_QUEUE.lastErrorVideoId || null;
+    const lastErrorAt = MUSIC_ROOM_QUEUE.lastErrorAt || 0;
+    const isDuplicate = (lastErrorVideoId === videoId && now - lastErrorAt < 5000);
+    
+    if (isDuplicate) return;
+    
+    MUSIC_ROOM_QUEUE.lastErrorVideoId = videoId;
+    MUSIC_ROOM_QUEUE.lastErrorAt = now;
+    
+    // Map error codes to user-friendly messages
+    const ERROR_MESSAGES = {
+      2: "Invalid video",
+      5: "Video playback error",
+      100: "Video not found",
+      101: "Video cannot be embedded",
+      150: "Video cannot be embedded"
+    };
+    
+    const errorMsg = errorCode && ERROR_MESSAGES[errorCode] 
+      ? ERROR_MESSAGES[errorCode] 
+      : "Video unavailable";
+    
+    // Use server-side title to prevent client manipulation
+    const serverTitle = MUSIC_ROOM_QUEUE.currentVideo.title || "Untitled";
+    // Clamp title length to prevent abuse
+    const clampedTitle = serverTitle.length > 50 
+      ? serverTitle.substring(0, 50) + "..." 
+      : serverTitle;
+    
+    // Send error message to room using emitRoomSystem to prevent room bleed
+    emitRoomSystem("music", `⚠️ ${errorMsg}: "${clampedTitle}" - Skipping...`);
+    
+    // Skip to next video in queue or stop playback
+    skipToNextVideo(io);
+  });
+
   socket.on("music:getState", (callback) => {
     if (socket.currentRoom !== "music") return;
     
