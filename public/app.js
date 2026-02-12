@@ -961,6 +961,16 @@ let profileLikeState = { count: 0, liked: false, isSelf: false };
 let modalFriendInfo = null;
 let currentRoom = "main";
 let featureFlags = {};
+
+// Presence System State
+let currentUserPresence = {
+  status: 'online',
+  room: null
+};
+let friendsList = [];
+let activityFeed = [];
+let pendingFriendRequests = [];
+
 let memoryFeatureAvailable = false;
 let memoryEnabled = false;
 let memorySettingsLoaded = false;
@@ -25846,6 +25856,136 @@ async function refreshLogs(){
 }
 refreshLogsBtn.addEventListener("click", refreshLogs);
 
+// ========== PRESENCE SYSTEM FUNCTIONS ==========
+
+function initializePresenceSystem() {
+  // Update presence on load
+  currentUserPresence.room = currentRoom;
+  socket.emit('updatePresence', { status: 'online', room: currentRoom });
+  
+  // Track user activity for idle detection
+  let lastActivity = Date.now();
+  
+  ['mousemove', 'keypress', 'click', 'scroll', 'touchstart'].forEach(event => {
+    document.addEventListener(event, () => {
+      lastActivity = Date.now();
+      if (currentUserPresence.status === 'idle') {
+        currentUserPresence.status = 'online';
+        socket.emit('updatePresence', { status: 'online', room: currentRoom });
+      }
+    }, { passive: true });
+  });
+  
+  // Check for idle every 30 seconds
+  setInterval(() => {
+    const idleTime = Date.now() - lastActivity;
+    if (idleTime > 5 * 60 * 1000 && currentUserPresence.status === 'online') {
+      currentUserPresence.status = 'idle';
+      socket.emit('updatePresence', { status: 'idle', room: currentRoom });
+    }
+  }, 30000);
+  
+  // Handle visibility change (tab focus)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      // Tab is hidden - could mark as idle after delay
+    } else {
+      // Tab is visible - mark as online
+      lastActivity = Date.now();
+      currentUserPresence.status = 'online';
+      socket.emit('updatePresence', { status: 'online', room: currentRoom });
+    }
+  });
+  
+  // Load friends and activity feed
+  socket.emit('getFriendsList');
+  socket.emit('getActivityFeed', { limit: 20 });
+  socket.emit('getPendingFriendRequests');
+}
+
+function renderFriendsList() {
+  const container = document.getElementById('friends-list');
+  if (!container) return;
+  
+  // Sort friends by status
+  const sorted = friendsList.sort((a, b) => {
+    const statusOrder = { online: 0, idle: 1, dnd: 2, offline: 3 };
+    return statusOrder[a.status] - statusOrder[b.status];
+  });
+  
+  container.innerHTML = sorted.map(friend => `
+    <div class="friend-item ${friend.status}" data-username="${friend.username}">
+      <span class="friend-status-dot ${friend.status}"></span>
+      <span class="friend-name">${friend.username}</span>
+      ${friend.status !== 'offline' && friend.currentRoom ? 
+        `<span class="friend-room">${friend.currentRoom}</span>` : ''}
+      <button class="btn-message-friend" data-username="${friend.username}">
+        💬
+      </button>
+    </div>
+  `).join('');
+  
+  // Add event listeners for DM buttons
+  container.querySelectorAll('.btn-message-friend').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const username = e.target.dataset.username;
+      openDm(username);
+    });
+  });
+}
+
+function renderActivityFeed() {
+  const container = document.getElementById('activity-feed');
+  if (!container) return;
+  
+  container.innerHTML = activityFeed.map(activity => {
+    const data = JSON.parse(activity.activity_data || '{}');
+    let icon = '🎉';
+    let message = '';
+    
+    switch(activity.activity_type) {
+      case 'chess_win':
+        icon = '♟️';
+        message = `won a chess game!`;
+        break;
+      case 'level_up':
+        icon = '⬆️';
+        message = `reached level ${data.level}!`;
+        break;
+      case 'achievement':
+        icon = '🏆';
+        message = `earned "${data.name}"`;
+        break;
+      case 'theme_unlock':
+        icon = '🎨';
+        message = `unlocked ${data.theme} theme`;
+        break;
+      default:
+        message = activity.activity_type;
+    }
+    
+    return `
+      <div class="activity-item">
+        <span class="activity-icon">${icon}</span>
+        <span class="activity-text">
+          <strong>${activity.username}</strong> ${message}
+        </span>
+        <span class="activity-time">${formatTimeAgo(activity.created_at)}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function formatTimeAgo(timestamp) {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+// ========== END PRESENCE SYSTEM FUNCTIONS ==========
+
 // start app
 async function initChatApp(){
   const sessionUser = await validateSession();
@@ -26038,6 +26178,88 @@ initAppealsDurationSelect();
     }
     // Process queued messages now that server is ready
     processOutgoingQueue();
+    
+    // Initialize presence system
+    initializePresenceSystem();
+  });
+
+  // === PRESENCE SYSTEM EVENT HANDLERS ===
+  
+  socket.on('roomPresence', ({ roomId, users }) => {
+    const presenceContainer = document.getElementById('room-presence');
+    if (!presenceContainer) return;
+    
+    presenceContainer.innerHTML = `
+      <div class="presence-header">
+        <span class="presence-count">${users.length} online</span>
+      </div>
+      <div class="presence-list">
+        ${users.map(user => `
+          <div class="presence-user" data-username="${user.username}">
+            <span class="presence-status ${user.status}"></span>
+            <span class="presence-username" style="color: var(--role-${user.role}-color)">
+              ${user.username}
+            </span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  });
+  
+  socket.on('friendRequestReceived', ({ from, message, timestamp }) => {
+    showToast(`Friend Request from ${from}`, { durationMs: 3000 });
+    // Refresh friend requests list if visible
+    try {
+      socket.emit('getPendingFriendRequests');
+    } catch {}
+  });
+  
+  socket.on('friendRequestAccepted', ({ user }) => {
+    showToast(`${user} accepted your friend request!`, { durationMs: 3000 });
+    // Refresh friends list
+    try {
+      socket.emit('getFriendsList');
+    } catch {}
+  });
+  
+  socket.on('friendPresenceUpdate', ({ username, status, currentRoom, timestamp }) => {
+    // Update friend in list
+    const friend = friendsList.find(f => f.username === username);
+    if (friend) {
+      friend.status = status;
+      friend.currentRoom = currentRoom;
+      // Re-render friends list if visible
+      try {
+        renderFriendsList();
+      } catch {}
+      
+      // Show notification if friend came online (only if user has it enabled)
+      if (status === 'online') {
+        // Could show a subtle notification here
+      }
+    }
+  });
+  
+  socket.on('friendsList', (friends) => {
+    friendsList = friends || [];
+    renderFriendsList();
+  });
+  
+  socket.on('activityFeed', (activities) => {
+    activityFeed = activities || [];
+    renderActivityFeed();
+  });
+  
+  socket.on('pendingFriendRequests', (requests) => {
+    pendingFriendRequests = requests || [];
+    // Update UI badge count if present
+    const badge = document.getElementById('friend-requests-badge');
+    if (badge && pendingFriendRequests.length > 0) {
+      badge.textContent = pendingFriendRequests.length;
+      badge.style.display = 'inline-block';
+    } else if (badge) {
+      badge.style.display = 'none';
+    }
   });
 
   socket.on("restriction:status", async (payload) => {
