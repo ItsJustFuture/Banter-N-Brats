@@ -19924,6 +19924,14 @@ if (!room) {
 
     // Sanitize the text
     const sanitizedText = validators.sanitizeText(validation.data.text);
+    
+    // Ensure message has either text or attachment
+    const hasText = sanitizedText.trim().length > 0;
+    const hasAttachment = payload.attachmentUrl && String(payload.attachmentUrl).trim().length > 0;
+    if (!hasText && !hasAttachment) {
+      socket.emit('system', buildSystemPayload(room, 'Message must contain text or an attachment.'));
+      return;
+    }
 
     isPunished(socket.user.id, "ban", (banned) => {
       if (banned) return;

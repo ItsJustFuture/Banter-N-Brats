@@ -25932,7 +25932,7 @@ function initializePresenceSystem() {
   socket.emit('getPendingFriendRequests');
 }
 
-function renderFriendsList() {
+function renderSocialFriendsList() {
   const container = document.getElementById('friends-list');
   if (!container) return;
   
@@ -26402,7 +26402,7 @@ initAppealsDurationSelect();
       
       // Re-render friends list if visible
       try {
-        renderFriendsList();
+        renderSocialFriendsList();
       } catch (err) {
         console.debug('[Friends] Failed to render list:', err);
       }
@@ -26416,7 +26416,7 @@ initAppealsDurationSelect();
   
   socket.on('friendsList', (friends) => {
     friendsList = friends || [];
-    renderFriendsList();
+    renderSocialFriendsList();
   });
   
   socket.on('activityFeed', (activities) => {

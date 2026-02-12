@@ -8,13 +8,13 @@ const { z } = require("zod");
 
 const ChatMessageSchema = z.object({
   room: z.string().trim().min(1).max(100),
-  text: z.string().trim().min(1).max(2000),
+  text: z.string().trim().min(0).max(2000),
   replyToId: z.number().int().positive().nullish(),
 });
 
 const DMMessageSchema = z.object({
   threadId: z.number().int().positive(),
-  text: z.string().trim().min(1).max(2000),
+  text: z.string().trim().min(0).max(2000),
   replyToId: z.number().int().positive().nullish(),
 });
 
