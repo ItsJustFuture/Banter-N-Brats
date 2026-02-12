@@ -6205,8 +6205,8 @@ async function processLevelRewards(userId, level, rewards = getLevelRewards(leve
   for (const reward of rewards) {
     if (reward.type === "badge") {
       const result = await awardBadge(identity.username, reward.id);
-      if (result && result.success && result.badgeInfo) {
-        // Record activity for badge earned
+      if (result && result.success && !result.alreadyOwned && result.badgeInfo) {
+        // Record activity only for newly earned badges
         void recordActivity(identity.username, 'badge_earned', {
           badge_id: reward.id,
           badge_name: result.badgeInfo.name,
@@ -10420,8 +10420,8 @@ app.post("/api/challenges/:challengeId/claim", strictLimiter, requireLogin, asyn
       });
     } else if (challenge.reward_type === "badge") {
       const result = await awardBadge(req.session.user.username, challenge.reward_value);
-      if (result && result.success && result.badgeInfo) {
-        // Record activity for badge earned
+      if (result && result.success && !result.alreadyOwned && result.badgeInfo) {
+        // Record activity only for newly earned badges
         void recordActivity(req.session.user.username, 'badge_earned', {
           badge_id: challenge.reward_value,
           badge_name: result.badgeInfo.name,

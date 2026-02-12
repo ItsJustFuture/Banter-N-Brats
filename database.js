@@ -1337,7 +1337,14 @@ async function awardBadge(username, badge_id) {
     `SELECT id FROM user_badges WHERE username COLLATE NOCASE = ? AND badge_id = ? LIMIT 1`,
     [safeName, safeBadge]
   );
-  if (existing && existing.length > 0) return false; // Already has badge
+  if (existing && existing.length > 0) {
+    // Already has badge - return success but indicate it's already owned
+    const badgeInfo = await all(
+      `SELECT name, emoji FROM badge_definitions WHERE badge_id = ? LIMIT 1`,
+      [safeBadge]
+    );
+    return { success: true, alreadyOwned: true, badgeInfo: badgeInfo[0] || {} };
+  }
   
   await run(
     `INSERT OR IGNORE INTO user_badges (username, badge_id, earned_at)
@@ -1351,7 +1358,7 @@ async function awardBadge(username, badge_id) {
     [safeBadge]
   );
   
-  return { success: true, badgeInfo: badgeInfo[0] || {} };
+  return { success: true, alreadyOwned: false, badgeInfo: badgeInfo[0] || {} };
 }
 
 async function seedDevUser({ username, password, role }) {

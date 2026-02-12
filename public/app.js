@@ -26046,7 +26046,7 @@ function renderActivityFeed() {
         break;
       case 'theme_unlock':
         icon = '🎨';
-        message = `unlocked the ${data.theme_name || 'theme'}!`;
+        message = `unlocked the ${data.theme_name || 'a theme'}!`;
         break;
       default:
         message = activity.activity_type;
