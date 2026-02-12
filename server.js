@@ -93,7 +93,6 @@ const MS_TO_SECONDS = 1000; // Milliseconds to seconds conversion
 const USER_PRESENCE_MAP = new Map(); // socketId -> { username, status, room, lastSeen }
 const USER_SOCKET_MAP = new Map(); // username -> Set of socketIds (multiple tabs)
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-const PRESENCE_BROADCAST_INTERVAL_MS = 30 * 1000; // 30 seconds
 
 // Broadcast current playback state for client synchronization
 function broadcastMusicSync() {
@@ -278,21 +277,50 @@ async function updateUserPresence(username, status, currentRoom = null, socketId
 async function getRoomPresence(roomId) {
   const users = [];
   
-  for (const [socketId, presence] of USER_PRESENCE_MAP.entries()) {
-    if (presence.room === roomId) {
-      try {
-        const userRow = await dbGetAsync('SELECT username, role FROM users WHERE username = ?', [presence.username]);
-        if (userRow) {
-          users.push({
-            username: presence.username,
-            status: presence.status,
-            role: userRow.role,
-            lastSeen: presence.lastSeen
-          });
-        }
-      } catch (err) {
-        console.error('[Presence] Failed to get user role:', err);
-      }
+  // Collect distinct usernames for the requested room
+  const roomUsernamesSet = new Set();
+  for (const presence of USER_PRESENCE_MAP.values()) {
+    if (presence.room === roomId && presence.username) {
+      roomUsernamesSet.add(presence.username);
+    }
+  }
+
+  // If there are no users in the room, return early
+  if (roomUsernamesSet.size === 0) {
+    return users;
+  }
+
+  const roomUsernames = Array.from(roomUsernamesSet);
+
+  // Fetch all roles in a single query
+  let dbUsers = [];
+  try {
+    const placeholders = roomUsernames.map(() => '?').join(', ');
+    dbUsers = await dbAllAsync(
+      `SELECT username, role FROM users WHERE username IN (${placeholders})`,
+      roomUsernames
+    );
+  } catch (err) {
+    console.error('[Presence] Failed to get user roles:', err);
+  }
+
+  // Map usernames to roles for quick lookup
+  const roleByUsername = new Map();
+  for (const row of dbUsers) {
+    if (row && row.username) {
+      roleByUsername.set(row.username, row.role);
+    }
+  }
+
+  // Build the users list using in-memory role lookup
+  for (const presence of USER_PRESENCE_MAP.values()) {
+    if (presence.room === roomId && roleByUsername.has(presence.username)) {
+      users.push({
+        username: presence.username,
+        status: presence.status,
+        role: roleByUsername.get(presence.username),
+        lastSeen: presence.lastSeen
+      });
     }
   }
   
@@ -4069,50 +4097,9 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   console.log('[WebPush] VAPID keys not configured - push notifications disabled');
 }
 
-// Send push notification helper
-async function sendPushNotification(username, title, body, data = {}) {
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-    return; // Push notifications not configured
-  }
-  
-  try {
-    const subscriptions = await dbAllAsync(
-      'SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE username = ?',
-      [username]
-    );
-    
-    const payload = JSON.stringify({
-      title,
-      body,
-      data,
-      timestamp: Date.now()
-    });
-    
-    const promises = subscriptions.map(async (sub) => {
-      try {
-        await webPush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth
-            }
-          },
-          payload
-        );
-      } catch (err) {
-        // Remove invalid subscription
-        if (err.statusCode === 410) {
-          await dbRunAsync('DELETE FROM push_subscriptions WHERE endpoint = ?', [sub.endpoint]);
-        }
-      }
-    });
-    
-    await Promise.all(promises);
-  } catch (err) {
-    console.error('[WebPush] Failed to send notification:', err);
-  }
-}
+// Note: sendPushNotification helper can be added here when push notification
+// sending is implemented. Currently, the subscription storage is available,
+// but the actual sending mechanism will be implemented in future updates.
 
 // ========== END WEB PUSH SETUP ==========
 
@@ -10957,13 +10944,22 @@ function enforceTextEffectAccess(customization, role) {
 }
 
 // Push notification subscription endpoint
-app.post('/api/push/subscribe', requireLogin, express.json({ limit: '16kb' }), async (req, res) => {
+app.post('/api/push/subscribe', strictLimiter, requireLogin, express.json({ limit: '16kb' }), async (req, res) => {
   try {
     const { subscription } = req.body;
     const username = req.session.user.username;
     
     if (!subscription || !subscription.endpoint || !subscription.keys) {
       return res.status(400).json({ error: 'Invalid subscription' });
+    }
+    
+    // Validate and clamp field lengths to prevent oversized rows
+    const endpoint = String(subscription.endpoint).slice(0, 1000);
+    const p256dh = String(subscription.keys.p256dh).slice(0, 500);
+    const auth = String(subscription.keys.auth).slice(0, 500);
+    
+    if (!endpoint || !p256dh || !auth) {
+      return res.status(400).json({ error: 'Invalid subscription fields' });
     }
     
     await dbRunAsync(`
@@ -10974,9 +10970,9 @@ app.post('/api/push/subscribe', requireLogin, express.json({ limit: '16kb' }), a
         auth = excluded.auth
     `, [
       username,
-      subscription.endpoint,
-      subscription.keys.p256dh,
-      subscription.keys.auth,
+      endpoint,
+      p256dh,
+      auth,
       Date.now()
     ]);
     
@@ -17795,139 +17791,73 @@ io.on("connection", async (socket) => {
   
   socket.on('updatePresence', async ({ status, room }) => {
     const username = socket.user?.username;
-    if (username) {
-      await updateUserPresence(username, status, room, socket.id);
+    if (!username) return;
+    
+    // Rate limit presence updates
+    if (!allowSocketEvent(socket, "updatePresence", 10, 5000)) return;
+    
+    // Validate and normalize status against an allowlist
+    const allowedStatuses = new Set(["online", "idle", "dnd", "offline"]);
+    const normalizedStatus = typeof status === "string" ? status.toLowerCase() : "";
+    const safeStatus = allowedStatuses.has(normalizedStatus) ? normalizedStatus : "online";
+
+    // Derive room from the server-side socket state when possible,
+    // and sanitize any fallback client-provided room
+    let effectiveRoom = null;
+    if (typeof socket.currentRoom === "string" && socket.currentRoom) {
+      effectiveRoom = socket.currentRoom;
+    } else if (room != null) {
+      const roomStr = String(room);
+      effectiveRoom = sanitizeRoomName(roomStr);
     }
+
+    await updateUserPresence(username, safeStatus, effectiveRoom, socket.id);
   });
   
   socket.on('getRoomPresence', async (roomId) => {
-    const presence = await getRoomPresence(roomId);
-    socket.emit('roomPresence', { roomId, users: presence });
+    // Rate limit room presence queries
+    if (!allowSocketEvent(socket, "getRoomPresence", 10, 5000)) return;
+    
+    const roomIdStr = roomId != null ? String(roomId) : "";
+    // Sanitize room identifier before querying and echoing back
+    const safeRoomId = sanitizeRoomName(roomIdStr);
+    const presence = await getRoomPresence(safeRoomId);
+    socket.emit('roomPresence', { roomId: safeRoomId, users: presence });
   });
   
-  // Friend system events
-  socket.on('sendFriendRequest', async ({ toUser, message }) => {
-    const fromUser = socket.user?.username;
-    if (!fromUser) return;
-    
-    try {
-      // Check if friendship already exists in either direction
-      const existing = await dbGetAsync(`
-        SELECT id, status FROM friendships 
-        WHERE (user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)
-      `, [fromUser, toUser, toUser, fromUser]);
-      
-      if (existing) {
-        const errorMsg = existing.status === 'accepted' 
-          ? 'You are already friends' 
-          : 'Friend request already sent';
-        socket.emit('friendRequestSent', { to: toUser, success: false, error: errorMsg });
-        return;
-      }
-      
-      // Insert friend request
-      await dbRunAsync(`
-        INSERT INTO friendships (user1, user2, status, requested_by, created_at)
-        VALUES (?, ?, 'pending', ?, ?)
-      `, [fromUser, toUser, fromUser, Date.now()]);
-      
-      await dbRunAsync(`
-        INSERT INTO friend_requests_new (from_user, to_user, message, created_at)
-        VALUES (?, ?, ?, ?)
-      `, [fromUser, toUser, message || '', Date.now()]);
-      
-      // Notify recipient
-      const recipientSockets = USER_SOCKET_MAP.get(toUser);
-      if (recipientSockets) {
-        for (const socketId of recipientSockets) {
-          io.to(socketId).emit('friendRequestReceived', {
-            from: fromUser,
-            message: message || '',
-            timestamp: Date.now()
-          });
-        }
-      }
-      
-      socket.emit('friendRequestSent', { to: toUser, success: true });
-    } catch (err) {
-      console.error('[Friends] sendFriendRequest error:', err);
-      socket.emit('friendRequestSent', { to: toUser, success: false, error: 'Failed to send request' });
-    }
+  // Friend system events - DEPRECATED
+  // This socket-based friend request handler is disabled to avoid duplicating
+  // the existing /api/friends HTTP API (which uses the friends/friend_requests tables
+  // and provides comprehensive friend management). Clients should use the existing
+  // Friends HTTP API instead.
+  socket.on('sendFriendRequest', async ({ toUser }) => {
+    socket.emit('friendRequestSent', {
+      to: toUser,
+      success: false,
+      error: 'Socket-based friend requests are not supported. Please use the /api/friends HTTP API.',
+    });
   });
   
   socket.on('acceptFriendRequest', async ({ fromUser }) => {
-    const toUser = socket.user?.username;
-    if (!toUser) return;
-    
-    try {
-      // Update friendship regardless of order
-      await dbRunAsync(`
-        UPDATE friendships 
-        SET status = 'accepted' 
-        WHERE ((user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)) AND status = 'pending'
-      `, [fromUser, toUser, toUser, fromUser]);
-      
-      await dbRunAsync(`
-        UPDATE friend_requests_new 
-        SET read_at = ? 
-        WHERE from_user = ? AND to_user = ?
-      `, [Date.now(), fromUser, toUser]);
-      
-      // Notify both users
-      const requesterSockets = USER_SOCKET_MAP.get(fromUser);
-      if (requesterSockets) {
-        for (const socketId of requesterSockets) {
-          io.to(socketId).emit('friendRequestAccepted', { user: toUser });
-        }
-      }
-      
-      socket.emit('friendRequestAccepted', { user: fromUser });
-    } catch (err) {
-      console.error('[Friends] acceptFriendRequest error:', err);
-    }
+    socket.emit('friendRequestAccepted', {
+      user: fromUser,
+      success: false,
+      error: 'Socket-based friend requests are not supported. Please use the /api/friends HTTP API.',
+    });
   });
   
   socket.on('getFriendsList', async () => {
-    const username = socket.user?.username;
-    if (!username) return;
-    
-    const friends = await dbAllAsync(`
-      SELECT 
-        CASE WHEN user1 = ? THEN user2 ELSE user1 END as friend_username,
-        status
-      FROM friendships 
-      WHERE (user1 = ? OR user2 = ?) AND status = 'accepted'
-    `, [username, username, username]);
-    
-    // Enrich with presence data
-    const enrichedFriends = await Promise.all(friends.map(async (f) => {
-      const presence = await dbGetAsync(
-        'SELECT status, last_seen, current_room FROM user_presence WHERE username = ?',
-        [f.friend_username]
-      );
-      return {
-        username: f.friend_username,
-        status: presence?.status || 'offline',
-        lastSeen: presence?.last_seen,
-        currentRoom: presence?.current_room
-      };
-    }));
-    
-    socket.emit('friendsList', enrichedFriends);
+    socket.emit('friendsList', {
+      success: false,
+      error: 'Socket-based friends list is not supported. Please use the /api/friends/list HTTP API.',
+    });
   });
   
   socket.on('getPendingFriendRequests', async () => {
-    const username = socket.user?.username;
-    if (!username) return;
-    
-    const requests = await dbAllAsync(`
-      SELECT from_user, message, created_at 
-      FROM friend_requests_new 
-      WHERE to_user = ? AND read_at IS NULL
-      ORDER BY created_at DESC
-    `, [username]);
-    
-    socket.emit('pendingFriendRequests', requests);
+    socket.emit('pendingFriendRequests', {
+      success: false,
+      error: 'Socket-based friend requests are not supported. Please use the /api/friends/requests HTTP API.',
+    });
   });
   
   // Activity feed

@@ -1159,6 +1159,14 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
   `);
   await run(`CREATE INDEX IF NOT EXISTS idx_friendships_user1 ON friendships(user1)`);
   await run(`CREATE INDEX IF NOT EXISTS idx_friendships_user2 ON friendships(user2)`);
+  // Add canonical ordering constraint to prevent duplicate friendships in reverse order
+  await run(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_friendships_pair_canonical
+    ON friendships (
+      CASE WHEN user1 < user2 THEN user1 ELSE user2 END,
+      CASE WHEN user1 < user2 THEN user2 ELSE user1 END
+    )
+  `);
 
   // Note: friend_requests_new uses username strings for the new friend system
   await run(`
@@ -1172,6 +1180,8 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
       UNIQUE(from_user, to_user)
     )
   `);
+  await run(`CREATE INDEX IF NOT EXISTS idx_friend_requests_new_to_user_read_at ON friend_requests_new(to_user, read_at)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_friend_requests_new_from_user ON friend_requests_new(from_user)`);
 
   await run(`
     CREATE TABLE IF NOT EXISTS activity_feed (
