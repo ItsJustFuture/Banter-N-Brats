@@ -2457,29 +2457,38 @@ body[data-theme="420 Friendly (Light)"]{
 }
 
 /* Enhanced responsive breakpoints for comprehensive mobile support */
-/* Very small phones (older Android, small iPhones) */
-@media (max-width: 374px){
-  :root{ --uiScaleAuto: 0.90; }
-}
-
-/* Small mobile phones (iPhone SE, etc) */
-@media (max-width: 360px){
-  :root{ --uiScaleAuto: 0.88; }
-}
+/* Ordered from smallest to largest to avoid overlap issues */
 
 /* Extra small legacy phones */
 @media (max-width: 320px){
   :root{ --uiScaleAuto: 0.85; }
 }
 
-/* Standard mobile phones (375-480px) - no additional scaling needed, will use base */
+/* Small mobile phones (older Android, iPhone SE) */
+@media (min-width: 321px) and (max-width: 360px){
+  :root{ --uiScaleAuto: 0.88; }
+}
+
+/* Very small phones (small iPhones, older Android) */
+@media (min-width: 361px) and (max-width: 374px){
+  :root{ --uiScaleAuto: 0.90; }
+}
+
+/* Standard mobile phones (iPhone 12/13/14, most modern phones) */
 @media (min-width: 375px) and (max-width: 480px){
   :root{ --uiScaleAuto: 0.95; }
 }
 
-/* Tablets and small desktops (481-768px) - slightly reduced scale */
+/* Tablets and small desktops */
 @media (min-width: 481px) and (max-width: 768px){
   :root{ --uiScaleAuto: 0.98; }
+}
+
+/* Orientation change: landscape mode on small screens */
+@media (orientation: landscape) and (max-height: 480px) {
+  :root {
+    --uiScaleAuto: 0.92;
+  }
 }
 
 html, body { height: 100%; }
