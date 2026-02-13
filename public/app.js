@@ -979,6 +979,7 @@ let memoryLoading = false;
 let roomStructure = { masters: [], categories: [], rooms: [] };
 let roomStructureVersion = 0;
 let roomCollapseState = { master: {}, category: {} };
+let roomOccupancyCounts = new Map(); // Track user count per room
 const memoryCacheByFilter = new Map();
 const DICE_ROOM_ID = "diceroom";
 const SURVIVAL_ROOM_ID = "survivalsimulator";
@@ -1058,6 +1059,11 @@ function displayRoomName(room){
   if (isSurvivalRoom(room)) return "Survival Simulator";
   if (isDnDRoom(room)) return "DnD";
   return room;
+}
+
+function toSuperscriptNumber(num) {
+  const digits = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+  return String(num || 0).split('').map(c => digits[parseInt(c)] || c).join('');
 }
 
 let lastUsers = [];
@@ -8952,12 +8958,15 @@ const MODERATOR_GEM_KEYS = [
 ];
 
 const ROLE_SYMBOL_COLOR_VARIANTS = {
-  blue: { name: "Ice Blue", color: "#6EC5FF" },
-  pink: { name: "Rose Pink", color: "#FF7AD9" },
-  gold: { name: "Royal Gold", color: "#F5C542" },
-  purple: { name: "Mystic Purple", color: "#9B6BFF" },
-  green: { name: "Jade Green", color: "#3DDC84" },
-  red: { name: "Ruby Red", color: "#FF4B4B" },
+  blue: { name: "Ice Blue", color: "#5EC8FF" },
+  pink: { name: "Rose Pink", color: "#FF69E1" },
+  gold: { name: "Royal Gold", color: "#FFD700" },
+  purple: { name: "Mystic Purple", color: "#A855F7" },
+  green: { name: "Jade Green", color: "#34D399" },
+  red: { name: "Ruby Red", color: "#FF3B3B" },
+  cyan: { name: "Electric Cyan", color: "#00F5FF" },
+  orange: { name: "Sunset Orange", color: "#FF8C42" },
+  magenta: { name: "Neon Magenta", color: "#FF00FF" },
 };
 
 const DEFAULT_ROLE_SYMBOL_PREFS = {
@@ -15292,7 +15301,7 @@ dmNeonColorText?.addEventListener("input", () => {
 });
 
 memberViewProfileBtn?.addEventListener("click", () => {
-  const uname = (memberMenuUser?.username || memberMenuUser?.name || memberMenuUsername || "").trim();
+  const uname = (memberMenuUsername || memberMenuUser?.username || memberMenuUser?.name || "").trim();
   if (uname) openMemberProfile(uname);
   closeMemberMenu();
 });
@@ -17847,7 +17856,20 @@ function renderRoomsList(structureOrRooms){
         div.className = "chan" + (r === currentRoom ? " active" : "");
         div.dataset.room = r;
         div.dataset.flipKey = `room-${r}`;
-        div.textContent = displayRoomName(r);
+        
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "roomName";
+        nameSpan.textContent = displayRoomName(r);
+        div.appendChild(nameSpan);
+        
+        const count = roomOccupancyCounts.get(normalizeRoomKey(r)) || 0;
+        if (count > 0) {
+          const counterSpan = document.createElement("span");
+          counterSpan.className = "roomCounter";
+          counterSpan.textContent = toSuperscriptNumber(count);
+          div.appendChild(counterSpan);
+        }
+        
         chanList.appendChild(div);
       }
     });
@@ -17940,7 +17962,20 @@ function renderRoomsList(structureOrRooms){
           div.className = "chan" + (name === currentRoom ? " active" : "");
           div.dataset.room = name;
           div.dataset.flipKey = `room-${name}`;
-          div.textContent = displayRoomName(name);
+          
+          const nameSpan = document.createElement("span");
+          nameSpan.className = "roomName";
+          nameSpan.textContent = displayRoomName(name);
+          div.appendChild(nameSpan);
+          
+          const count = roomOccupancyCounts.get(normalizeRoomKey(name)) || 0;
+          if (count > 0) {
+            const counterSpan = document.createElement("span");
+            counterSpan.className = "roomCounter";
+            counterSpan.textContent = toSuperscriptNumber(count);
+            div.appendChild(counterSpan);
+          }
+          
           roomList.appendChild(div);
         }
 
@@ -27114,6 +27149,13 @@ socket.on("mod:case_event", (payload = {}) => {
 
   socket.on("command response", handleCommandResponse);
   socket.on("user list", (users)=>{
+    // Update room occupancy count for current room
+    if (currentRoom) {
+      roomOccupancyCounts.set(normalizeRoomKey(currentRoom), (users || []).length);
+      // Re-render room list to update counters
+      renderRoomsList(roomStructure);
+    }
+    
     if (membersViewMode === "friends") {
       lastUsers = reorderCouplesInMembers(users || []);
     } else {
