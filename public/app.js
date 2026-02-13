@@ -1063,7 +1063,30 @@ function displayRoomName(room){
 
 function toSuperscriptNumber(num) {
   const digits = '⁰¹²³⁴⁵⁶⁷⁸⁹';
-  return String(num || 0).split('').map(c => digits[parseInt(c)] || c).join('');
+  const n = Math.max(0, Math.floor(Number(num) || 0));
+  return String(n).split('').map(c => digits[parseInt(c, 10)] || '').join('');
+}
+
+function updateRoomCounter(roomName, count) {
+  if (!roomName) return;
+  const normalizedRoom = normalizeRoomKey(roomName);
+  roomOccupancyCounts.set(normalizedRoom, count);
+  
+  // Find room element in DOM and update just the counter
+  const roomEl = chanList?.querySelector(`[data-room="${CSS.escape(roomName)}"]`);
+  if (!roomEl) return;
+  
+  let counterEl = roomEl.querySelector('.roomCounter');
+  if (count > 0) {
+    if (!counterEl) {
+      counterEl = document.createElement('span');
+      counterEl.className = 'roomCounter';
+      roomEl.appendChild(counterEl);
+    }
+    counterEl.textContent = toSuperscriptNumber(count);
+  } else if (counterEl) {
+    counterEl.remove();
+  }
 }
 
 let lastUsers = [];
@@ -27151,9 +27174,7 @@ socket.on("mod:case_event", (payload = {}) => {
   socket.on("user list", (users)=>{
     // Update room occupancy count for current room
     if (currentRoom) {
-      roomOccupancyCounts.set(normalizeRoomKey(currentRoom), (users || []).length);
-      // Re-render room list to update counters
-      renderRoomsList(roomStructure);
+      updateRoomCounter(currentRoom, (users || []).length);
     }
     
     if (membersViewMode === "friends") {

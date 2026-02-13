@@ -3337,7 +3337,6 @@ body.keyboard-open .menuContent{ padding-bottom: calc(200px + var(--kb, 0px) + e
   color:var(--muted);
   display:flex;
   align-items:center;
-  justify-content:space-between;
   gap:8px;
   transition: background 0.15s ease, color 0.15s ease;
   text-shadow:var(--text-shadow-soft);
