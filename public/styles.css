@@ -2455,17 +2455,61 @@ body[data-theme="420 Friendly (Light)"]{
   --menuHeaderH: 0px;
   --diceOverlayLift: 0px;
 }
-@media (max-width: 360px){
-  :root{ --uiScaleAuto: 0.92; }
-}
+
+/* Enhanced responsive breakpoints for comprehensive mobile support */
+/* Ordered from smallest to largest to avoid overlap issues */
+
+/* Extra small legacy phones */
 @media (max-width: 320px){
+  :root{ --uiScaleAuto: 0.85; }
+}
+
+/* Small mobile phones (older Android, smaller iPhones) */
+@media (min-width: 321px) and (max-width: 374px){
   :root{ --uiScaleAuto: 0.88; }
+}
+
+/* Standard mobile phones (iPhone 12/13/14, most modern phones) */
+@media (min-width: 375px) and (max-width: 480px){
+  :root{ --uiScaleAuto: 0.95; }
+}
+
+/* Tablets and small desktops */
+@media (min-width: 481px) and (max-width: 768px){
+  :root{ --uiScaleAuto: 0.98; }
+}
+
+/* Orientation change: landscape mode on small screens */
+@media (orientation: landscape) and (max-height: 480px) {
+  :root {
+    --uiScaleAuto: 0.92;
+  }
 }
 
 html, body { height: 100%; }
 
 [hidden]{
   display:none !important;
+}
+
+/* Mobile-specific improvements for touch targets and readability */
+@media (max-width: 480px) {
+  /* Ensure minimum touch target size (44x44px) for interactive elements */
+  button, .btn, a.btn, input[type="button"], input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Ensure readable text on small screens */
+  body {
+    font-size: max(14px, calc(14px * var(--uiScale, 1)));
+  }
+  
+  /* Prevent horizontal scrolling */
+  body, html {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
 }
 
 body{
@@ -15545,6 +15589,7 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   align-items: center;
   justify-content: center;
   margin-right: 6px;
+  font-size: calc(0.9em * var(--uiScale, 1)); /* Slightly smaller role symbols with responsive scaling */
 }
 
 .roleSymbolPreviewRow {
@@ -15596,12 +15641,12 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 
 @keyframes ownerGlow {
   0%, 100% {
-    filter: drop-shadow(0 0 2px rgba(124, 255, 74, 0.6));
+    filter: drop-shadow(0 0 1px rgba(124, 255, 74, 0.4));
     transform: scale(1);
   }
   50% {
-    filter: drop-shadow(0 0 6px rgba(124, 255, 74, 0.9));
-    transform: scale(1.05);
+    filter: drop-shadow(0 0 3px rgba(124, 255, 74, 0.6));
+    transform: scale(1.02);
   }
 }
 
@@ -15611,10 +15656,10 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 
 @keyframes coownerShimmer {
   0%, 100% {
-    filter: drop-shadow(0 0 2px rgba(138, 43, 226, 0.5)) brightness(1);
+    filter: drop-shadow(0 0 1px rgba(138, 43, 226, 0.35)) brightness(1);
   }
   50% {
-    filter: drop-shadow(0 0 5px rgba(255, 79, 163, 0.7)) brightness(1.15);
+    filter: drop-shadow(0 0 3px rgba(255, 79, 163, 0.5)) brightness(1.08);
   }
 }
 
@@ -15624,13 +15669,13 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 
 @keyframes adminShield {
   0% {
-    filter: drop-shadow(0 0 3px rgba(255, 140, 0, 0.6)) hue-rotate(0deg);
+    filter: drop-shadow(0 0 1.5px rgba(255, 140, 0, 0.4)) hue-rotate(0deg);
   }
   50% {
-    filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.8)) hue-rotate(15deg);
+    filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.55)) hue-rotate(15deg);
   }
   100% {
-    filter: drop-shadow(0 0 3px rgba(255, 140, 0, 0.6)) hue-rotate(0deg);
+    filter: drop-shadow(0 0 1.5px rgba(255, 140, 0, 0.4)) hue-rotate(0deg);
   }
 }
 

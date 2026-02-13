@@ -1784,6 +1784,21 @@ function loadUiScale(){
   }catch{ return null; }
 }
 
+// Handle orientation changes and window resize for dynamic updates
+let resizeTimeout;
+function handleResponsiveResize() {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    // Trigger any UI updates that might be needed when orientation/size changes
+    const event = new Event('uiscale:change');
+    window.dispatchEvent(event);
+  }, 150);
+}
+
+window.addEventListener('resize', handleResponsiveResize);
+window.addEventListener('orientationchange', handleResponsiveResize);
+
+
 /* ---- Notifications (client-side MVP) ---- */
 const NOTIFICATIONS_KEY = "notifications:v1";
 const NOTIFICATIONS_READ_KEY = "notifications:readAt:v1";
