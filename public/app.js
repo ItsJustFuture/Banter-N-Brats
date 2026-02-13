@@ -1761,6 +1761,33 @@ function saveJson(key, value) {
 /* ---- UI scale (small screens + user override) */
 const UI_SCALE_KEY = "ui:scale:v1";
 
+function calculateResponsiveScale() {
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
+  
+  // Auto-scaling based on screen dimensions
+  let autoScale = 1;
+  
+  if (screenWidth <= 320) {
+    autoScale = 0.85;
+  } else if (screenWidth <= 360) {
+    autoScale = 0.88;
+  } else if (screenWidth <= 374) {
+    autoScale = 0.90;
+  } else if (screenWidth <= 480) {
+    autoScale = 0.95;
+  } else if (screenWidth <= 768) {
+    autoScale = 0.98;
+  }
+  
+  // Special handling for landscape on small screens
+  if (screenHeight < 480 && screenWidth > screenHeight) {
+    autoScale = Math.min(autoScale, 0.92);
+  }
+  
+  return autoScale;
+}
+
 function applyUiScale(scale){
   // If scale is null/undefined, revert to auto (CSS media queries).
   if(scale === null || scale === undefined || scale === ""){
@@ -1783,6 +1810,26 @@ function loadUiScale(){
     return Number.isFinite(n) ? n : null;
   }catch{ return null; }
 }
+
+// Handle orientation changes and window resize for dynamic scaling
+let resizeTimeout;
+function handleResponsiveResize() {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    const currentScale = loadUiScale();
+    // If user hasn't set a manual override, update based on current dimensions
+    if (currentScale === null) {
+      // CSS media queries will handle this automatically
+      // Just trigger any UI updates that might be needed
+      const event = new Event('uiscale:change');
+      window.dispatchEvent(event);
+    }
+  }, 150);
+}
+
+window.addEventListener('resize', handleResponsiveResize);
+window.addEventListener('orientationchange', handleResponsiveResize);
+
 
 /* ---- Notifications (client-side MVP) ---- */
 const NOTIFICATIONS_KEY = "notifications:v1";
