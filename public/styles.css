@@ -2464,14 +2464,9 @@ body[data-theme="420 Friendly (Light)"]{
   :root{ --uiScaleAuto: 0.85; }
 }
 
-/* Small mobile phones (older Android, iPhone SE) */
-@media (min-width: 321px) and (max-width: 360px){
+/* Small mobile phones (older Android, smaller iPhones) */
+@media (min-width: 321px) and (max-width: 374px){
   :root{ --uiScaleAuto: 0.88; }
-}
-
-/* Very small phones (small iPhones, older Android) */
-@media (min-width: 361px) and (max-width: 374px){
-  :root{ --uiScaleAuto: 0.90; }
 }
 
 /* Standard mobile phones (iPhone 12/13/14, most modern phones) */
@@ -2514,13 +2509,6 @@ html, body { height: 100%; }
   body, html {
     overflow-x: hidden;
     max-width: 100vw;
-  }
-}
-
-/* Orientation change: recalculate on rotation */
-@media (orientation: landscape) and (max-height: 480px) {
-  :root {
-    --uiScaleAuto: 0.92;
   }
 }
 
