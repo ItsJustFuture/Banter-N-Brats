@@ -15545,6 +15545,7 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   align-items: center;
   justify-content: center;
   margin-right: 6px;
+  font-size: 0.9em; /* Slightly smaller role symbols */
 }
 
 .roleSymbolPreviewRow {
@@ -15596,12 +15597,12 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 
 @keyframes ownerGlow {
   0%, 100% {
-    filter: drop-shadow(0 0 2px rgba(124, 255, 74, 0.6));
+    filter: drop-shadow(0 0 1px rgba(124, 255, 74, 0.4));
     transform: scale(1);
   }
   50% {
-    filter: drop-shadow(0 0 6px rgba(124, 255, 74, 0.9));
-    transform: scale(1.05);
+    filter: drop-shadow(0 0 3px rgba(124, 255, 74, 0.6));
+    transform: scale(1.02);
   }
 }
 
@@ -15611,10 +15612,10 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 
 @keyframes coownerShimmer {
   0%, 100% {
-    filter: drop-shadow(0 0 2px rgba(138, 43, 226, 0.5)) brightness(1);
+    filter: drop-shadow(0 0 1px rgba(138, 43, 226, 0.35)) brightness(1);
   }
   50% {
-    filter: drop-shadow(0 0 5px rgba(255, 79, 163, 0.7)) brightness(1.15);
+    filter: drop-shadow(0 0 3px rgba(255, 79, 163, 0.5)) brightness(1.08);
   }
 }
 
@@ -15624,13 +15625,13 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 
 @keyframes adminShield {
   0% {
-    filter: drop-shadow(0 0 3px rgba(255, 140, 0, 0.6)) hue-rotate(0deg);
+    filter: drop-shadow(0 0 1.5px rgba(255, 140, 0, 0.4)) hue-rotate(0deg);
   }
   50% {
-    filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.8)) hue-rotate(15deg);
+    filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.55)) hue-rotate(15deg);
   }
   100% {
-    filter: drop-shadow(0 0 3px rgba(255, 140, 0, 0.6)) hue-rotate(0deg);
+    filter: drop-shadow(0 0 1.5px rgba(255, 140, 0, 0.4)) hue-rotate(0deg);
   }
 }
 
