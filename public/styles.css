@@ -9776,7 +9776,7 @@ body.polish-pack.polish-auras .presenceAura.isVip::after{
   background: #7f8c8d;
   box-shadow: 0 0 8px rgba(0,0,0,.35);
 }
-.profilePresenceDot[data-status="online"]{ background: #3bd16f; }
+.profilePresenceDot[data-status="online"]{ background: #22c55e; }
 .profilePresenceDot[data-status="away"]{ background: #facc15; }
 .profilePresenceDot[data-status="busy"]{ background: #c2410c; }
 .profilePresenceDot[data-status="dnd"]{ background: #ef4444; }
