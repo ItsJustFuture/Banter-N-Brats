@@ -3066,6 +3066,21 @@ body.keyboard-open .menuContent{ padding-bottom: calc(200px + var(--kb, 0px) + e
 .leaderboardGrid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; }
 .leaderboardCard{ display:flex; flex-direction:column; gap:6px; }
 .leaderboardList{ display:flex; flex-direction:column; gap:6px; }
+.leaderboardCard .sectionTitle,
+.leaderboardContainer .leaderboardHeader h3{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.leaderboardCollapseBtn{ padding:2px 8px; font-size:11px; }
+.leaderboardCard .leaderboardList,
+.leaderboardContainer .leaderboardList{
+  max-height: 520px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height .25s ease, opacity .2s ease;
+}
+.leaderboardCard.isCollapsed .leaderboardList,
+.leaderboardContainer.isCollapsed .leaderboardList{
+  max-height: 0;
+  opacity: 0;
+}
 .leaderboardItem{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
 .leaderboardItem .label{ font-weight:800; }
 .leaderboardItem .meta{ color:var(--muted); font-size:12px; }
@@ -9761,16 +9776,17 @@ body.polish-pack.polish-auras .presenceAura.isVip::after{
   background: #7f8c8d;
   box-shadow: 0 0 8px rgba(0,0,0,.35);
 }
-.profilePresenceDot[data-status="online"]{ background: #3bd16f; }
-.profilePresenceDot[data-status="away"]{ background: #f5c542; }
-.profilePresenceDot[data-status="busy"],
+.profilePresenceDot[data-status="online"]{ background: #22c55e; }
+.profilePresenceDot[data-status="away"]{ background: #facc15; }
+.profilePresenceDot[data-status="busy"]{ background: #c2410c; }
 .profilePresenceDot[data-status="dnd"]{ background: #ef4444; }
-.profilePresenceDot[data-status="idle"]{ background: #f59e0b; }
-.profilePresenceDot[data-status="gaming"]{ background: #8b5cf6; }
-.profilePresenceDot[data-status="music"]{ background: #22c55e; }
-.profilePresenceDot[data-status="working"]{ background: #38bdf8; }
-.profilePresenceDot[data-status="chatting"]{ background: #60a5fa; }
-.profilePresenceDot[data-status="lurking"]{ background: #a3a3a3; }
+.profilePresenceDot[data-status="idle"]{ background: #808080; }
+.profilePresenceDot[data-status="gaming"]{ background: #1e3a8a; }
+.profilePresenceDot[data-status="music"]{ background: #38bdf8; }
+.profilePresenceDot[data-status="working"]{ background: #7c3aed; }
+.profilePresenceDot[data-status="chatting"]{ background: #ffffff; }
+.profilePresenceDot[data-status="lurking"]{ background: #3f0000; }
+.profilePresenceDot[data-status="offline"]{ background: #000000; }
 
 /* Couples Flair */
 .couplesFlair{
@@ -16468,22 +16484,17 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   flex-shrink: 0;
 }
 
-.presence-status.online {
-  background: #43b581;
-  box-shadow: 0 0 8px #43b581;
-}
-
-.presence-status.idle {
-  background: #faa61a;
-}
-
-.presence-status.dnd {
-  background: #f04747;
-}
-
-.presence-status.offline {
-  background: #747f8d;
-}
+.presence-status.online { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+.presence-status.away { background: #facc15; }
+.presence-status.busy { background: #c2410c; }
+.presence-status.dnd { background: #ef4444; }
+.presence-status.idle { background: #808080; }
+.presence-status.gaming { background: #1e3a8a; }
+.presence-status.music { background: #38bdf8; }
+.presence-status.working { background: #7c3aed; }
+.presence-status.chatting { background: #ffffff; }
+.presence-status.lurking { background: #3f0000; }
+.presence-status.offline { background: #000000; }
 
 /* Friends Sidebar */
 #friends-sidebar {
@@ -16541,18 +16552,13 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
   flex-shrink: 0;
 }
 
-.friend-item.online .friend-status-dot {
-  background: #43b581;
-  box-shadow: 0 0 8px #43b581;
-}
+.friend-item.online .friend-status-dot { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+.friend-item.idle .friend-status-dot,
+.friend-item.away .friend-status-dot { background: #facc15; }
+.friend-item.offline .friend-status-dot { background: #000000; }
 
-.friend-item.idle .friend-status-dot {
-  background: #faa61a;
-}
-
-.friend-item.offline .friend-status-dot {
-  background: #747f8d;
-}
+.cuteReward{ line-height:1.3; }
+.dailyWeeklyProgress{ margin-bottom:10px; }
 
 .friend-name {
   flex: 1;

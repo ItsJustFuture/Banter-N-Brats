@@ -389,9 +389,16 @@ async function runSqliteMigrations() {
     ["status_emoji", "status_emoji TEXT"],
     ["status_color", "status_color TEXT"],
     ["status_expires_at", "status_expires_at INTEGER"],
+    ["last_daily_completion_date", "last_daily_completion_date TEXT"],
+    ["current_daily_streak", "current_daily_streak INTEGER NOT NULL DEFAULT 0"],
+    ["weekly_challenge_completion_count", "weekly_challenge_completion_count INTEGER NOT NULL DEFAULT 0"],
+    ["vip_granted_from_daily", "vip_granted_from_daily INTEGER NOT NULL DEFAULT 0"],
+    ["vip_expires_at", "vip_expires_at INTEGER"],
+    ["vip_source", "vip_source TEXT"],
   ];
   await ensureColumns("users", userColumns);
   await run(`CREATE INDEX IF NOT EXISTS idx_users_username_nocase ON users(username COLLATE NOCASE)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_users_vip_expires_at ON users(vip_expires_at)`);
   await run("UPDATE users SET vibe_tags='[]' WHERE vibe_tags IS NULL");
   await run("UPDATE users SET prefs_json='{}' WHERE prefs_json IS NULL OR prefs_json='' ");
 

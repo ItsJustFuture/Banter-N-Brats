@@ -1155,7 +1155,7 @@ const TEXT_EFFECTS = [
 const TEXT_EFFECT_MAP = new Map(TEXT_EFFECTS.map((effect) => [effect.id, effect]));
 const VIP_TEXT_EFFECT_IDS = new Set(TEXT_EFFECTS.filter((effect) => effect.vip).map((effect) => effect.id));
 const TEXT_STYLE_MODES = new Set(["color", "neon", "gradient"]);
-const TEXT_STYLE_INTENSITIES = new Set(["low", "med", "high", "ultra"]);
+const TEXT_STYLE_INTENSITIES = new Set(["low", "med", "high", "ultra", "max"]);
 const TEXT_STYLE_GRADIENT_INTENSITIES = new Set(["soft", "normal", "bold"]);
 const COLOR_PRESETS = Object.freeze([
   { id: "color-white", label: "White", value: "#ffffff" },
@@ -2400,26 +2400,32 @@ function buildNeonTextShadow(color, intensity){
   if (!rgb) return "";
   const profiles = {
     low: [
-      { blur: 4, alpha: 0.4 },
-      { blur: 10, alpha: 0.24 }
+      { blur: 3, alpha: 0.26 },
+      { blur: 7, alpha: 0.16 }
     ],
     med: [
-      { blur: 6, alpha: 0.5 },
-      { blur: 14, alpha: 0.3 },
-      { blur: 22, alpha: 0.2 }
+      { blur: 4, alpha: 0.33 },
+      { blur: 10, alpha: 0.2 },
+      { blur: 14, alpha: 0.13 }
     ],
     high: [
-      { blur: 6, alpha: 0.65 },
-      { blur: 16, alpha: 0.4 },
-      { blur: 28, alpha: 0.3 },
-      { blur: 40, alpha: 0.2 }
+      { blur: 4, alpha: 0.42 },
+      { blur: 11, alpha: 0.26 },
+      { blur: 18, alpha: 0.2 },
+      { blur: 26, alpha: 0.13 }
     ],
     ultra: [
+      { blur: 5, alpha: 0.49 },
+      { blur: 12, alpha: 0.33 },
+      { blur: 21, alpha: 0.23 },
+      { blur: 31, alpha: 0.16 }
+    ],
+    max: [
       { blur: 8, alpha: 0.75 },
       { blur: 18, alpha: 0.5 },
       { blur: 32, alpha: 0.35 },
       { blur: 48, alpha: 0.25 }
-    ]
+    ],
   };
   const layers = profiles[intensity] || profiles.med;
   return layers.map((layer) => `0 0 ${layer.blur}px rgba(${rgb.r},${rgb.g},${rgb.b},${layer.alpha})`).join(", ");
@@ -2725,7 +2731,7 @@ function applyChatFxToBubble(bubble, fx, options = {}){
   const userNameStyle = resolved.userNameStyle || normalizeTextStyle(null, resolved);
   const textMode = textStyle.mode;
   const nameMode = userNameStyle.mode;
-  const intensityMap = { low: 0.4, med: 0.7, high: 1.0, ultra: 1.3 };
+  const intensityMap = { low: 0.26, med: 0.45, high: 0.65, ultra: 0.85, max: 1.3 };
   const textGlowValue = textMode === "neon" ? (intensityMap[textStyle.neon.intensity] ?? 0.7) : 0;
   const neonPreset = textStyle.neon.presetId ? NEON_PRESET_MAP.get(textStyle.neon.presetId) : null;
   const neonColor = textStyle.neon.color || neonPreset?.baseColor || "";
@@ -8840,6 +8846,7 @@ const STATUS_ALIASES = {
   "Looking to Chat": "Chatting",
   "Invisible": "Lurking",
 };
+const STATUS_COLOR_UTIL = window.StatusColors || null;
 let VIBE_TAG_DEFS = [];
 let VIBE_TAG_OPTIONS = [];
 let VIBE_TAG_LIMIT = 5; // Default to 5, will be updated by server if different
@@ -8851,16 +8858,8 @@ function normalizeStatusLabel(status, fallback=""){
 }
 
 function statusDotColor(status){
-  const normalized = normalizeStatusLabel(status, "Online");
-  switch(normalized){
-    case "Online": return "var(--ok)";
-    case "Away": return "var(--warn)";
-    case "Busy": return "var(--danger)";
-    case "Do Not Disturb": return "var(--danger)";
-    case "Idle": return "var(--gray)";
-    case "Lurking": return "var(--gray)";
-    default: return "var(--accent)";
-  }
+  if (STATUS_COLOR_UTIL?.getStatusColor) return STATUS_COLOR_UTIL.getStatusColor(status, "var(--accent)");
+  return "var(--accent)";
 }
 
 function updateVibeTagLimitText(){
@@ -18880,6 +18879,21 @@ function formatReward(reward = {}){
   }
 }
 
+function renderRewardDisplay(reward = {}){
+  const xp = Math.max(0, Number(reward.xp ?? reward.rewardXp ?? 0) || 0);
+  const gold = Math.max(0, Number(reward.gold ?? reward.rewardGold ?? 0) || 0);
+  const lines = [];
+  if (xp > 0) lines.push(`<div>+${xp} XP</div>`);
+  if (gold > 0) lines.push(`<div>+${gold} Gold 🪙</div>`);
+  if (!lines.length) lines.push(`<div>${escapeHtml(formatReward(reward))}</div>`);
+  return `
+    <div class="challengeReward cuteReward">
+      <div>✨ Rewards:</div>
+      ${lines.join("")}
+    </div>
+  `;
+}
+
 function getTargetForChallenge(challengeId) {
   const targets = {
     "daily-messages-50": 50,
@@ -18893,23 +18907,35 @@ function getTargetForChallenge(challengeId) {
 async function renderDailyChallenges() {
   if (!dailyList) return false;
   try {
-    const res = await fetch("/api/challenges/daily", { credentials: "include" });
+    const res = await fetch("/api/challenges/today", { credentials: "include" });
     if (!res.ok) throw new Error("bad");
-    const challenges = await res.json();
+    const payload = await res.json();
+    const challenges = Array.isArray(payload?.challenges) ? payload.challenges : [];
+    const weekly = payload?.weeklyProgress || {};
+    const weeklyCompleted = Math.max(0, Number(weekly.completedChallenges || 0));
+    const weeklyTotal = Math.max(1, Number(weekly.totalChallenges || 35));
+    const streakNow = Math.max(0, Number(weekly.currentDailyStreak || 0));
+    const streakTotal = Math.max(1, Number(weekly.totalStreakDays || 7));
 
     dailyList.innerHTML = `
       <h3>Daily Challenges</h3>
+      <div class="dailyWeeklyProgress card">
+        <div class="sectionTitle">Weekly Challenge Progress</div>
+        <div class="small muted">Progress: ${weeklyCompleted} / ${weeklyTotal} Challenges Completed</div>
+        <div class="small muted">Streak: ${streakNow} / ${streakTotal} Days</div>
+      </div>
       <div class="challengeList">
         ${(challenges || []).map((c) => {
-          const target = c.target || getTargetForChallenge(c.challenge_id);
-          const progress = Math.max(0, Number(c.progress || 0));
+          const target = Math.max(1, Number(c.goal || c.target || getTargetForChallenge(c.id || c.challenge_id)));
+          const progress = Math.max(0, Number(c.currentProgress ?? c.progress ?? 0));
           const pct = target > 0 ? Math.min(100, (progress / target) * 100) : 0;
-          const completed = !!c.completed;
+          const completed = !!(c.completed || c.done);
           const claimed = !!c.claimed;
+          const completedAt = c.completedAt ? new Date(c.completedAt).toLocaleTimeString() : "";
           return `
           <div class="challengeCard ${completed ? "completed" : ""}">
             <div class="challengeHeader">
-              <span class="challengeTitle">${escapeHtml(c.title || "")}</span>
+              <span class="challengeTitle">${escapeHtml(c.title || c.label || "")}</span>
               ${completed ? '<span class="checkmark">✓</span>' : ""}
             </div>
             <p class="challengeDesc">${escapeHtml(c.description || "")}</p>
@@ -18919,27 +18945,14 @@ async function renderDailyChallenges() {
               </div>
               <span class="progressText">${progress} / ${target}</span>
             </div>
-            <div class="challengeReward">
-              Reward: ${formatReward({ type: c.reward_type, value: c.reward_value })}
-            </div>
-            ${completed ? `
-              <button class="btn btnPrimary" type="button" data-claim-challenge="${escapeHtml(c.challenge_id)}" ${claimed ? "disabled" : ""}>
-                ${claimed ? "Claimed" : "Claim Reward"}
-              </button>
-            ` : ""}
+            ${renderRewardDisplay({ xp: c.rewardXp, gold: c.rewardGold, type: c.reward_type, value: c.reward_value })}
+            ${completed && completedAt ? `<div class="small muted">Completed at ${escapeHtml(completedAt)}</div>` : ""}
+            <div class="small muted">${claimed ? "Reward claimed automatically." : (completed ? "Reward pending sync..." : "Keep going!")}</div>
           </div>
         `;
         }).join("")}
       </div>
     `;
-
-    dailyList.querySelectorAll("[data-claim-challenge]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const id = btn.dataset.claimChallenge;
-        if (!id) return;
-        await claimChallenge(id);
-      });
-    });
     if (dailyMsg) dailyMsg.textContent = "";
     return true;
   } catch (err) {
@@ -19024,6 +19037,7 @@ async function renderGamificationLeaderboard(type = gamificationLeaderboardState
       gamificationLeaderboardState.type = e.target.value;
       renderGamificationLeaderboard(e.target.value, safeTimeframe);
     });
+    initLeaderboardCollapsiblePanels();
   } catch (err) {
     console.error("Failed to load leaderboard:", err);
   }
@@ -19148,6 +19162,71 @@ async function fetchLeaderboards({ force=false, reason="manual" } = {}){
   }finally{
     leaderboardState.inFlight = false;
   }
+}
+
+const LEADERBOARD_COLLAPSE_STORAGE_KEY = "leaderboards:collapsed:v1";
+let leaderboardCollapseState = null;
+
+function loadLeaderboardCollapseState(){
+  if (leaderboardCollapseState) return leaderboardCollapseState;
+  let parsed = {};
+  try {
+    parsed = JSON.parse(localStorage.getItem(LEADERBOARD_COLLAPSE_STORAGE_KEY) || "{}") || {};
+  } catch {
+    parsed = {};
+  }
+  if (!Object.keys(parsed).length && window.matchMedia?.("(max-width: 768px)")?.matches) {
+    parsed = { xp: true, gold: true, dice: true, likes: true, chess: true, gamification: true };
+  }
+  leaderboardCollapseState = parsed;
+  return leaderboardCollapseState;
+}
+
+function saveLeaderboardCollapseState(){
+  try {
+    localStorage.setItem(LEADERBOARD_COLLAPSE_STORAGE_KEY, JSON.stringify(leaderboardCollapseState || {}));
+  } catch {}
+}
+
+function applyLeaderboardCollapsedState(card, panelId, collapsed){
+  if (!card || !panelId) return;
+  card.classList.toggle("isCollapsed", !!collapsed);
+  card.dataset.collapsed = collapsed ? "1" : "0";
+  const btn = card.querySelector(".leaderboardCollapseBtn");
+  if (btn) {
+    btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    btn.textContent = collapsed ? "Show" : "Hide";
+  }
+}
+
+function initLeaderboardCollapsiblePanels(){
+  const state = loadLeaderboardCollapseState();
+  const panels = [
+    { id: "xp", list: leaderboardXp },
+    { id: "gold", list: leaderboardGold },
+    { id: "dice", list: leaderboardDice },
+    { id: "likes", list: leaderboardLikes },
+    { id: "chess", list: leaderboardChess },
+    { id: "gamification", list: leaderboardContainer },
+  ];
+  panels.forEach(({ id, list }) => {
+    const card = list?.closest?.(".leaderboardCard, .leaderboardContainer");
+    if (!card || card.dataset.collapseReady === "1") return;
+    card.dataset.collapseReady = "1";
+    card.dataset.panelId = id;
+    const header = card.querySelector(".sectionTitle, .leaderboardHeader, h3");
+    if (!header) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn secondary leaderboardCollapseBtn";
+    btn.addEventListener("click", () => {
+      state[id] = !Boolean(state[id]);
+      applyLeaderboardCollapsedState(card, id, state[id]);
+      saveLeaderboardCollapseState();
+    });
+    header.appendChild(btn);
+    applyLeaderboardCollapsedState(card, id, Boolean(state[id]));
+  });
 }
 
 // Chess piece assets (PNG) — filenames match your uploaded set.
@@ -19638,6 +19717,7 @@ function setMenuTab(tab){
   if(activeMenuTab === "changelog") ensureChangelogLoaded();
   if(activeMenuTab === "faq") ensureFaqLoaded();
   if(activeMenuTab === "daily") ensureDailyLoaded();
+  if(activeMenuTab === "leaderboards") initLeaderboardCollapsiblePanels();
   setLeaderboardOpen(activeMenuTab === "leaderboards" && rightPanelMode === "menu");
 }
 
@@ -22974,20 +23054,11 @@ function fillProfileSheetHeader(p, isSelf){
 
 function updateProfilePresenceDot(statusLabel){
   if (!profilePresenceDot) return;
-  const raw = normalizeStatusLabel(statusLabel, "").toLowerCase();
-  let status = "offline";
-  if (raw === "online") status = "online";
-  else if (raw === "away") status = "away";
-  else if (raw === "busy") status = "busy";
-  else if (raw === "do not disturb" || raw === "dnd") status = "dnd";
-  else if (raw === "idle") status = "idle";
-  else if (raw === "gaming") status = "gaming";
-  else if (raw === "music") status = "music";
-  else if (raw === "working") status = "working";
-  else if (raw === "chatting") status = "chatting";
-  else if (raw === "lurking") status = "lurking";
+  const raw = normalizeStatusLabel(statusLabel, "offline");
+  const status = STATUS_COLOR_UTIL?.normalizeStatusKey ? STATUS_COLOR_UTIL.normalizeStatusKey(raw, "offline") : String(raw || "offline").toLowerCase();
   profilePresenceDot.dataset.status = status;
   profilePresenceDot.title = statusLabel || "Offline";
+  profilePresenceDot.style.background = statusDotColor(status);
   profilePresenceDot.style.display = "inline-flex";
 }
 
@@ -23685,10 +23756,11 @@ function buildTextCustomizationModal(){
                  <label for="textCustomizationIntensity">Neon intensity</label>
                  <select id="textCustomizationIntensity">
                   <option value="low">Low</option>
-                  <option value="med">Medium</option>
-                  <option value="high">High</option>
-                  <option value="ultra">Ultra</option>
-                </select>
+                   <option value="med">Medium</option>
+                   <option value="high">High</option>
+                   <option value="ultra">Ultra</option>
+                   <option value="max">Neon (Max)</option>
+                 </select>
               </div>
               <div class="textCustomizationField">
                 <label for="textCustomizationGradientIntensity">Gradient intensity</label>
@@ -24037,10 +24109,11 @@ function buildChatIdentityModal(){
                 <label for="chatIdentityIntensity">Neon intensity</label>
                 <select id="chatIdentityIntensity">
                   <option value="low">Low</option>
-                  <option value="med">Medium</option>
-                  <option value="high">High</option>
-                  <option value="ultra">Ultra</option>
-                </select>
+                   <option value="med">Medium</option>
+                   <option value="high">High</option>
+                   <option value="ultra">Ultra</option>
+                   <option value="max">Neon (Max)</option>
+                 </select>
               </div>
               <div class="chatIdentityField">
                 <label for="chatIdentityGradientIntensity">Gradient intensity</label>
@@ -26428,12 +26501,16 @@ initAppealsDurationSelect();
         ${users.map(user => {
           // Escape HTML and normalize role for data attribute
           const safeUsername = escapeHtml(user.username);
-          const safeStatus = escapeHtml(user.status);
+          const statusKey = STATUS_COLOR_UTIL?.normalizeStatusKey
+            ? STATUS_COLOR_UTIL.normalizeStatusKey(user.status, "offline")
+            : "offline";
+          const safeStatus = escapeHtml(statusKey);
+          const safeStatusColor = escapeHtml(statusDotColor(statusKey));
           const safeRole = String(user.role || 'User').toLowerCase().replace(/\s+/g, '-');
           
           return `
             <div class="presence-user" data-username="${safeUsername}" data-role="${safeRole}">
-              <span class="presence-status ${safeStatus}"></span>
+              <span class="presence-status ${safeStatus}" style="background:${safeStatusColor};"></span>
               <span class="presence-username">
                 ${safeUsername}
               </span>
@@ -27172,16 +27249,19 @@ socket.on("mod:case_event", (payload = {}) => {
 
   socket.on("command response", handleCommandResponse);
   socket.on("user list", (users)=>{
-    // Update room occupancy count for current room
-    if (currentRoom) {
-      updateRoomCounter(currentRoom, (users || []).length);
-    }
+    if (currentRoom) updateRoomCounter(currentRoom, (users || []).length);
     
     if (membersViewMode === "friends") {
       lastUsers = reorderCouplesInMembers(users || []);
     } else {
       renderMembers(users);
     }
+  });
+  socket.on("room population", (payload = {}) => {
+    const room = typeof payload.room === "string" ? payload.room : "";
+    const count = Number(payload.count || 0);
+    if (!room) return;
+    updateRoomCounter(room, Number.isFinite(count) && count >= 0 ? count : 0);
   });
   socket.on("user fx updated", (payload = {}) => {
     const name = safeString(payload.username, "").trim();
