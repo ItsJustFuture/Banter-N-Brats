@@ -92,6 +92,7 @@ const MS_TO_SECONDS = 1000; // Milliseconds to seconds conversion
 // Presence System Constants
 const USER_PRESENCE_MAP = new Map(); // socketId -> { username, status, room, lastSeen }
 const USER_SOCKET_MAP = new Map(); // username -> Set of socketIds (multiple tabs)
+const ROOM_USERS = new Map(); // roomId -> Set<userKey>
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 // Broadcast current playback state for client synchronization
@@ -861,6 +862,77 @@ for (const dir of [UPLOADS_DIR, AVATARS_DIR]) {
     }
   }
 
+  function getRoomUserKey(socket) {
+    if (!socket?.user) return "";
+    const uid = Number(socket.user.id || 0);
+    if (uid > 0) return `id:${uid}`;
+    const uname = String(socket.user.username || "").trim().toLowerCase();
+    return uname ? `u:${uname}` : "";
+  }
+
+  function getRoomPopulation(room) {
+    const set = ROOM_USERS.get(room);
+    return set ? set.size : 0;
+  }
+
+  function emitRoomPopulation(room) {
+    const safeRoom = typeof room === "string" ? room : "";
+    if (!safeRoom) return;
+    const count = getRoomPopulation(safeRoom);
+    io.emit("room population", { room: safeRoom, count });
+  }
+
+  function syncRoomPopulationMembership(socket, previousRoom, targetRoom) {
+    const userKey = getRoomUserKey(socket);
+    if (!userKey) return;
+    const prev = typeof previousRoom === "string" ? previousRoom : "";
+    const next = typeof targetRoom === "string" ? targetRoom : "";
+    if (prev && prev !== next) {
+      let hasSiblingInPrev = false;
+      for (const s of io.sockets.sockets.values()) {
+        if (!s || s.id === socket.id) continue;
+        if ((s.currentRoom === prev || s.data?.currentRoom === prev) && getRoomUserKey(s) === userKey) {
+          hasSiblingInPrev = true;
+          break;
+        }
+      }
+      if (!hasSiblingInPrev) {
+        const prevSet = ROOM_USERS.get(prev);
+        if (prevSet) {
+          prevSet.delete(userKey);
+          if (prevSet.size === 0) ROOM_USERS.delete(prev);
+        }
+      }
+      emitRoomPopulation(prev);
+    }
+    if (next) {
+      let nextSet = ROOM_USERS.get(next);
+      if (!nextSet) {
+        nextSet = new Set();
+        ROOM_USERS.set(next, nextSet);
+      }
+      nextSet.add(userKey);
+      emitRoomPopulation(next);
+    }
+  }
+
+  function removeRoomPopulationMembership(socket, room) {
+    const userKey = getRoomUserKey(socket);
+    const safeRoom = typeof room === "string" ? room : "";
+    if (!userKey || !safeRoom) return;
+    for (const s of io.sockets.sockets.values()) {
+      if (!s || s.id === socket.id) continue;
+      if ((s.currentRoom === safeRoom || s.data?.currentRoom === safeRoom) && getRoomUserKey(s) === userKey) {
+        return;
+      }
+    }
+    const set = ROOM_USERS.get(safeRoom);
+    if (!set) return;
+    set.delete(userKey);
+    if (set.size === 0) ROOM_USERS.delete(safeRoom);
+    emitRoomPopulation(safeRoom);
+  }
+
   function normalizeTicTacToeMode(raw) {
     const key = String(raw || "").trim().toLowerCase();
     if (!key) return "";
@@ -1269,7 +1341,13 @@ const pgInitPromise = PG_ENABLED ? (async () => {
         lastDailyLoginGoldAt BIGINT,
         lastDiceRollAt BIGINT,
         dice_sixes INTEGER NOT NULL DEFAULT 0,
-        vibe_tags JSONB NOT NULL DEFAULT '[]'::jsonb
+        vibe_tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+        last_daily_completion_date TEXT,
+        current_daily_streak INTEGER NOT NULL DEFAULT 0,
+        weekly_challenge_completion_count INTEGER NOT NULL DEFAULT 0,
+        vip_granted_from_daily INTEGER NOT NULL DEFAULT 0,
+        vip_expires_at BIGINT,
+        vip_source TEXT
       );
 
       CREATE TABLE IF NOT EXISTS session (
@@ -1808,6 +1886,12 @@ try {
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS status_emoji TEXT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS status_color TEXT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS status_expires_at BIGINT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_daily_completion_date TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS current_daily_streak INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS weekly_challenge_completion_count INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS vip_granted_from_daily INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS vip_expires_at BIGINT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS vip_source TEXT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_bytes BYTEA`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_mime TEXT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_updated BIGINT`,
@@ -1815,6 +1899,7 @@ try {
     for (const q of addCols) {
       try { await pgPool.query(q); } catch (_) {}
     }
+    try { await pgPool.query(`CREATE INDEX IF NOT EXISTS idx_users_vip_expires_at ON users(vip_expires_at)`); } catch {}
 
     // Migrate legacy timestamp/int columns to epoch-ms BIGINT so inserts don't fail.
     const epochMsCols = [
@@ -3007,7 +3092,7 @@ const TEXT_STYLE_DEFAULTS = Object.freeze({
   fontStyle: "normal"
 });
 const TEXT_STYLE_MODES = new Set(["color", "neon", "gradient"]);
-const TEXT_STYLE_INTENSITIES = new Set(["low", "med", "high", "ultra"]);
+const TEXT_STYLE_INTENSITIES = new Set(["low", "med", "high", "ultra", "max"]);
 const TEXT_STYLE_GRADIENT_INTENSITIES = new Set(["soft", "normal", "bold"]);
 const TEXT_EFFECT_IDS = new Set([
   "none",
@@ -9796,6 +9881,7 @@ app.post("/logout", (req, res) => {
 app.get("/me", async (req, res) => {
   try {
     if (!req.session?.user?.id) return res.json(null);
+    await expireDailyRewardVipForUser(req.session.user.id).catch(() => false);
 
     // If we already have an avatar in-session, keep it as a fallback.
     const prevAvatar = req.session?.user?.avatar || "";
@@ -9974,6 +10060,185 @@ function dayKeyNow() {
   const da = String(d.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${da}`;
 }
+
+const DAILY_AUTO_REWARD_LOCKS = new Set();
+const WEEKLY_DAILY_CHALLENGE_TARGET = 35;
+const WEEKLY_STREAK_TARGET_DAYS = 7;
+const DAILY_FULL_COMPLETION_TARGET = 5;
+
+function dayKeyToUtcDate(dayKey) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dayKey || ""))) return null;
+  const [y, m, d] = String(dayKey).split("-").map(Number);
+  const ts = Date.UTC(y, (m || 1) - 1, d || 1, 0, 0, 0, 0);
+  if (!Number.isFinite(ts)) return null;
+  return new Date(ts);
+}
+
+function isYesterdayDayKey(previousDayKey, currentDayKey) {
+  const prev = dayKeyToUtcDate(previousDayKey);
+  const curr = dayKeyToUtcDate(currentDayKey);
+  if (!prev || !curr) return false;
+  const diffDays = Math.round((curr.getTime() - prev.getTime()) / 86400000);
+  return diffDays === 1;
+}
+
+async function readUserDailyVipMeta(userId) {
+  if (!userId) return null;
+  if (await pgUserExists(userId)) {
+    const { rows } = await pgPool.query(
+      `SELECT id, role, last_daily_completion_date, current_daily_streak, weekly_challenge_completion_count,
+              vip_granted_from_daily, vip_expires_at, vip_source
+         FROM users WHERE id = $1 LIMIT 1`,
+      [userId]
+    );
+    const row = rows?.[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      role: row.role || "User",
+      lastDailyCompletionDate: row.last_daily_completion_date || null,
+      currentDailyStreak: Number(row.current_daily_streak || 0),
+      weeklyChallengeCompletionCount: Number(row.weekly_challenge_completion_count || 0),
+      vipGrantedFromDaily: Number(row.vip_granted_from_daily || 0) === 1,
+      vipExpiresAt: row.vip_expires_at ? Number(row.vip_expires_at) : null,
+      vipSource: row.vip_source || null,
+      pg: true,
+    };
+  }
+  const row = await dbGetAsync(
+    `SELECT id, role, last_daily_completion_date, current_daily_streak, weekly_challenge_completion_count,
+            vip_granted_from_daily, vip_expires_at, vip_source
+       FROM users WHERE id = ? LIMIT 1`,
+    [userId]
+  ).catch(() => null);
+  if (!row) return null;
+  return {
+    id: row.id,
+    role: row.role || "User",
+    lastDailyCompletionDate: row.last_daily_completion_date || null,
+    currentDailyStreak: Number(row.current_daily_streak || 0),
+    weeklyChallengeCompletionCount: Number(row.weekly_challenge_completion_count || 0),
+    vipGrantedFromDaily: Number(row.vip_granted_from_daily || 0) === 1,
+    vipExpiresAt: row.vip_expires_at ? Number(row.vip_expires_at) : null,
+    vipSource: row.vip_source || null,
+    pg: false,
+  };
+}
+
+async function writeUserDailyVipMeta(userId, patch = {}, pgHint = null) {
+  if (!userId || !patch || typeof patch !== "object") return;
+  const entries = Object.entries(patch).filter(([, value]) => value !== undefined);
+  if (!entries.length) return;
+  const usePg = pgHint == null ? await pgUserExists(userId) : !!pgHint;
+  if (usePg) {
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    for (const [key, value] of entries) {
+      sets.push(`${key} = $${idx++}`);
+      params.push(value);
+    }
+    params.push(userId);
+    await pgPool.query(`UPDATE users SET ${sets.join(", ")} WHERE id = $${idx}`, params);
+    return;
+  }
+  const sets = entries.map(([key]) => `${key} = ?`).join(", ");
+  const params = entries.map(([, value]) => value);
+  params.push(userId);
+  await dbRunAsync(`UPDATE users SET ${sets} WHERE id = ?`, params);
+}
+
+async function expireDailyRewardVipForUser(userId) {
+  const row = await readUserDailyVipMeta(userId);
+  if (!row) return false;
+  if (row.vipSource !== "daily_reward") return false;
+  const expiresAt = Number(row.vipExpiresAt || 0);
+  if (!expiresAt || expiresAt > Date.now()) return false;
+  const nextRole = String(row.role || "") === "VIP" ? "User" : row.role;
+  await writeUserDailyVipMeta(userId, {
+    role: nextRole,
+    vip_granted_from_daily: 0,
+    vip_expires_at: null,
+    vip_source: null,
+  }, row.pg);
+  return true;
+}
+
+async function applyWeeklyDailyRewardIfEligible(userId, dayKey) {
+  const meta = await readUserDailyVipMeta(userId);
+  if (!meta || meta.lastDailyCompletionDate === dayKey) {
+    return {
+      streak: Number(meta?.currentDailyStreak || 0),
+      weeklyCount: Number(meta?.weeklyChallengeCompletionCount || 0),
+      rewardGranted: false,
+    };
+  }
+  const continued = isYesterdayDayKey(meta.lastDailyCompletionDate, dayKey);
+  const streak = continued ? (Number(meta.currentDailyStreak || 0) + 1) : 1;
+  const weeklyCount = continued
+    ? Math.min(WEEKLY_DAILY_CHALLENGE_TARGET, Number(meta.weeklyChallengeCompletionCount || 0) + DAILY_FULL_COMPLETION_TARGET)
+    : DAILY_FULL_COMPLETION_TARGET;
+  let rewardGranted = false;
+  const patch = {
+    last_daily_completion_date: dayKey,
+    current_daily_streak: streak,
+    weekly_challenge_completion_count: weeklyCount,
+  };
+  if (streak >= WEEKLY_STREAK_TARGET_DAYS && weeklyCount >= WEEKLY_DAILY_CHALLENGE_TARGET) {
+    rewardGranted = true;
+    if (roleRank(meta.role || "User") < roleRank("VIP")) {
+      patch.role = "VIP";
+      patch.vip_granted_from_daily = 1;
+      patch.vip_source = "daily_reward";
+      patch.vip_expires_at = Date.now() + (72 * 60 * 60 * 1000);
+    } else {
+      await creditGold(userId, 2000, "weekly_daily_streak");
+    }
+    patch.current_daily_streak = 0;
+    patch.weekly_challenge_completion_count = 0;
+  }
+  await writeUserDailyVipMeta(userId, patch, meta.pg);
+  return {
+    streak: Number(patch.current_daily_streak || 0),
+    weeklyCount: Number(patch.weekly_challenge_completion_count || 0),
+    rewardGranted,
+  };
+}
+
+async function runVipAutoExpirySweep() {
+  const now = Date.now();
+  if (PG_READY) {
+    try {
+      const { rows } = await pgPool.query(
+        `SELECT id FROM users
+          WHERE vip_source = 'daily_reward'
+            AND vip_expires_at IS NOT NULL
+            AND vip_expires_at <= $1`,
+        [now]
+      );
+      for (const row of rows || []) {
+        await expireDailyRewardVipForUser(Number(row.id) || 0);
+      }
+      return;
+    } catch {}
+  }
+  try {
+    const rows = await dbAllAsync(
+      `SELECT id FROM users
+        WHERE vip_source = 'daily_reward'
+          AND vip_expires_at IS NOT NULL
+          AND vip_expires_at <= ?`,
+      [now]
+    );
+    for (const row of rows || []) {
+      await expireDailyRewardVipForUser(Number(row.id) || 0);
+    }
+  } catch {}
+}
+
+setInterval(() => {
+  runVipAutoExpirySweep().catch(() => {});
+}, 60_000);
 
 // Helper function to check if a message has valid content
 function hasValidMessageContent(text, attachmentUrl) {
@@ -10335,12 +10600,44 @@ async function bumpDailyProgress(userId, dayKey, challengeId, delta, pgHint = nu
   const claimed = prog.claimed || {};
   progress[challengeId] = Math.max(0, Math.floor(Number(progress[challengeId] || 0) + d));
   await saveDailyProgress(userId, dayKey, progress, claimed, prog.pg);
+  await autoCompleteDailyChallengeReward(userId, dayKey, challengeId);
 }
 
 function safeBumpDailyProgress(userId, dayKey, challengeId, delta) {
   bumpDailyProgress(userId, dayKey, challengeId, delta).catch((err) => {
     if (IS_DEV_MODE) console.warn("[daily] progress update failed", err?.message || err);
   });
+}
+
+async function autoCompleteDailyChallengeReward(userId, dayKey, challengeId) {
+  const challengeKey = String(challengeId || "");
+  const lockKey = `${userId}:${dayKey}:${challengeKey}`;
+  if (!userId || !challengeKey || DAILY_AUTO_REWARD_LOCKS.has(lockKey)) return;
+  DAILY_AUTO_REWARD_LOCKS.add(lockKey);
+  try {
+    const picked = pickDailyChallenges(dayKey);
+    const challenge = picked.find((c) => c.id === challengeKey);
+    if (!challenge) return;
+    const prog = await loadDailyProgress(userId, dayKey);
+    const progress = prog.progress || {};
+    const claimed = prog.claimed || {};
+    if (claimed[challengeKey]) return;
+    const currentProgress = Number(progress[challengeKey] || 0);
+    if (currentProgress < Number(challenge.goal || 0)) return;
+    claimed[challengeKey] = true;
+    const completedAtKey = `${challengeKey}:completedAt`;
+    if (!progress[completedAtKey]) progress[completedAtKey] = Date.now();
+    await saveDailyProgress(userId, dayKey, progress, claimed, prog.pg);
+    try { await applyXpGain(userId, challenge.rewardXp || 0, { reason: "daily_challenge_auto", emitToast: true }); } catch {}
+    try { await creditGold(userId, challenge.rewardGold || 0, `daily_challenge_auto:${challengeKey}`); } catch {}
+
+    const completedToday = picked.filter((c) => !!claimed[c.id]).length;
+    if (completedToday >= DAILY_FULL_COMPLETION_TARGET) {
+      await applyWeeklyDailyRewardIfEligible(userId, dayKey);
+    }
+  } finally {
+    DAILY_AUTO_REWARD_LOCKS.delete(lockKey);
+  }
 }
 
 async function bumpDailyUniqueRoom(userId, dayKey, roomName, pgHint = null) {
@@ -10355,6 +10652,7 @@ async function bumpDailyUniqueRoom(userId, dayKey, roomName, pgHint = null) {
   // mirror into unique rooms challenge progress as count
   progress[DAILY_CHALLENGE_IDS.uniqueRooms] = arr.length;
   await saveDailyProgress(userId, dayKey, progress, claimed, prog.pg);
+  await autoCompleteDailyChallengeReward(userId, dayKey, DAILY_CHALLENGE_IDS.uniqueRooms);
 }
 
 function safeBumpDailyUniqueRoom(userId, dayKey, roomName) {
@@ -10398,6 +10696,7 @@ async function creditGold(userId, amount, reason = "reward") {
 app.get("/api/challenges/today", requireLogin, async (req, res) => {
   try {
     const userId = req.session.user.id;
+    await expireDailyRewardVipForUser(userId).catch(() => false);
     const dk = dayKeyNow();
     const picked = pickDailyChallenges(dk);
     const prog = await loadDailyProgress(userId, dk);
@@ -10405,15 +10704,31 @@ app.get("/api/challenges/today", requireLogin, async (req, res) => {
     const claimed = prog.claimed || {};
     const challenges = picked.map((c) => {
       const p = Number(progress[c.id] || 0);
-      const done = p >= c.goal;
+      const done = p >= c.goal || !!claimed[c.id];
+      const completedAt = progress[`${c.id}:completedAt`] || null;
       return {
         ...c,
+        currentProgress: p,
         progress: p,
+        goal: Number(c.goal || 0),
+        completed: done,
         done,
+        completedAt,
         claimed: !!claimed[c.id],
       };
     });
-    res.json({ ok: true, dayKey: dk, challenges });
+    const meta = await readUserDailyVipMeta(userId);
+    res.json({
+      ok: true,
+      dayKey: dk,
+      challenges,
+      weeklyProgress: {
+        completedChallenges: Number(meta?.weeklyChallengeCompletionCount || 0),
+        totalChallenges: WEEKLY_DAILY_CHALLENGE_TARGET,
+        currentDailyStreak: Number(meta?.currentDailyStreak || 0),
+        totalStreakDays: WEEKLY_STREAK_TARGET_DAYS,
+      },
+    });
   } catch (e) {
     res.status(500).json({ ok: false, error: "failed_to_load_challenges" });
   }
@@ -10424,6 +10739,12 @@ app.post("/api/challenges/claim", strictLimiter, requireLogin, express.json({ li
     const userId = req.session.user.id;
     const dk = dayKeyNow();
     const id = String(req.body?.id || "");
+    const lockKey = `${userId}:${dk}:${id}`;
+    if (DAILY_AUTO_REWARD_LOCKS.has(lockKey)) {
+      return res.json({ ok: true, already: true });
+    }
+    DAILY_AUTO_REWARD_LOCKS.add(lockKey);
+    try {
     const picked = pickDailyChallenges(dk);
     const challenge = picked.find((c) => c.id === id);
     if (!challenge) return res.status(400).json({ ok: false, error: "unknown_challenge" });
@@ -10437,13 +10758,23 @@ app.post("/api/challenges/claim", strictLimiter, requireLogin, express.json({ li
     if (p < challenge.goal) return res.status(400).json({ ok: false, error: "not_complete" });
 
     claimed[id] = true;
+    if (!progress[`${id}:completedAt`]) progress[`${id}:completedAt`] = Date.now();
     await saveDailyProgress(userId, dk, progress, claimed, prog.pg);
 
     // reward
     try { await applyXpGain(userId, challenge.rewardXp || 0, { reason: "daily_challenge", emitToast: true }); } catch {}
     try { await creditGold(userId, challenge.rewardGold || 0, `daily_challenge:${id}`); } catch {}
+    try {
+      const completedToday = picked.filter((c) => !!claimed[c.id]).length;
+      if (completedToday >= DAILY_FULL_COMPLETION_TARGET) {
+        await applyWeeklyDailyRewardIfEligible(userId, dk);
+      }
+    } catch {}
 
     res.json({ ok: true, claimed: true });
+    } finally {
+      DAILY_AUTO_REWARD_LOCKS.delete(lockKey);
+    }
   } catch (e) {
     res.status(500).json({ ok: false, error: "failed_to_claim" });
   }
@@ -18095,7 +18426,7 @@ io.on("connection", async (socket) => {
     if (!allowSocketEvent(socket, "updatePresence", 10, 5000)) return;
     
     // Validate and normalize status against an allowlist
-    const allowedStatuses = new Set(["online", "idle", "dnd", "offline"]);
+    const allowedStatuses = new Set(["online", "away", "busy", "dnd", "idle", "gaming", "music", "working", "chatting", "lurking", "offline"]);
     const normalizedStatus = typeof status === "string" ? status.toLowerCase() : "";
     const safeStatus = allowedStatuses.has(normalizedStatus) ? normalizedStatus : "online";
 
@@ -18191,6 +18522,10 @@ io.on("connection", async (socket) => {
       });
     }
     try {
+      if (!socket.__roomPopulationCleaned) {
+        removeRoomPopulationMembership(socket, socket.currentRoom);
+        socket.__roomPopulationCleaned = true;
+      }
       sessionMetaBySocketId.delete(socket.id);
       const uid = socket.user?.id;
       const set = sessionByUserId.get(uid);
@@ -18756,6 +19091,7 @@ function doJoin(room, status) {
   }
   const previousRoom = socket.data.currentRoom || socket.currentRoom || null;
   const targetRoom = room;
+  const isSameRoomJoin = previousRoom === targetRoom && socket.currentRoom === targetRoom;
   if (previousRoom && previousRoom !== targetRoom) {
     if (DEBUG_ROOMS) {
       console.log("[rooms] leave", { sid: socket.id, room: previousRoom, next: targetRoom });
@@ -18776,7 +19112,7 @@ function doJoin(room, status) {
     emitUserList(previousRoom);
   }
 
-  if (previousRoom !== targetRoom) {
+  if (!isSameRoomJoin && previousRoom !== targetRoom) {
     if (DEBUG_ROOMS) {
       console.log("[rooms] join", { sid: socket.id, room: targetRoom, prev: previousRoom });
     }
@@ -18784,6 +19120,7 @@ function doJoin(room, status) {
   }
   socket.currentRoom = targetRoom;
   socket.data.currentRoom = targetRoom;
+  syncRoomPopulationMembership(socket, isSameRoomJoin ? null : previousRoom, targetRoom);
   
   // Step 9: Verify no multi-room subscriptions (debug mode)
   if (DEBUG_ROOMS && socket.rooms) {
@@ -21692,6 +22029,10 @@ socket.on("disconnect", (reason) => {
     emitOnlineUsers();
 
     const room = socket.currentRoom;
+    if (!socket.__roomPopulationCleaned) {
+      removeRoomPopulationMembership(socket, room);
+      socket.__roomPopulationCleaned = true;
+    }
     if (room) {
       handleTicTacToePlayerExit(room, socket.user, "disconnect");
     }
