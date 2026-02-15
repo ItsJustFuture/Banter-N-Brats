@@ -10155,7 +10155,9 @@ async function expireDailyRewardVipForUser(userId) {
   const expiresAt = Number(row.vipExpiresAt || 0);
   if (!expiresAt || expiresAt > Date.now()) return false;
   const grantedFromDaily = Number(row.vipGrantedFromDaily || 0) !== 0;
-  const nextRole = String(row.role || "") === "VIP" && grantedFromDaily ? "User" : row.role;
+  const currentRole = String(row.role || "");
+  const shouldDowngradeVip = currentRole === "VIP" && grantedFromDaily;
+  const nextRole = shouldDowngradeVip ? "User" : row.role;
   await writeUserDailyVipMeta(userId, {
     role: nextRole,
     vip_granted_from_daily: 0,
@@ -10176,7 +10178,10 @@ async function applyWeeklyDailyRewardIfEligible(userId, dayKey) {
   }
   const continued = isYesterdayDayKey(meta.lastDailyCompletionDate, dayKey);
   const streak = continued ? (Number(meta.currentDailyStreak || 0) + 1) : 1;
-  const weeklyCount = Math.min(WEEKLY_DAILY_CHALLENGE_TARGET, Math.max(1, streak) * DAILY_FULL_COMPLETION_TARGET);
+  // A completed day always contributes 5, and missed days reset streak/weekly window.
+  const weeklyCount = continued
+    ? Math.min(WEEKLY_DAILY_CHALLENGE_TARGET, Number(meta.weeklyChallengeCompletionCount || 0) + DAILY_FULL_COMPLETION_TARGET)
+    : DAILY_FULL_COMPLETION_TARGET;
   let rewardGranted = false;
   const patch = {
     last_daily_completion_date: dayKey,
@@ -10197,13 +10202,13 @@ async function applyWeeklyDailyRewardIfEligible(userId, dayKey) {
     patch.weekly_challenge_completion_count = 0;
   }
   await writeUserDailyVipMeta(userId, patch, meta.pg);
-  const streakBeforeReset = streak;
-  const weeklyCountBeforeReset = weeklyCount;
+  const streakAfterDay = streak;
+  const weeklyCountAfterDay = weeklyCount;
   return {
     streak: Number(patch.current_daily_streak || 0),
     weeklyCount: Number(patch.weekly_challenge_completion_count || 0),
-    streakBeforeReset,
-    weeklyCountBeforeReset,
+    streakAfterDay,
+    weeklyCountAfterDay,
     rewardGranted,
   };
 }
@@ -10747,7 +10752,6 @@ app.post("/api/challenges/claim", strictLimiter, requireLogin, express.json({ li
       return res.json({ ok: true, already: true });
     }
     DAILY_AUTO_REWARD_LOCKS.add(lockKey);
-    let lockAcquired = true;
     try {
     const picked = pickDailyChallenges(dk);
     const challenge = picked.find((c) => c.id === id);
@@ -10777,8 +10781,7 @@ app.post("/api/challenges/claim", strictLimiter, requireLogin, express.json({ li
 
     res.json({ ok: true, claimed: true });
     } finally {
-      if (lockAcquired) DAILY_AUTO_REWARD_LOCKS.delete(lockKey);
-      lockAcquired = false;
+      DAILY_AUTO_REWARD_LOCKS.delete(lockKey);
     }
   } catch (e) {
     res.status(500).json({ ok: false, error: "failed_to_claim" });
