@@ -10972,7 +10972,7 @@ app.post("/api/me/username", strictLimiter, requireLogin, async (req, res) => {
   if (!newName || newName.length < 2) {
     return res.status(400).json({ ok: false, message: "Invalid username." });
   }
-  if (normKey(newName) === normKey(req.session.user.username)) {
+  if (newName === req.session.user.username) {
     return res.status(400).json({ ok: false, message: "That is already your username." });
   }
   if (!(await pgUsersEnabled())) {
