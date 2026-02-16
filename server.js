@@ -9527,12 +9527,13 @@ app.post("/login", loginIpLimiter, async (req, res) => {
       const theme = sanitizeThemeNameServer(pgUser.theme || DEFAULT_THEME);
       const level = Number(pgUser.level || levelInfo(pgUser.xp || 0).level);
 
+      const loginStatus = normalizeStatus(pgUser.last_status, "Online");
       // Mirror into SQLite if missing (some UI/profile/dice logic still reads SQLite)
       const srow = await dbGetAsync("SELECT id, last_status FROM users WHERE id = ?", [pgUser.id]).catch(() => null);
       if (!srow) {
         await dbRunAsync(
-          `INSERT INTO users (id, username, password_hash, role, created_at, gold, xp, theme)
-           VALUES (?,?,?,?,?,?,?,?)`,
+          `INSERT INTO users (id, username, password_hash, role, created_at, gold, xp, theme, last_status)
+           VALUES (?,?,?,?,?,?,?,?,?)`,
           [
             pgUser.id,
             pgUser.username,
@@ -9542,10 +9543,11 @@ app.post("/login", loginIpLimiter, async (req, res) => {
             Number(pgUser.gold || 0),
             Number(pgUser.xp || 0),
             theme,
+            loginStatus,
           ]
         );
       }
-      const persistedStatus = normalizeStatus(srow?.last_status || pgUser.last_status, "Online");
+      const persistedStatus = normalizeStatus(srow?.last_status || loginStatus, "Online");
 
       // IMPORTANT: In Postgres we primarily store avatars in avatar_bytes/avatar_updated.
       // If we only read the legacy "avatar" column here, the session will have an empty avatar
