@@ -8867,6 +8867,19 @@ const STATUS_ALIASES = {
   "Invisible": "Lurking",
 };
 const STATUS_COLOR_UTIL = window.StatusColors || null;
+const STATUS_COLOR_MAP = STATUS_COLOR_UTIL?.STATUS_COLOR_MAP || {
+  online: "#22c55e",
+  away: "#facc15",
+  busy: "#c2410c",
+  dnd: "#ef4444",
+  idle: "#808080",
+  gaming: "#1e3a8a",
+  music: "#38bdf8",
+  working: "#7c3aed",
+  chatting: "#ffffff",
+  lurking: "#3f0000",
+  offline: "#000000",
+};
 let VIBE_TAG_DEFS = [];
 let VIBE_TAG_OPTIONS = [];
 let VIBE_TAG_LIMIT = 5; // Default to 5, will be updated by server if different
@@ -8878,8 +8891,11 @@ function normalizeStatusLabel(status, fallback=""){
 }
 
 function statusDotColor(status){
-  if (STATUS_COLOR_UTIL?.getStatusColor) return STATUS_COLOR_UTIL.getStatusColor(status, "var(--accent)");
-  return "var(--accent)";
+  const key = STATUS_COLOR_UTIL?.normalizeStatusKey
+    ? STATUS_COLOR_UTIL.normalizeStatusKey(status, "offline")
+    : String(status || "offline").trim().toLowerCase();
+  if (STATUS_COLOR_UTIL?.getStatusColor) return STATUS_COLOR_UTIL.getStatusColor(key, STATUS_COLOR_MAP.offline);
+  return STATUS_COLOR_MAP[key] || STATUS_COLOR_MAP.offline;
 }
 
 function updateVibeTagLimitText(){
@@ -12925,9 +12941,19 @@ function renderLevelProgress(data, isSelf){
   }
   if (xpNote) xpNote.style.display = hasXp ? "block" : "none";
   if (userLevelDisplay) {
-    const xpTotal = typeof info.xp === "number" ? info.xp : (isSelf ? progression?.xp : 0);
-    userLevelDisplay.innerHTML = renderUserLevel(info.username || "", xpTotal, levelVal, { showXp: hasXp });
+    userLevelDisplay.style.display = isSelf ? "" : "none";
+    if (isSelf) {
+      const xpTotal = typeof info.xp === "number" ? info.xp : (progression?.xp || 0);
+      userLevelDisplay.innerHTML = renderUserLevel(info.username || "", xpTotal, levelVal, { showXp: hasXp });
+    }
   }
+}
+
+function ensureProfileLevelInStats(){
+  if (!userLevelDisplay || !profileSections) return;
+  const statsBody = profileSections.querySelector('details[data-section="stats"] .profileSectionBody');
+  if (!statsBody || userLevelDisplay.parentElement === statsBody) return;
+  statsBody.appendChild(userLevelDisplay);
 }
 
 function applyProgressionPayload(payload){
@@ -22864,6 +22890,7 @@ async function renderUserBadges(username, { showAll = false, cachedBadges } = {}
 
 function fillProfileUI(p, isSelf){
   currentProfileIsSelf = !!isSelf;
+  ensureProfileLevelInStats();
   preloadRoleSymbols([p?.username].filter(Boolean));
 
   if (modalAvatar){
@@ -23021,8 +23048,8 @@ function fillProfileSheetHeader(p, isSelf){
     }
     const levelVal = deriveProfileLevel(p);
     ring.textContent = Number.isFinite(levelVal) ? levelVal.toLocaleString() : "—";
-    const xpInto = (typeof p?.xpIntoLevel === "number") ? p.xpIntoLevel : (isSelf ? progression?.xpIntoLevel : null);
-    const xpNext = (typeof p?.xpForNextLevel === "number") ? p.xpForNextLevel : (isSelf ? progression?.xpForNextLevel : null);
+    const xpInto = isSelf ? ((typeof p?.xpIntoLevel === "number") ? p.xpIntoLevel : progression?.xpIntoLevel) : null;
+    const xpNext = isSelf ? ((typeof p?.xpForNextLevel === "number") ? p.xpForNextLevel : progression?.xpForNextLevel) : null;
     if (typeof xpInto === "number" && typeof xpNext === "number" && xpNext > 0) {
       const pct = Math.max(0, Math.min(100, (xpInto / xpNext) * 100));
       ring.style.setProperty("--levelProgress", `${pct}%`);
@@ -23083,8 +23110,7 @@ function updateProfilePresenceDot(statusLabel){
   profilePresenceDot.style.background = color;
   const avatarCard = profilePresenceDot.closest(".profileSheetAvatarCard");
   if (avatarCard) {
-    avatarCard.style.borderColor = color;
-    avatarCard.style.boxShadow = `0 0 0 1px ${color}`;
+    avatarCard.style.setProperty("--profilePresenceColor", color);
   }
   profilePresenceDot.style.display = "inline-flex";
 }
@@ -27479,6 +27505,11 @@ socket.on("mod:case_event", (payload = {}) => {
     const uname = String(payload?.username || '').trim();
     if (uname) pushNotification({ type: 'system', text: `${uname} removed you as a friend`, ts: Date.now(), target: `profile:${uname}` });
     friendsDirty = true;
+  });
+  socket.on("profile:liked", (payload = {}) => {
+    const likerUsername = String(payload?.username || "").trim();
+    if (!likerUsername) return;
+    pushNotification({ type: "system", text: `${likerUsername} has liked your profile`, ts: Date.now(), target: `profile:${likerUsername}` });
   });
 
   socket.on("history", (history)=>{
