@@ -9527,12 +9527,13 @@ app.post("/login", loginIpLimiter, async (req, res) => {
       const theme = sanitizeThemeNameServer(pgUser.theme || DEFAULT_THEME);
       const level = Number(pgUser.level || levelInfo(pgUser.xp || 0).level);
 
+      const loginStatus = normalizeStatus(pgUser.last_status, "Online");
       // Mirror into SQLite if missing (some UI/profile/dice logic still reads SQLite)
-      const srow = await dbGetAsync("SELECT id FROM users WHERE id = ?", [pgUser.id]).catch(() => null);
+      const srow = await dbGetAsync("SELECT id, last_status FROM users WHERE id = ?", [pgUser.id]).catch(() => null);
       if (!srow) {
         await dbRunAsync(
-          `INSERT INTO users (id, username, password_hash, role, created_at, gold, xp, theme)
-           VALUES (?,?,?,?,?,?,?,?)`,
+          `INSERT INTO users (id, username, password_hash, role, created_at, gold, xp, theme, last_status)
+           VALUES (?,?,?,?,?,?,?,?,?)`,
           [
             pgUser.id,
             pgUser.username,
@@ -9542,9 +9543,12 @@ app.post("/login", loginIpLimiter, async (req, res) => {
             Number(pgUser.gold || 0),
             Number(pgUser.xp || 0),
             theme,
+            loginStatus,
           ]
         );
       }
+      // loginStatus is already normalizeStatus(pgUser.last_status, "Online")
+      const persistedStatus = loginStatus;
 
       // IMPORTANT: In Postgres we primarily store avatars in avatar_bytes/avatar_updated.
       // If we only read the legacy "avatar" column here, the session will have an empty avatar
@@ -9556,11 +9560,12 @@ app.post("/login", loginIpLimiter, async (req, res) => {
           username: pgUser.username,
           role: pgUser.role,
           theme,
+          status: persistedStatus,
           avatar: avatarUrlFromRow(pgUser) || "",
           avatar_updated: pgUser.avatar_updated ?? pgUser.avatarUpdated ?? null,
           level,
         };
-        dbRunAsync("UPDATE users SET last_seen = ?, last_status = ? WHERE id = ?", [Date.now(), "Online", pgUser.id]).catch(() => {});
+        dbRunAsync("UPDATE users SET last_seen = ?, last_status = ? WHERE id = ?", [Date.now(), persistedStatus, pgUser.id]).catch(() => {});
         initGoldTick(pgUser.id);
         clearLoginFailures(loginKey);
         clearLoginFailures(ipKey);
@@ -9672,14 +9677,15 @@ app.post("/login", loginIpLimiter, async (req, res) => {
     // Mirror into Postgres (so /me + progression + persistent systems work)
     if (PG_READY && pgPool) {
       await pgPool.query(
-        `INSERT INTO users (id, username, password_hash, role, created_at, theme, gold, xp)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        `INSERT INTO users (id, username, password_hash, role, created_at, theme, gold, xp, last_status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          ON CONFLICT (username) DO UPDATE
            SET password_hash = EXCLUDED.password_hash,
-               role = EXCLUDED.role,
-               theme = COALESCE(users.theme, EXCLUDED.theme),
-               gold = COALESCE(users.gold, EXCLUDED.gold),
-               xp = COALESCE(users.xp, EXCLUDED.xp)`,
+                role = EXCLUDED.role,
+                theme = COALESCE(users.theme, EXCLUDED.theme),
+                gold = COALESCE(users.gold, EXCLUDED.gold),
+                xp = COALESCE(users.xp, EXCLUDED.xp),
+                last_status = COALESCE(users.last_status, EXCLUDED.last_status)`,
         [
           row.id,
           row.username,
@@ -9689,14 +9695,16 @@ app.post("/login", loginIpLimiter, async (req, res) => {
           theme,
           Number(row.gold || 0),
           Number(row.xp || 0),
+          normalizeStatus(row.last_status, "Online"),
         ]
       ).catch((e) => console.error("PG mirror on login failed:", e));
     }
 
+    const persistedStatus = normalizeStatus(row.last_status, "Online");
     req.session.regenerate((regenErr) => {
       if (regenErr) return res.status(500).send("Session failed");
-      req.session.user = { id: row.id, username: row.username, role: row.role, theme, avatar: avatarUrlFromRow(row) || "", avatar_updated: row.avatar_updated ?? row.avatarUpdated ?? null, level };
-      dbRunAsync("UPDATE users SET last_seen = ?, last_status = ? WHERE id = ?", [Date.now(), "Online", row.id]).catch(() => {});
+      req.session.user = { id: row.id, username: row.username, role: row.role, theme, status: persistedStatus, avatar: avatarUrlFromRow(row) || "", avatar_updated: row.avatar_updated ?? row.avatarUpdated ?? null, level };
+      dbRunAsync("UPDATE users SET last_seen = ?, last_status = ? WHERE id = ?", [Date.now(), persistedStatus, row.id]).catch(() => {});
       awardLoginXp(row.id, row.role);
       awardDailyLoginGold(row);
       initGoldTick(row.id);
@@ -9794,14 +9802,15 @@ app.post("/password-upgrade", passwordUpgradeLimiter, async (req, res) => {
         ? new Date(Number(sqliteRow.created_at || Date.now()))
         : Number(sqliteRow.created_at || Date.now());
       await pgPool.query(
-        `INSERT INTO users (id, username, password_hash, role, created_at, theme, gold, xp)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        `INSERT INTO users (id, username, password_hash, role, created_at, theme, gold, xp, last_status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          ON CONFLICT (username) DO UPDATE
            SET password_hash = EXCLUDED.password_hash,
-               role = COALESCE(users.role, EXCLUDED.role),
-               theme = COALESCE(users.theme, EXCLUDED.theme),
-               gold = COALESCE(users.gold, EXCLUDED.gold),
-               xp = COALESCE(users.xp, EXCLUDED.xp)`,
+                role = COALESCE(users.role, EXCLUDED.role),
+                theme = COALESCE(users.theme, EXCLUDED.theme),
+                gold = COALESCE(users.gold, EXCLUDED.gold),
+                xp = COALESCE(users.xp, EXCLUDED.xp),
+                last_status = COALESCE(users.last_status, EXCLUDED.last_status)`,
         [
           sqliteRow.id,
           sqliteRow.username,
@@ -9811,6 +9820,7 @@ app.post("/password-upgrade", passwordUpgradeLimiter, async (req, res) => {
           sanitizeThemeNameServer(sqliteRow.theme || DEFAULT_THEME),
           Number(sqliteRow.gold || 0),
           Number(sqliteRow.xp || 0),
+          normalizeStatus(sqliteRow.last_status, "Online"),
         ]
       ).catch(() => {});
     }
@@ -9841,6 +9851,7 @@ app.post("/password-upgrade", passwordUpgradeLimiter, async (req, res) => {
     const avatar = avatarUrlFromRow(sessionRow) || "";
     const avatarUpdated = sessionRow?.avatar_updated ?? sessionRow?.avatarUpdated ?? null;
     const level = Number(sessionRow?.level || levelInfo(sessionRow?.xp || 0).level);
+    const persistedStatus = normalizeStatus(sessionRow?.last_status, "Online");
 
     clearPasswordUpgradeFailures(req);
     delete req.session.passwordUpgrade;
@@ -9852,11 +9863,12 @@ app.post("/password-upgrade", passwordUpgradeLimiter, async (req, res) => {
         username: sessionRow?.username || pending.username,
         role,
         theme,
+        status: persistedStatus,
         avatar,
         avatar_updated: avatarUpdated,
         level,
       };
-      dbRunAsync("UPDATE users SET last_seen = ?, last_status = ? WHERE id = ?", [Date.now(), "Online", userId]).catch(() => {});
+      dbRunAsync("UPDATE users SET last_seen = ?, last_status = ? WHERE id = ?", [Date.now(), persistedStatus, userId]).catch(() => {});
       if (!pgUser && sqliteRow) {
         awardLoginXp(userId, role);
         awardDailyLoginGold(sqliteRow);
@@ -9898,6 +9910,7 @@ app.get("/me", async (req, res) => {
                 username,
                 role,
                 theme,
+                last_status,
                 xp,
                 level,
                 avatar,
@@ -9914,12 +9927,13 @@ app.get("/me", async (req, res) => {
     // If not in Postgres yet, fallback to SQLite and (optionally) sync
     if (!row) {
       const srow = await dbGet(
-        "SELECT id, username, role, theme, xp, level, avatar FROM users WHERE id = ?",
+        "SELECT id, username, role, theme, last_status, xp, level, avatar FROM users WHERE id = ?",
         [req.session.user.id]
       );
       if (!srow) return res.json(null);
 
       const theme = sanitizeThemeNameServer(srow.theme);
+      const status = normalizeStatus(srow.last_status, "Online");
       const level = Number(srow.level || levelInfo(srow.xp || 0).level);
       if (!srow.theme) db.run("UPDATE users SET theme = ? WHERE id = ?", [theme, srow.id]);
 
@@ -9939,6 +9953,7 @@ app.get("/me", async (req, res) => {
         username: srow.username,
         role: srow.role,
         theme,
+        status,
         avatar: computedAvatar || prevAvatar,
         avatar_updated: srow.avatar_updated ?? srow.avatarUpdated ?? prevAvatarUpdated,
         level,
@@ -9947,6 +9962,7 @@ app.get("/me", async (req, res) => {
     }
 
     const theme = sanitizeThemeNameServer(row.theme);
+    const status = normalizeStatus(row.last_status, "Online");
     if (!row.theme) await pgPool.query("UPDATE users SET theme = $1 WHERE id = $2", [theme, row.id]);
     const level = Number(row.level || levelInfo(row.xp || 0).level);
 
@@ -9956,6 +9972,7 @@ app.get("/me", async (req, res) => {
       username: row.username,
       role: row.role,
       theme,
+      status,
       avatar: computedAvatar || prevAvatar,
       avatar_updated: row.avatar_updated ?? row.avatarUpdated ?? prevAvatarUpdated,
       level,
@@ -10460,9 +10477,9 @@ const MODERATE_CHALLENGES = [
 
 // Hard challenges: 50 XP, 100 gold - require significant participation
 const HARD_CHALLENGES = [
-  { id: DAILY_CHALLENGE_IDS.roomMessages, label: "Send 10 messages", type: "room_messages", goal: 10, rewardXp: 50, rewardGold: 100, difficulty: "hard" },
-  { id: DAILY_CHALLENGE_IDS.uniqueRooms, label: "Visit 3 different rooms", type: "unique_rooms", goal: 3, rewardXp: 50, rewardGold: 100, difficulty: "hard" },
-  { id: DAILY_CHALLENGE_IDS.dmMessages, label: "Send 5 DM messages", type: "dm_messages", goal: 5, rewardXp: 50, rewardGold: 100, difficulty: "hard" },
+  { id: DAILY_CHALLENGE_IDS.roomMessages, label: "Send 20 messages", type: "room_messages", goal: 20, rewardXp: 50, rewardGold: 100, difficulty: "hard" },
+  { id: DAILY_CHALLENGE_IDS.uniqueRooms, label: "Visit 5 different rooms", type: "unique_rooms", goal: 5, rewardXp: 50, rewardGold: 100, difficulty: "hard" },
+  { id: DAILY_CHALLENGE_IDS.dmMessages, label: "Send 12 DM messages", type: "dm_messages", goal: 12, rewardXp: 50, rewardGold: 100, difficulty: "hard" },
 ];
 
 function dailyChallengeSeed(dayKey) {
@@ -20336,10 +20353,17 @@ if (!room) {
   socket.on("status change", ({ status }) => {
     status = normalizeStatus(status, "Online");
     socket.user.status = status;
+    if (socket.request?.session?.user) {
+      socket.request.session.user.status = status;
+      socket.request.session.save?.(() => {});
+    }
 
     const st = onlineState.get(socket.user.id);
     if (st) st.status = status;
 
+    if (PG_READY && pgPool) {
+      pgPool.query("UPDATE users SET last_status = $1 WHERE id = $2", [status, socket.user.id]).catch(() => {});
+    }
     db.run("UPDATE users SET last_status=? WHERE id=?", [status, socket.user.id]);
 
     if (socket.currentRoom) emitUserList(socket.currentRoom);

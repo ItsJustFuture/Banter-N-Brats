@@ -10090,10 +10090,11 @@ function renderMarkdownWithMentions(text) {
   }
 }
 
-function hasMention(text, username){
+function hasMention(text, username, { requireAt = false } = {}){
   const name = String(username || "").trim();
   if (!name) return false;
-  const pattern = new RegExp(`(^|[^\\w])@${escapeRegex(name)}(?=$|[^\\w])`, "i");
+  const atPrefix = requireAt ? "@" : "@?";
+  const pattern = new RegExp(`(^|[^\\w])${atPrefix}${escapeRegex(name)}(?=$|[^\\w])`, "i");
   return pattern.test(String(text || ""));
 }
 
@@ -11971,7 +11972,7 @@ try{
   });
   queueContrastReinforcement(bubbleEl);
 
-  if (m.__fresh && !isSelf && hasMention(rawText, me?.username)) {
+  if (m.__fresh && !isSelf && hasMention(rawText, me?.username, { requireAt: true })) {
     const snippet = rawText.trim().slice(0, 140);
     const suffix = snippet ? `: ${snippet}` : "";
     pushNotification({
@@ -23056,9 +23057,14 @@ function updateProfilePresenceDot(statusLabel){
   if (!profilePresenceDot) return;
   const raw = normalizeStatusLabel(statusLabel, "offline");
   const status = STATUS_COLOR_UTIL?.normalizeStatusKey ? STATUS_COLOR_UTIL.normalizeStatusKey(raw, "offline") : String(raw || "offline").toLowerCase();
+  const color = statusDotColor(status);
   profilePresenceDot.dataset.status = status;
   profilePresenceDot.title = statusLabel || "Offline";
-  profilePresenceDot.style.background = statusDotColor(status);
+  profilePresenceDot.style.background = color;
+  const avatarCard = profilePresenceDot.closest(".profileSheetAvatarCard");
+  if (avatarCard) {
+    avatarCard.style.borderColor = color;
+  }
   profilePresenceDot.style.display = "inline-flex";
 }
 
@@ -27508,7 +27514,7 @@ socket.on("mod:case_event", (payload = {}) => {
       const self = String(me?.username || "");
       if (from && self && from !== self) {
         const txt = String(m?.text || "");
-        const mentioned = hasMention(txt, self);
+        const mentioned = hasMention(txt, self, { requireAt: true });
         let played = false;
         if (Sound.shouldReceive()) { Sound.cues.receive(); played = true; }
         if (mentioned && Sound.shouldMention()) Sound.cues.mention();
@@ -27690,7 +27696,7 @@ socket.on("dm history", (payload = {}) => {
       const from = String(m?.user || "");
       if (self && from && from !== self) {
         const txt = String(m?.text || "");
-        const mentioned = hasMention(txt, self);
+        const mentioned = hasMention(txt, self, { requireAt: true });
         let played = false;
         if (Sound.shouldReceive()) { Sound.cues.receive(); played = true; }
         if (mentioned && Sound.shouldMention()) Sound.cues.mention();
