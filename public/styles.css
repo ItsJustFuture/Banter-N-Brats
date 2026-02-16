@@ -1240,6 +1240,148 @@
   color-scheme: dark;
 }
 
+/* VIP + Extravagant Gradient Pack */
+[data-theme="VIP Aurora Crown"] {
+  --bg: linear-gradient(135deg, #120b2b 0%, #26124a 40%, #10313c 100%);
+  --bg2: rgba(0, 0, 0, 0.28); --panel: rgba(20, 14, 35, 0.82); --panel2: rgba(12, 9, 21, 0.76);
+  --text: #f2ecff; --muted: #c8bde0; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #c084fc; --accent2: #22d3ee; --messageSelfBg: #c084fc; --messageSelfText: #190a24;
+  --messageOtherBg: rgba(20, 14, 35, 0.72); --messageOtherText: #f2ecff; --mentionBg: rgba(34, 211, 238, 0.14); --mentionText: #f2ecff; color-scheme: dark;
+}
+[data-theme="VIP Velvet Prism"] {
+  --bg: linear-gradient(135deg, #1a0822 0%, #3f114f 42%, #0d2437 100%);
+  --bg2: rgba(0, 0, 0, 0.28); --panel: rgba(24, 11, 33, 0.82); --panel2: rgba(14, 8, 21, 0.76);
+  --text: #ffeefe; --muted: #dbbad6; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #f472b6; --accent2: #60a5fa; --messageSelfBg: #f472b6; --messageSelfText: #250b1c;
+  --messageOtherBg: rgba(24, 11, 33, 0.72); --messageOtherText: #ffeefe; --mentionBg: rgba(96, 165, 250, 0.14); --mentionText: #ffeefe; color-scheme: dark;
+}
+[data-theme="VIP Cobalt Mirage"] {
+  --bg: linear-gradient(135deg, #071124 0%, #112b55 45%, #1d153f 100%);
+  --bg2: rgba(0, 0, 0, 0.28); --panel: rgba(10, 18, 37, 0.82); --panel2: rgba(7, 11, 24, 0.76);
+  --text: #e9f2ff; --muted: #b4c4e0; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #60a5fa; --accent2: #a78bfa; --messageSelfBg: #60a5fa; --messageSelfText: #071124;
+  --messageOtherBg: rgba(10, 18, 37, 0.72); --messageOtherText: #e9f2ff; --mentionBg: rgba(167, 139, 250, 0.14); --mentionText: #e9f2ff; color-scheme: dark;
+}
+[data-theme="VIP Frosted Orchid"] {
+  --bg: linear-gradient(135deg, #19102d 0%, #3b2f6b 46%, #244057 100%);
+  --bg2: rgba(0, 0, 0, 0.28); --panel: rgba(25, 17, 43, 0.82); --panel2: rgba(16, 11, 28, 0.76);
+  --text: #f3f1ff; --muted: #c7c4e2; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #c4b5fd; --accent2: #7dd3fc; --messageSelfBg: #c4b5fd; --messageSelfText: #180f28;
+  --messageOtherBg: rgba(25, 17, 43, 0.72); --messageOtherText: #f3f1ff; --mentionBg: rgba(125, 211, 252, 0.14); --mentionText: #f3f1ff; color-scheme: dark;
+}
+[data-theme="VIP Ember Silk"] {
+  --bg: linear-gradient(135deg, #1f0909 0%, #4a1b1b 42%, #3d0f37 100%);
+  --bg2: rgba(0, 0, 0, 0.28); --panel: rgba(30, 11, 11, 0.82); --panel2: rgba(18, 7, 8, 0.76);
+  --text: #ffefef; --muted: #dfb8b8; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #fb7185; --accent2: #f472b6; --messageSelfBg: #fb7185; --messageSelfText: #2a0909;
+  --messageOtherBg: rgba(30, 11, 11, 0.72); --messageOtherText: #ffefef; --mentionBg: rgba(244, 114, 182, 0.14); --mentionText: #ffefef; color-scheme: dark;
+}
+[data-theme="VIP Electric Jade"] {
+  --bg: linear-gradient(135deg, #051810 0%, #0f3a2f 45%, #0d1b3c 100%);
+  --bg2: rgba(0, 0, 0, 0.28); --panel: rgba(7, 24, 18, 0.82); --panel2: rgba(5, 14, 11, 0.76);
+  --text: #e8fff7; --muted: #b3dac9; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #34d399; --accent2: #38bdf8; --messageSelfBg: #34d399; --messageSelfText: #062015;
+  --messageOtherBg: rgba(7, 24, 18, 0.72); --messageOtherText: #e8fff7; --mentionBg: rgba(56, 189, 248, 0.14); --mentionText: #e8fff7; color-scheme: dark;
+}
+[data-theme="VIP Solar Bloom"] {
+  --bg: linear-gradient(135deg, #221405 0%, #4a290e 42%, #472006 100%);
+  --bg2: rgba(0, 0, 0, 0.28); --panel: rgba(31, 20, 7, 0.82); --panel2: rgba(19, 12, 5, 0.76);
+  --text: #fff5df; --muted: #dfc69a; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #fbbf24; --accent2: #fb923c; --messageSelfBg: #fbbf24; --messageSelfText: #2a1a03;
+  --messageOtherBg: rgba(31, 20, 7, 0.72); --messageOtherText: #fff5df; --mentionBg: rgba(251, 146, 60, 0.14); --mentionText: #fff5df; color-scheme: dark;
+}
+[data-theme="VIP Moonstone Drift"] {
+  --bg: linear-gradient(135deg, #0a1b2f 0%, #193b5d 44%, #1a214a 100%);
+  --bg2: rgba(0, 0, 0, 0.28); --panel: rgba(11, 26, 44, 0.82); --panel2: rgba(7, 15, 26, 0.76);
+  --text: #ebf7ff; --muted: #b6cad8; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #7dd3fc; --accent2: #93c5fd; --messageSelfBg: #7dd3fc; --messageSelfText: #062032;
+  --messageOtherBg: rgba(11, 26, 44, 0.72); --messageOtherText: #ebf7ff; --mentionBg: rgba(147, 197, 253, 0.14); --mentionText: #ebf7ff; color-scheme: dark;
+}
+[data-theme="VIP Royal Tides"] {
+  --bg: linear-gradient(135deg, #081330 0%, #153064 43%, #0b1f4a 100%);
+  --bg2: rgba(0, 0, 0, 0.28); --panel: rgba(10, 19, 46, 0.82); --panel2: rgba(6, 12, 27, 0.76);
+  --text: #e9efff; --muted: #b2bfdf; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #60a5fa; --accent2: #818cf8; --messageSelfBg: #60a5fa; --messageSelfText: #091533;
+  --messageOtherBg: rgba(10, 19, 46, 0.72); --messageOtherText: #e9efff; --mentionBg: rgba(129, 140, 248, 0.14); --mentionText: #e9efff; color-scheme: dark;
+}
+[data-theme="VIP Opal Storm"] {
+  --bg: linear-gradient(135deg, #1a1138 0%, #25296b 44%, #0f3a4a 100%);
+  --bg2: rgba(0, 0, 0, 0.28); --panel: rgba(20, 15, 44, 0.82); --panel2: rgba(12, 9, 26, 0.76);
+  --text: #f0f0ff; --muted: #c0c2e1; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.62);
+  --accent: #a78bfa; --accent2: #22d3ee; --messageSelfBg: #a78bfa; --messageSelfText: #1a1038;
+  --messageOtherBg: rgba(20, 15, 44, 0.72); --messageOtherText: #f0f0ff; --mentionBg: rgba(34, 211, 238, 0.14); --mentionText: #f0f0ff; color-scheme: dark;
+}
+[data-theme="Imperial Inferno"] {
+  --bg: linear-gradient(135deg, #220707 0%, #4f1710 42%, #5f2d07 100%);
+  --bg2: rgba(0, 0, 0, 0.30); --panel: rgba(31, 10, 9, 0.84); --panel2: rgba(18, 6, 5, 0.78);
+  --text: #fff0e8; --muted: #e4beac; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.64);
+  --accent: #f97316; --accent2: #ef4444; --messageSelfBg: #f97316; --messageSelfText: #2e1302;
+  --messageOtherBg: rgba(31, 10, 9, 0.74); --messageOtherText: #fff0e8; --mentionBg: rgba(239, 68, 68, 0.14); --mentionText: #fff0e8; color-scheme: dark;
+}
+[data-theme="Diamond Eclipse"] {
+  --bg: linear-gradient(135deg, #070a1a 0%, #1b1242 42%, #0f2a4d 100%);
+  --bg2: rgba(0, 0, 0, 0.30); --panel: rgba(9, 11, 28, 0.84); --panel2: rgba(6, 7, 17, 0.78);
+  --text: #eef1ff; --muted: #bec5e3; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.64);
+  --accent: #93c5fd; --accent2: #c4b5fd; --messageSelfBg: #93c5fd; --messageSelfText: #08112b;
+  --messageOtherBg: rgba(9, 11, 28, 0.74); --messageOtherText: #eef1ff; --mentionBg: rgba(196, 181, 253, 0.14); --mentionText: #eef1ff; color-scheme: dark;
+}
+[data-theme="Phoenix Vault"] {
+  --bg: linear-gradient(135deg, #2a0909 0%, #5c1a0b 40%, #3d102f 100%);
+  --bg2: rgba(0, 0, 0, 0.30); --panel: rgba(37, 11, 10, 0.84); --panel2: rgba(22, 7, 7, 0.78);
+  --text: #ffecec; --muted: #dfbbbb; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.64);
+  --accent: #fb7185; --accent2: #f97316; --messageSelfBg: #fb7185; --messageSelfText: #2f0a12;
+  --messageOtherBg: rgba(37, 11, 10, 0.74); --messageOtherText: #ffecec; --mentionBg: rgba(249, 115, 22, 0.14); --mentionText: #ffecec; color-scheme: dark;
+}
+[data-theme="Regal Nebula"] {
+  --bg: linear-gradient(135deg, #12091f 0%, #2d1352 44%, #132140 100%);
+  --bg2: rgba(0, 0, 0, 0.30); --panel: rgba(19, 11, 33, 0.84); --panel2: rgba(12, 7, 21, 0.78);
+  --text: #f3edff; --muted: #c9bddf; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.64);
+  --accent: #a78bfa; --accent2: #60a5fa; --messageSelfBg: #a78bfa; --messageSelfText: #1a0d2f;
+  --messageOtherBg: rgba(19, 11, 33, 0.74); --messageOtherText: #f3edff; --mentionBg: rgba(96, 165, 250, 0.14); --mentionText: #f3edff; color-scheme: dark;
+}
+[data-theme="Molten Sapphire"] {
+  --bg: linear-gradient(135deg, #0a0f22 0%, #143169 42%, #3c1d0f 100%);
+  --bg2: rgba(0, 0, 0, 0.30); --panel: rgba(11, 16, 36, 0.84); --panel2: rgba(7, 10, 22, 0.78);
+  --text: #edf3ff; --muted: #b9c6df; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.64);
+  --accent: #60a5fa; --accent2: #f59e0b; --messageSelfBg: #60a5fa; --messageSelfText: #071124;
+  --messageOtherBg: rgba(11, 16, 36, 0.74); --messageOtherText: #edf3ff; --mentionBg: rgba(245, 158, 11, 0.14); --mentionText: #edf3ff; color-scheme: dark;
+}
+[data-theme="Celestial Throne"] {
+  --bg: linear-gradient(135deg, #140c29 0%, #2e1a63 42%, #16254f 100%);
+  --bg2: rgba(0, 0, 0, 0.30); --panel: rgba(21, 12, 38, 0.84); --panel2: rgba(12, 8, 24, 0.78);
+  --text: #f0efff; --muted: #c2c0df; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.64);
+  --accent: #818cf8; --accent2: #facc15; --messageSelfBg: #818cf8; --messageSelfText: #120d2a;
+  --messageOtherBg: rgba(21, 12, 38, 0.74); --messageOtherText: #f0efff; --mentionBg: rgba(250, 204, 21, 0.14); --mentionText: #f0efff; color-scheme: dark;
+}
+[data-theme="Gilded Tempest"] {
+  --bg: linear-gradient(135deg, #1f1606 0%, #46340f 42%, #1d2e41 100%);
+  --bg2: rgba(0, 0, 0, 0.30); --panel: rgba(29, 22, 8, 0.84); --panel2: rgba(18, 14, 5, 0.78);
+  --text: #fff8e5; --muted: #dccba3; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.64);
+  --accent: #facc15; --accent2: #38bdf8; --messageSelfBg: #facc15; --messageSelfText: #2a2004;
+  --messageOtherBg: rgba(29, 22, 8, 0.74); --messageOtherText: #fff8e5; --mentionBg: rgba(56, 189, 248, 0.14); --mentionText: #fff8e5; color-scheme: dark;
+}
+[data-theme="Crimson Empire"] {
+  --bg: linear-gradient(135deg, #1f060a 0%, #4a101a 40%, #2f091f 100%);
+  --bg2: rgba(0, 0, 0, 0.30); --panel: rgba(30, 8, 12, 0.84); --panel2: rgba(18, 5, 8, 0.78);
+  --text: #ffecef; --muted: #dfb8c0; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.64);
+  --accent: #f43f5e; --accent2: #fb7185; --messageSelfBg: #f43f5e; --messageSelfText: #2b060f;
+  --messageOtherBg: rgba(30, 8, 12, 0.74); --messageOtherText: #ffecef; --mentionBg: rgba(251, 113, 133, 0.14); --mentionText: #ffecef; color-scheme: dark;
+}
+[data-theme="Aether Palace"] {
+  --bg: linear-gradient(135deg, #07161e 0%, #15314d 40%, #2a0e47 100%);
+  --bg2: rgba(0, 0, 0, 0.30); --panel: rgba(9, 22, 29, 0.84); --panel2: rgba(5, 13, 18, 0.78);
+  --text: #e8f9ff; --muted: #b4d0db; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.64);
+  --accent: #22d3ee; --accent2: #a78bfa; --messageSelfBg: #22d3ee; --messageSelfText: #042229;
+  --messageOtherBg: rgba(9, 22, 29, 0.74); --messageOtherText: #e8f9ff; --mentionBg: rgba(167, 139, 250, 0.14); --mentionText: #e8f9ff; color-scheme: dark;
+}
+[data-theme="Luxe Horizon"] {
+  --bg: linear-gradient(135deg, #241109 0%, #4d1b2f 42%, #1e2d4f 100%);
+  --bg2: rgba(0, 0, 0, 0.30); --panel: rgba(34, 16, 11, 0.84); --panel2: rgba(20, 9, 7, 0.78);
+  --text: #fff1ea; --muted: #dfc0b6; --border: #00000033; --shadowColor: rgba(0, 0, 0, 0.64);
+  --accent: #fb923c; --accent2: #818cf8; --messageSelfBg: #fb923c; --messageSelfText: #2b1303;
+  --messageOtherBg: rgba(34, 16, 11, 0.74); --messageOtherText: #fff1ea; --mentionBg: rgba(129, 140, 248, 0.14); --mentionText: #fff1ea; color-scheme: dark;
+}
+
 /* Sakura Dreams (Light) */
 [data-theme="Sakura Dreams"] {
   --bg: linear-gradient(135deg, #fff5f7 0%, #ffe3ef 45%, #f6e8ff 100%);

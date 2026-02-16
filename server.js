@@ -5747,7 +5747,23 @@ const commandRegistry = {
       if (!canModerate(actorRole, target.role)) return { ok: false, message: "Permission denied" };
       const newName = sanitizeUsername(args.slice(1).join(" "));
       if (!newName) return { ok: false, message: "Invalid name" };
-      await dbRunAsync(`UPDATE users SET username=? WHERE id=?`, [newName, target.id]);
+      if (normKey(newName) === normKey(target.username)) return { ok: true, message: `Renamed to ${newName}` };
+      if (await pgUsersEnabled()) {
+        const { rows: existingRows } = await pgPool.query(
+          "SELECT id FROM users WHERE lower(username) = lower($1) AND id <> $2 LIMIT 1",
+          [newName, target.id]
+        );
+        if (existingRows.length) return { ok: false, message: "Username already taken" };
+        await pgPool.query("UPDATE users SET username = $1 WHERE id = $2", [newName, target.id]);
+      } else {
+        const existing = await dbGetAsync(
+          "SELECT id FROM users WHERE lower(username) = lower(?) AND id <> ? LIMIT 1",
+          [newName, target.id]
+        );
+        if (existing?.id) return { ok: false, message: "Username already taken" };
+      }
+      await dbRunAsync("UPDATE users SET username = ? WHERE id = ?", [newName, target.id]);
+      updateLiveUsername(target.id, newName);
       return { ok: true, message: `Renamed to ${newName}` };
     },
   },

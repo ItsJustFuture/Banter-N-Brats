@@ -3297,6 +3297,26 @@ const THEME_LIST = [
   createTheme("Neon Abyss", "Dark", { access: "gold", goldPrice: 4200, tags: ["Neon"] }),
   createTheme("Velvet Galaxy", "Dark", { access: "gold", goldPrice: 4500, tags: ["Space", "Moody"] }),
   createTheme("Obsidian Aurora", "Dark", { tags: ["Moody"] }),
+  createTheme("VIP Aurora Crown", "Dark", { access: "vip", tags: ["Gradient", "VIP", "Neon"] }),
+  createTheme("VIP Velvet Prism", "Dark", { access: "vip", tags: ["Gradient", "VIP", "Moody"] }),
+  createTheme("VIP Cobalt Mirage", "Dark", { access: "vip", tags: ["Gradient", "VIP", "Space"] }),
+  createTheme("VIP Frosted Orchid", "Dark", { access: "vip", tags: ["Gradient", "VIP", "Pastel"] }),
+  createTheme("VIP Ember Silk", "Dark", { access: "vip", tags: ["Gradient", "VIP"] }),
+  createTheme("VIP Electric Jade", "Dark", { access: "vip", tags: ["Gradient", "VIP", "Nature"] }),
+  createTheme("VIP Solar Bloom", "Dark", { access: "vip", tags: ["Gradient", "VIP"] }),
+  createTheme("VIP Moonstone Drift", "Dark", { access: "vip", tags: ["Gradient", "VIP", "Ocean"] }),
+  createTheme("VIP Royal Tides", "Dark", { access: "vip", tags: ["Gradient", "VIP", "Ocean"] }),
+  createTheme("VIP Opal Storm", "Dark", { access: "vip", tags: ["Gradient", "VIP", "Neon"] }),
+  createTheme("Imperial Inferno", "Dark", { access: "gold", goldPrice: 2000, tags: ["Gradient", "Extravagant"] }),
+  createTheme("Diamond Eclipse", "Dark", { access: "gold", goldPrice: 2000, tags: ["Gradient", "Extravagant", "Space"] }),
+  createTheme("Phoenix Vault", "Dark", { access: "gold", goldPrice: 2000, tags: ["Gradient", "Extravagant"] }),
+  createTheme("Regal Nebula", "Dark", { access: "gold", goldPrice: 2000, tags: ["Gradient", "Extravagant", "Space"] }),
+  createTheme("Molten Sapphire", "Dark", { access: "gold", goldPrice: 2000, tags: ["Gradient", "Extravagant", "Ocean"] }),
+  createTheme("Celestial Throne", "Dark", { access: "gold", goldPrice: 2000, tags: ["Gradient", "Extravagant", "Space"] }),
+  createTheme("Gilded Tempest", "Dark", { access: "gold", goldPrice: 2000, tags: ["Gradient", "Extravagant"] }),
+  createTheme("Crimson Empire", "Dark", { access: "gold", goldPrice: 2000, tags: ["Gradient", "Extravagant"] }),
+  createTheme("Aether Palace", "Dark", { access: "gold", goldPrice: 2000, tags: ["Gradient", "Extravagant", "Neon"] }),
+  createTheme("Luxe Horizon", "Dark", { access: "gold", goldPrice: 2000, tags: ["Gradient", "Extravagant"] }),
   createTheme("Iris & Lola Neon", "Dark", { tags: ["Neon"] }),
 
 ];
@@ -23064,6 +23084,7 @@ function updateProfilePresenceDot(statusLabel){
   const avatarCard = profilePresenceDot.closest(".profileSheetAvatarCard");
   if (avatarCard) {
     avatarCard.style.borderColor = color;
+    avatarCard.style.boxShadow = `0 0 0 1px ${color}`;
   }
   profilePresenceDot.style.display = "inline-flex";
 }
