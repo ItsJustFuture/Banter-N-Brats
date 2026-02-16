@@ -1401,6 +1401,8 @@ const pgInitPromise = PG_ENABLED ? (async () => {
       ('anniversary-1y', '1 Year Anniversary', 'Member for 1 year', '🎂', 'rare', 'milestone'),
       ('chatterbox', 'Chatterbox', 'Sent 10,000 messages', '💬', 'rare', 'achievement'),
       ('lucky-streak', 'Lucky Streak', 'Won 10 dice rolls in a row', '🎲', 'epic', 'achievement'),
+      ('daily-chess-master', 'Daily Chess Master', 'Complete the daily chess challenge', '🏆', 'epic', 'achievement'),
+      ('level-25-master', 'Level 25 Master', 'Reach level 25', '🌟', 'legendary', 'milestone'),
       ('vip-member', 'VIP Member', 'Has VIP status', '👑', 'rare', 'special'),
       ('theme-collector', 'Theme Collector', 'Unlocked 20+ themes', '🎨', 'epic', 'achievement'),
       ('chess-master', 'Chess Master', 'Chess ELO over 1800', '♟️', 'legendary', 'achievement'),
@@ -16711,6 +16713,10 @@ app.post("/profile/:username/like", strictLimiter, requireLogin, async (req, res
 
   try {
     const stats = await toggleProfileLike(req.session.user.id, target.id);
+    if (stats?.liked) {
+      const sid = socketIdByUserId.get(Number(target.id));
+      if (sid) io.to(sid).emit("profile:liked", { username: req.session.user.username });
+    }
     return res.json({
       ok: true,
       likes: stats.likes,
