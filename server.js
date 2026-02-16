@@ -9547,7 +9547,8 @@ app.post("/login", loginIpLimiter, async (req, res) => {
           ]
         );
       }
-      const persistedStatus = normalizeStatus(srow?.last_status || loginStatus, "Online");
+      // loginStatus is already normalizeStatus(pgUser.last_status, "Online")
+      const persistedStatus = loginStatus;
 
       // IMPORTANT: In Postgres we primarily store avatars in avatar_bytes/avatar_updated.
       // If we only read the legacy "avatar" column here, the session will have an empty avatar
@@ -9676,14 +9677,15 @@ app.post("/login", loginIpLimiter, async (req, res) => {
     // Mirror into Postgres (so /me + progression + persistent systems work)
     if (PG_READY && pgPool) {
       await pgPool.query(
-        `INSERT INTO users (id, username, password_hash, role, created_at, theme, gold, xp)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        `INSERT INTO users (id, username, password_hash, role, created_at, theme, gold, xp, last_status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          ON CONFLICT (username) DO UPDATE
            SET password_hash = EXCLUDED.password_hash,
-               role = EXCLUDED.role,
-               theme = COALESCE(users.theme, EXCLUDED.theme),
-               gold = COALESCE(users.gold, EXCLUDED.gold),
-               xp = COALESCE(users.xp, EXCLUDED.xp)`,
+                role = EXCLUDED.role,
+                theme = COALESCE(users.theme, EXCLUDED.theme),
+                gold = COALESCE(users.gold, EXCLUDED.gold),
+                xp = COALESCE(users.xp, EXCLUDED.xp),
+                last_status = COALESCE(users.last_status, EXCLUDED.last_status)`,
         [
           row.id,
           row.username,
@@ -9693,6 +9695,7 @@ app.post("/login", loginIpLimiter, async (req, res) => {
           theme,
           Number(row.gold || 0),
           Number(row.xp || 0),
+          normalizeStatus(row.last_status, "Online"),
         ]
       ).catch((e) => console.error("PG mirror on login failed:", e));
     }
@@ -9799,14 +9802,15 @@ app.post("/password-upgrade", passwordUpgradeLimiter, async (req, res) => {
         ? new Date(Number(sqliteRow.created_at || Date.now()))
         : Number(sqliteRow.created_at || Date.now());
       await pgPool.query(
-        `INSERT INTO users (id, username, password_hash, role, created_at, theme, gold, xp)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        `INSERT INTO users (id, username, password_hash, role, created_at, theme, gold, xp, last_status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          ON CONFLICT (username) DO UPDATE
            SET password_hash = EXCLUDED.password_hash,
-               role = COALESCE(users.role, EXCLUDED.role),
-               theme = COALESCE(users.theme, EXCLUDED.theme),
-               gold = COALESCE(users.gold, EXCLUDED.gold),
-               xp = COALESCE(users.xp, EXCLUDED.xp)`,
+                role = COALESCE(users.role, EXCLUDED.role),
+                theme = COALESCE(users.theme, EXCLUDED.theme),
+                gold = COALESCE(users.gold, EXCLUDED.gold),
+                xp = COALESCE(users.xp, EXCLUDED.xp),
+                last_status = COALESCE(users.last_status, EXCLUDED.last_status)`,
         [
           sqliteRow.id,
           sqliteRow.username,
@@ -9816,6 +9820,7 @@ app.post("/password-upgrade", passwordUpgradeLimiter, async (req, res) => {
           sanitizeThemeNameServer(sqliteRow.theme || DEFAULT_THEME),
           Number(sqliteRow.gold || 0),
           Number(sqliteRow.xp || 0),
+          normalizeStatus(sqliteRow.last_status, "Online"),
         ]
       ).catch(() => {});
     }
@@ -20356,6 +20361,9 @@ if (!room) {
     const st = onlineState.get(socket.user.id);
     if (st) st.status = status;
 
+    if (PG_READY && pgPool) {
+      pgPool.query("UPDATE users SET last_status = $1 WHERE id = $2", [status, socket.user.id]).catch(() => {});
+    }
     db.run("UPDATE users SET last_status=? WHERE id=?", [status, socket.user.id]);
 
     if (socket.currentRoom) emitUserList(socket.currentRoom);
