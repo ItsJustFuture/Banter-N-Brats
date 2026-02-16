@@ -10093,7 +10093,7 @@ function renderMarkdownWithMentions(text) {
 function hasMention(text, username){
   const name = String(username || "").trim();
   if (!name) return false;
-  const pattern = new RegExp(`(^|[^\\w])@${escapeRegex(name)}(?=$|[^\\w])`, "i");
+  const pattern = new RegExp(`(^|[^\\w])@?${escapeRegex(name)}(?=$|[^\\w])`, "i");
   return pattern.test(String(text || ""));
 }
 
@@ -23056,9 +23056,14 @@ function updateProfilePresenceDot(statusLabel){
   if (!profilePresenceDot) return;
   const raw = normalizeStatusLabel(statusLabel, "offline");
   const status = STATUS_COLOR_UTIL?.normalizeStatusKey ? STATUS_COLOR_UTIL.normalizeStatusKey(raw, "offline") : String(raw || "offline").toLowerCase();
+  const color = statusDotColor(status);
   profilePresenceDot.dataset.status = status;
   profilePresenceDot.title = statusLabel || "Offline";
-  profilePresenceDot.style.background = statusDotColor(status);
+  profilePresenceDot.style.background = color;
+  const avatarCard = profilePresenceDot.closest(".profileSheetAvatarCard");
+  if (avatarCard) {
+    avatarCard.style.borderColor = color;
+  }
   profilePresenceDot.style.display = "inline-flex";
 }
 
