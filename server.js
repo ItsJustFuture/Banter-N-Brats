@@ -5747,7 +5747,7 @@ const commandRegistry = {
       if (!canModerate(actorRole, target.role)) return { ok: false, message: "Permission denied" };
       const newName = sanitizeUsername(args.slice(1).join(" "));
       if (!newName) return { ok: false, message: "Invalid name" };
-      if (normKey(newName) === normKey(target.username)) return { ok: true, message: `Renamed to ${newName}` };
+      if (newName === target.username) return { ok: true, message: `Renamed to ${newName}` };
       if (await pgUsersEnabled()) {
         const { rows: existingRows } = await pgPool.query(
           "SELECT id FROM users WHERE lower(username) = lower($1) AND id <> $2 LIMIT 1",
