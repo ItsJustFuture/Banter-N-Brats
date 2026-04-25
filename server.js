@@ -627,6 +627,7 @@ require("dotenv").config();
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
+const { z } = require("zod");
 const { Chess } = require("chess.js");
 const express = require("express");
 const helmet = require("helmet");
@@ -2908,6 +2909,114 @@ const postOriginGuard = (req, res, next) => {
 };
 
 app.use(postOriginGuard);
+
+const CSRF_HEADER_NAME = "x-csrf-token";
+const CSRF_BODY_KEYS = ["_csrf", "csrfToken", "csrf"];
+const CSRF_BYPASS_PATHS = new Set(["/api/csrf-token"]);
+
+function ensureSessionCsrfToken(req) {
+  if (!req.session) return null;
+  if (!req.session.csrfToken || typeof req.session.csrfToken !== "string") {
+    req.session.csrfToken = crypto.randomBytes(32).toString("hex");
+  }
+  return req.session.csrfToken;
+}
+
+function secureCompare(a, b) {
+  try {
+    const av = Buffer.from(String(a || ""), "utf8");
+    const bv = Buffer.from(String(b || ""), "utf8");
+    if (av.length === 0 || bv.length === 0 || av.length !== bv.length) return false;
+    return crypto.timingSafeEqual(av, bv);
+  } catch {
+    return false;
+  }
+}
+
+function csrfProtection(req, res, next) {
+  const token = ensureSessionCsrfToken(req);
+  if (!token) return res.status(500).json({ message: "Security session unavailable." });
+  res.setHeader("X-CSRF-Token", token);
+  res.cookie("csrf-token", token, {
+    httpOnly: false,
+    sameSite: "lax",
+    secure: NODE_ENV === "production",
+    path: "/",
+  });
+
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+  if (req.path && req.path.startsWith("/socket.io/")) return next();
+  if (CSRF_BYPASS_PATHS.has(req.path)) return next();
+
+  const headerToken = String(req.headers[CSRF_HEADER_NAME] || "").trim();
+  const bodyToken = CSRF_BODY_KEYS
+    .map((key) => String(req.body?.[key] || "").trim())
+    .find(Boolean);
+  const submitted = headerToken || bodyToken;
+  if (!secureCompare(submitted, token)) {
+    return res.status(403).json({ message: "Invalid CSRF token." });
+  }
+  return next();
+}
+
+const AuthRequestSchema = z.object({
+  username: z.string().trim().min(2).max(64),
+  password: z.string().min(12).max(128),
+  captchaToken: z.string().max(4096).optional(),
+}).strict();
+
+const PasswordUpgradeSchema = z.object({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: z.string().min(12).max(128),
+  confirmPassword: z.string().min(1).max(128),
+  nonce: z.string().max(256).optional(),
+}).strict();
+
+const MessageReactionSchema = z.object({
+  emoji: z.string().trim().min(1).max(16),
+  room: z.string().trim().min(1).max(100).optional(),
+}).strict();
+
+const FriendRequestSchema = z.object({
+  to: z.string().trim().min(2).max(50),
+}).strict();
+
+const FriendRespondSchema = z.object({
+  requestId: z.number().int().positive(),
+  action: z.enum(["accept", "decline"]),
+}).strict();
+
+const FriendTargetSchema = z.object({
+  username: z.string().trim().min(2).max(50),
+  isFavorite: z.boolean().optional(),
+}).strict();
+
+function validateBody(schema) {
+  return (req, res, next) => {
+    const parsed = schema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid request payload.", errors: parsed.error.flatten() });
+    }
+    req.body = parsed.data;
+    return next();
+  };
+}
+
+app.use(csrfProtection);
+
+app.get("/api/csrf-token", (req, res) => {
+  const token = ensureSessionCsrfToken(req);
+  if (!token) return res.status(500).json({ message: "Security session unavailable." });
+  return res.json({ csrfToken: token });
+});
+
+app.use((err, _req, res, next) => {
+  if (!err) return next();
+  if (err instanceof SyntaxError && "body" in err) {
+    return res.status(400).json({ message: "Malformed JSON payload." });
+  }
+  return next(err);
+});
 
 // ---- Static
 app.use("/uploads", express.static(UPLOADS_DIR, {
@@ -9403,7 +9512,7 @@ app.get("/api/captcha-config", (_req, res) => {
 
 // ---- Auth routes
 // ---- Auth routes
-app.post("/register", registerLimiter, async (req, res) => {
+app.post("/register", registerLimiter, validateBody(AuthRequestSchema), async (req, res) => {
   try {
     const username = sanitizeUsername(req.body?.username);
     const password = String(req.body?.password || "");
@@ -9499,7 +9608,7 @@ app.post("/register", registerLimiter, async (req, res) => {
     res.status(500).send("Registration failed");
   }
 });
-app.post("/login", loginIpLimiter, async (req, res) => {
+app.post("/login", loginIpLimiter, validateBody(AuthRequestSchema), async (req, res) => {
   try {
     const raw = String(req.body?.username || "").trim().slice(0, 64);
     const cleaned = cleanUsernameForLookup(raw);
@@ -9787,7 +9896,7 @@ app.get("/password-upgrade", (req, res) => {
   return res.sendFile(path.join(PUBLIC_DIR, "index.html"));
 });
 
-app.post("/password-upgrade", passwordUpgradeLimiter, async (req, res) => {
+app.post("/password-upgrade", passwordUpgradeLimiter, validateBody(PasswordUpgradeSchema), async (req, res) => {
   const pending = req.session?.passwordUpgrade || null;
   if (!pending?.userId) return res.status(401).json({ ok: false, message: "No password upgrade pending." });
 
@@ -9941,7 +10050,13 @@ app.post("/password-upgrade", passwordUpgradeLimiter, async (req, res) => {
 });
 
 app.post("/logout", (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
+  req.session.destroy((err) => {
+    if (err) {
+      console.error("[logout] session destroy failed:", err?.message || err);
+      return res.status(500).json({ ok: false, message: "Logout failed." });
+    }
+    return res.json({ ok: true });
+  });
 });
 
 app.get("/me", async (req, res) => {
@@ -11582,7 +11697,7 @@ app.get('/api/push/vapid-public-key', (_req, res) => {
   res.json({ publicKey: VAPID_PUBLIC_KEY });
 });
 
-app.post("/api/messages/:messageId/react", strictLimiter, requireLogin, async (req, res) => {
+app.post("/api/messages/:messageId/react", strictLimiter, requireLogin, validateBody(MessageReactionSchema), async (req, res) => {
   try {
     const messageId = Number(req.params.messageId);
     const emoji = String(req.body?.emoji || "").trim();
@@ -16425,7 +16540,7 @@ app.get("/api/friends/list", requireLogin, async (req, res) => {
   }
 });
 
-app.post("/api/friends/request", strictLimiter, requireLogin, async (req, res) => {
+app.post("/api/friends/request", strictLimiter, requireLogin, validateBody(FriendRequestSchema), async (req, res) => {
   try {
     const meId = Number(req.session.user?.id) || 0;
     const toName = String(req.body?.to || '').trim().slice(0, 64);
@@ -16509,7 +16624,7 @@ app.post("/api/friends/request", strictLimiter, requireLogin, async (req, res) =
   }
 });
 
-app.post("/api/friends/respond", strictLimiter, requireLogin, async (req, res) => {
+app.post("/api/friends/respond", strictLimiter, requireLogin, validateBody(FriendRespondSchema), async (req, res) => {
   try {
     const meId = Number(req.session.user?.id) || 0;
     const requestId = Number(req.body?.requestId) || 0;
@@ -16573,7 +16688,7 @@ app.post("/api/friends/respond", strictLimiter, requireLogin, async (req, res) =
   }
 });
 
-app.post("/api/friends/favorite", strictLimiter, requireLogin, async (req, res) => {
+app.post("/api/friends/favorite", strictLimiter, requireLogin, validateBody(FriendTargetSchema), async (req, res) => {
   try {
     const meId = Number(req.session.user?.id) || 0;
     const uname = String(req.body?.username || '').trim().slice(0,64);
@@ -16596,7 +16711,7 @@ app.post("/api/friends/favorite", strictLimiter, requireLogin, async (req, res) 
   }
 });
 
-app.post("/api/friends/remove", strictLimiter, requireLogin, async (req, res) => {
+app.post("/api/friends/remove", strictLimiter, requireLogin, validateBody(FriendTargetSchema), async (req, res) => {
   try {
     const meId = Number(req.session.user?.id) || 0;
     const uname = String(req.body?.username || '').trim().slice(0,64);
@@ -22179,6 +22294,12 @@ socket.on("disconnect", (reason) => {
   }
   socket.emit("server-ready", { ok: true, socketId: socket.id });
 
+});
+
+app.use((err, _req, res, _next) => {
+  console.error("[http] unhandled error:", err?.message || err);
+  if (res.headersSent) return;
+  res.status(500).json({ message: "Request failed." });
 });
 
 // ---- Start

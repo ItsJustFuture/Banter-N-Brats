@@ -77,6 +77,7 @@ function sanitizeText(text) {
     .replace(/\r\n?/g, '\n') // Normalize CRLF / CR to LF
     .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width chars
     .replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '') // Remove control chars (except LF)
+    .replace(/[<>]/g, "") // Strip angle brackets to reduce raw HTML injection/XSS payloads
     .trim()
     .replace(/\n{4,}/g, '\n\n\n'); // Limit consecutive newlines
 }
