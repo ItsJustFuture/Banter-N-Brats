@@ -696,6 +696,15 @@ const {
   awardBadge,
 } = require("./database");
 const { VIBE_TAGS, VIBE_TAG_LIMIT } = require("./vibe-tags");
+const { validateAndApplyEnv } = require("./config/env");
+
+let STARTUP_ENV;
+try {
+  STARTUP_ENV = validateAndApplyEnv(process.env);
+} catch (err) {
+  console.error(err?.message || err);
+  process.exit(1);
+}
 
 const MEMORY_SYSTEM_ENABLED = process.env.MEMORY_SYSTEM_ENABLED === "1";
 const MEMORY_SYSTEM_ALLOWLIST = new Set(
@@ -705,33 +714,30 @@ const MEMORY_SYSTEM_ALLOWLIST = new Set(
     .filter(Boolean)
 );
 
-const PORT = Number(process.env.PORT || 3000);
+const PORT = STARTUP_ENV.PORT;
 const PUBLIC_DIR = path.join(__dirname, "public");
 const UPLOADS_DIR = path.join(__dirname, "uploads");
-const CAPTCHA_PROVIDER = String(process.env.CAPTCHA_PROVIDER || "none").trim().toLowerCase();
-const CAPTCHA_SITE_KEY = String(process.env.CAPTCHA_SITE_KEY || "").trim();
-const CAPTCHA_SECRET_KEY = String(process.env.CAPTCHA_SECRET_KEY || "").trim();
+const CAPTCHA_PROVIDER = STARTUP_ENV.CAPTCHA_PROVIDER;
+const CAPTCHA_SITE_KEY = STARTUP_ENV.CAPTCHA_SITE_KEY;
+const CAPTCHA_SECRET_KEY = STARTUP_ENV.CAPTCHA_SECRET_KEY;
 const ALLOWED_ORIGINS = new Set(
-  String(process.env.ALLOWED_ORIGINS || "")
+  STARTUP_ENV.ALLOWED_ORIGINS
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean)
 );
 
-const LOCAL_DEV = process.env.LOCAL_DEV === "1";
-const NODE_ENV = process.env.NODE_ENV || "development";
-// ---- Startup sanity checks (fail fast in production)
-const IS_PROD = NODE_ENV === "production" && !LOCAL_DEV;
-const IS_DEV_MODE = LOCAL_DEV || NODE_ENV === "development" || NODE_ENV === "test";
-if (IS_PROD) {
-  if (!process.env.SESSION_SECRET || String(process.env.SESSION_SECRET).trim().length < 16) {
-    console.error("FATAL: SESSION_SECRET is missing/too short. Set a strong secret in your environment.");
-    process.exit(1);
-  }
-  if (!process.env.DATABASE_URL) {
-    console.error("FATAL: DATABASE_URL is missing. Set your Postgres connection string in your environment.");
-    process.exit(1);
-  }
+const LOCAL_DEV = STARTUP_ENV.LOCAL_DEV;
+const NODE_ENV = STARTUP_ENV.NODE_ENV;
+const IS_PROD = STARTUP_ENV.IS_PROD;
+const IS_DEV_MODE = STARTUP_ENV.IS_DEV_MODE;
+const IS_TEST_MODE = NODE_ENV === "test" || process.env.TEST_MODE === "1";
+
+console.log(
+  `[startup] env validated (mode=${NODE_ENV}, localDev=${LOCAL_DEV ? "yes" : "no"}, database=${STARTUP_ENV.DATABASE_URL ? "postgres+sqlite-fallback" : "sqlite"}, testMode=${IS_TEST_MODE ? "yes" : "no"})`
+);
+if (IS_TEST_MODE) {
+  console.log(`[startup] test sqlite path: ${process.env.SQLITE_PATH || DB_FILE}`);
 }
 
 const AVATARS_DIR = path.join(__dirname, "avatars");
@@ -2766,7 +2772,14 @@ const genericRateLimitHandler = (_req, res) => {
   res.status(429).json({ message: "Too many requests, please try again later." });
 };
 
-const globalLimiter = rateLimit({
+const createHttpLimiter = (options) => {
+  if (IS_TEST_MODE) {
+    return (_req, _res, next) => next();
+  }
+  return rateLimit(options);
+};
+
+const globalLimiter = createHttpLimiter({
   windowMs: 15 * 60 * 1000,
   limit: Number(process.env.RATE_LIMIT_GLOBAL || 900),
   standardHeaders: "draft-7",
@@ -2777,7 +2790,7 @@ const globalLimiter = rateLimit({
 
 app.use(globalLimiter);
 
-const strictLimiter = rateLimit({
+const strictLimiter = createHttpLimiter({
   windowMs: 10 * 60 * 1000,
   limit: Number(process.env.RATE_LIMIT_STRICT || 30),
   standardHeaders: "draft-7",
@@ -2786,7 +2799,7 @@ const strictLimiter = rateLimit({
   keyGenerator: (req) => getClientIp(req),
 });
 
-const loginIpLimiter = rateLimit({
+const loginIpLimiter = createHttpLimiter({
   windowMs: 15 * 60 * 1000,
   limit: Number(process.env.RATE_LIMIT_LOGIN_IP || 20),
   standardHeaders: "draft-7",
@@ -2795,7 +2808,7 @@ const loginIpLimiter = rateLimit({
   keyGenerator: (req) => getClientIp(req),
 });
 
-const passwordUpgradeLimiter = rateLimit({
+const passwordUpgradeLimiter = createHttpLimiter({
   windowMs: 10 * 60 * 1000,
   limit: Number(process.env.RATE_LIMIT_PASSWORD_UPGRADE || 12),
   standardHeaders: "draft-7",
@@ -2804,7 +2817,7 @@ const passwordUpgradeLimiter = rateLimit({
   keyGenerator: (req) => String(req.session?.passwordUpgrade?.userId || getClientIp(req)),
 });
 
-const registerLimiter = rateLimit({
+const registerLimiter = createHttpLimiter({
   windowMs: 60 * 60 * 1000,
   limit: Number(process.env.RATE_LIMIT_REGISTER_IP || 8),
   standardHeaders: "draft-7",
@@ -2813,7 +2826,7 @@ const registerLimiter = rateLimit({
   keyGenerator: (req) => getClientIp(req),
 });
 
-const uploadLimiter = rateLimit({
+const uploadLimiter = createHttpLimiter({
   windowMs: 10 * 60 * 1000,
   limit: Number(process.env.RATE_LIMIT_UPLOAD_IP || 40),
   standardHeaders: "draft-7",
@@ -2822,7 +2835,7 @@ const uploadLimiter = rateLimit({
   keyGenerator: (req) => getClientIp(req),
 });
 
-const uploadUserLimiter = rateLimit({
+const uploadUserLimiter = createHttpLimiter({
   windowMs: 10 * 60 * 1000,
   limit: Number(process.env.RATE_LIMIT_UPLOAD_USER || 30),
   standardHeaders: "draft-7",
@@ -2831,7 +2844,7 @@ const uploadUserLimiter = rateLimit({
   keyGenerator: (req) => String(req.session?.user?.id || getClientIp(req)),
 });
 
-const dmLimiter = rateLimit({
+const dmLimiter = createHttpLimiter({
   windowMs: 5 * 60 * 1000,
   limit: Number(process.env.RATE_LIMIT_DM_HTTP || 60),
   standardHeaders: "draft-7",
@@ -2840,7 +2853,7 @@ const dmLimiter = rateLimit({
   keyGenerator: (req) => String(req.session?.user?.id || getClientIp(req)),
 });
 
-const survivalLimiter = rateLimit({
+const survivalLimiter = createHttpLimiter({
   windowMs: 60 * 1000,
   limit: Number(process.env.RATE_LIMIT_SURVIVAL_HTTP || 40),
   standardHeaders: "draft-7",
@@ -2849,7 +2862,7 @@ const survivalLimiter = rateLimit({
   keyGenerator: (req) => String(req.session?.user?.id || getClientIp(req)),
 });
 
-const dndLimiter = rateLimit({
+const dndLimiter = createHttpLimiter({
   windowMs: 60 * 1000,
   limit: Number(process.env.RATE_LIMIT_DND_HTTP || 40),
   standardHeaders: "draft-7",
@@ -2858,7 +2871,7 @@ const dndLimiter = rateLimit({
   keyGenerator: (req) => String(req.session?.user?.id || getClientIp(req)),
 });
 
-const moderationHttpLimiter = rateLimit({
+const moderationHttpLimiter = createHttpLimiter({
   windowMs: 10 * 60 * 1000,
   limit: Number(process.env.RATE_LIMIT_MOD_HTTP || 40),
   standardHeaders: "draft-7",
@@ -2867,12 +2880,17 @@ const moderationHttpLimiter = rateLimit({
   keyGenerator: (req) => String(req.session?.user?.id || getClientIp(req)),
 });
 
+const TEST_DEFAULT_ORIGIN = "http://localhost";
+
 const postOriginGuard = (req, res, next) => {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
   if (req.path && req.path.startsWith("/socket.io/")) return next();
   const hostHeader = String(req.headers.host || "");
-  const origin = String(req.headers.origin || "");
-  const referer = String(req.headers.referer || "");
+  if (IS_TEST_MODE && !req.headers.origin && !req.headers.referer) {
+    req.headers.origin = TEST_DEFAULT_ORIGIN;
+  }
+  let origin = String(req.headers.origin || "");
+  let referer = String(req.headers.referer || "");
   const secFetchSite = String(req.headers["sec-fetch-site"] || "").toLowerCase();
 
   if (origin) {
@@ -9398,9 +9416,13 @@ app.post("/register", registerLimiter, async (req, res) => {
     const captcha = await verifyCaptcha(captchaToken, getClientIp(req));
     if (!captcha.ok) return res.status(400).send(captcha.message || "Captcha failed");
 
-    // Prevent duplicates (PG is canonical)
-    const existingPg = await pgGetUserByUsername(username);
+    // Prevent duplicates in whichever backing store is active
+    const existingPg = PG_READY ? await pgGetUserByUsername(username) : null;
     if (existingPg) return res.status(409).send("Username already taken");
+    if (!existingPg) {
+      const existingSqlite = await dbGetAsync("SELECT 1 FROM users WHERE lower(username)=lower(?) LIMIT 1", [username]).catch(() => null);
+      if (existingSqlite) return res.status(409).send("Username already taken");
+    }
 
     const hash = await bcrypt.hash(password, 10);
     const createdAt = Date.now();
@@ -9412,34 +9434,48 @@ app.post("/register", registerLimiter, async (req, res) => {
 
     const theme = DEFAULT_THEME;
 
-    // 1) Create user in Postgres
-    const createdAtValue = PG_USERS_CREATED_AT_IS_TIMESTAMP ? new Date(createdAt) : createdAt;
-    const { rows } = await pgPool.query(
-      `INSERT INTO users (username, password_hash, role, created_at, theme)
-       VALUES ($1,$2,$3,$4,$5)
-       RETURNING id, username, role, theme`,
-      [username, hash, role, createdAtValue, theme]
-    );
-
-    const user = rows[0];
-    if (!user) return res.status(500).send("Registration failed");
-
-    // 2) Mirror into SQLite
-    try {
-      await dbRunAsync(
-        `INSERT INTO users (id, username, password_hash, role, created_at, gold, xp, theme)
-         VALUES (?,?,?,?,?,?,?,?)`,
-        [user.id, username, hash, role, createdAt, 0, 0, sanitizeThemeNameServer(theme)]
+    let user = null;
+    if (PG_READY && pgPool) {
+      const createdAtValue = PG_USERS_CREATED_AT_IS_TIMESTAMP ? new Date(createdAt) : createdAt;
+      const { rows } = await pgPool.query(
+        `INSERT INTO users (username, password_hash, role, created_at, theme)
+         VALUES ($1,$2,$3,$4,$5)
+         RETURNING id, username, role, theme`,
+        [username, hash, role, createdAtValue, theme]
       );
-    } catch (_e) {
-      await dbRunAsync(
-        `UPDATE users
-            SET username = ?, password_hash = ?, role = ?,
-                created_at = COALESCE(created_at, ?),
-                theme = COALESCE(theme, ?)
-          WHERE id = ?`,
-        [username, hash, role, createdAt, sanitizeThemeNameServer(theme), user.id]
+      user = rows[0] || null;
+      if (!user) return res.status(500).send("Registration failed");
+
+      // Mirror into SQLite for fallback compatibility.
+      try {
+        await dbRunAsync(
+          `INSERT INTO users (id, username, password_hash, role, created_at, gold, xp, theme)
+           VALUES (?,?,?,?,?,?,?,?)`,
+          [user.id, username, hash, role, createdAt, 0, 0, sanitizeThemeNameServer(theme)]
+        );
+      } catch (_e) {
+        await dbRunAsync(
+          `UPDATE users
+              SET username = ?, password_hash = ?, role = ?,
+                  created_at = COALESCE(created_at, ?),
+                  theme = COALESCE(theme, ?)
+            WHERE id = ?`,
+          [username, hash, role, createdAt, sanitizeThemeNameServer(theme), user.id]
+        );
+      }
+    } else {
+      const insert = await dbRunAsync(
+        `INSERT INTO users (username, password_hash, role, created_at, gold, xp, theme)
+         VALUES (?,?,?,?,?,?,?)`,
+        [username, hash, role, createdAt, 0, 0, sanitizeThemeNameServer(theme)]
       );
+      user = {
+        id: insert?.lastID,
+        username,
+        role,
+        theme,
+      };
+      if (!user.id) return res.status(500).send("Registration failed");
     }
 
     req.session.regenerate((regenErr) => {
@@ -22162,6 +22198,8 @@ async function startServer() {
       process.exit(1);
     }
   }
+
+  console.log(`[startup] database backend selected: ${DB_BACKEND}`);
 
   // Initialize state persistence
   try {
