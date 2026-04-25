@@ -58,6 +58,19 @@ window.__TAP_DEBUG__ = window.__TAP_DEBUG__ ?? false;
 const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const PREFERS_REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const IS_DEV = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const clientLogger = {
+  info(message, meta) {
+    if (!IS_DEV) return;
+    console.info(`[client] ${message}`, meta || "");
+  },
+  warn(message, meta) {
+    console.warn(`[client] ${message}`, meta || "");
+  },
+  error(message, meta) {
+    console.error(`[client] ${message}`, meta || "");
+  },
+};
+
 const DELETE_ANIM_MS = PREFERS_REDUCED_MOTION ? 1 : 200;
 
 // Couples flair default gradient colors
@@ -744,11 +757,11 @@ const THEMES = [
         lastTapTs = now;
         lastX = touch.clientX;
         lastY = touch.clientY;
-      }catch{}
+      }catch (err) { clientLogger.warn("Suppressed client error", err); }
     };
 
     document.addEventListener("touchend", onTouchEnd, { passive:false, capture:true });
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
 })();
 
 /* ---- Focus visibility helper (keep inputs inside their scroll shells) ---- */
@@ -832,7 +845,7 @@ const Sound = (() => {
     if (!enabled()) return false;
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
     if (ctx.state === "suspended") {
-      try { await ctx.resume(); } catch {}
+      try { await ctx.resume(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
     }
     return ctx && ctx.state === "running";
   }
@@ -846,7 +859,7 @@ const Sound = (() => {
         // Fire-and-forget resume; if it succeeds, we'll retry once shortly.
         ctx.resume?.().then(() => {
           // Retry once after resume (if this beep was attempted before unlock)
-          setTimeout(() => { try { beep({ freq, dur, vol, type }); } catch {} }, 30);
+          setTimeout(() => { try { beep({ freq, dur, vol, type }); } catch (err) { clientLogger.warn("Suppressed client error", err); } }, 30);
         }).catch(() => {});
         return;
       }
@@ -871,7 +884,7 @@ const Sound = (() => {
 
       osc.start(t0);
       osc.stop(t0 + dur + 0.02);
-    }catch{}
+    }catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
 
   const cues = {
@@ -926,7 +939,7 @@ const Sound = (() => {
   async function unlock(){
     if (!armed) return;
     armed = false;
-    try { await Sound.ensureUnlocked(); } catch {}
+    try { await Sound.ensureUnlocked(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
   window.addEventListener("pointerdown", unlock, { passive:true, once:true });
   window.addEventListener("touchstart", unlock, { passive:true, once:true });
@@ -1842,7 +1855,7 @@ function loadJson(key, fallback) {
   return val ?? fallback;
 }
 function saveJson(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 /* ---- UI scale (small screens + user override) */
@@ -1852,14 +1865,14 @@ function applyUiScale(scale){
   // If scale is null/undefined, revert to auto (CSS media queries).
   if(scale === null || scale === undefined || scale === ""){
     document.documentElement.style.removeProperty("--uiScale");
-    try{ localStorage.removeItem(UI_SCALE_KEY); }catch{}
+    try{ localStorage.removeItem(UI_SCALE_KEY); }catch (err) { clientLogger.warn("Suppressed client error", err); }
     return;
   }
   const n = Number(scale);
   if(!Number.isFinite(n)) return;
   const clamped = Math.max(0.80, Math.min(1.05, n));
   document.documentElement.style.setProperty("--uiScale", String(clamped));
-  try{ localStorage.setItem(UI_SCALE_KEY, String(clamped)); }catch{}
+  try{ localStorage.setItem(UI_SCALE_KEY, String(clamped)); }catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 function loadUiScale(){
@@ -1960,7 +1973,7 @@ function markNotificationsRead(){
   if (!notifications.length) return;
   notifications = notifications.map(item => ({ ...item, read: true }));
   notificationsReadAt = Date.now();
-  try{ localStorage.setItem(NOTIFICATIONS_READ_KEY, String(notificationsReadAt)); }catch{}
+  try{ localStorage.setItem(NOTIFICATIONS_READ_KEY, String(notificationsReadAt)); }catch (err) { clientLogger.warn("Suppressed client error", err); }
   saveNotifications();
   updateNotificationsBadge();
 }
@@ -2084,7 +2097,7 @@ async function syncFriendRequestNotifications(){
         ts: req.createdAt
       });
     });
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 let dmLastRead = loadJson(DM_LAST_READ_KEY, {}); // { [threadId]: lastReadTs }
@@ -2363,7 +2376,7 @@ function cleanupLegacyBubbleStorage(){
         localStorage.removeItem(key);
         removed = true;
       }
-    }catch{}
+    }catch (err) { clientLogger.warn("Suppressed client error", err); }
   });
   return removed;
 }
@@ -2675,11 +2688,11 @@ function relativeLuminance({ r, g, b }){
 function pickAutoContrastTextColor(el){
   if(!el) return "";
   let bg = "";
-  try{ bg = getComputedStyle(el).backgroundColor; }catch{}
+  try{ bg = getComputedStyle(el).backgroundColor; }catch (err) { clientLogger.warn("Suppressed client error", err); }
   let t = parseCssRgbToTuple(bg);
   // If transparent, use body background as a fallback.
   if(!t || (t.a !== undefined && t.a < 0.15)){
-    try{ t = parseCssRgbToTuple(getComputedStyle(document.body).backgroundColor); }catch{}
+    try{ t = parseCssRgbToTuple(getComputedStyle(document.body).backgroundColor); }catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
   if(!t) return "";
   const lum = relativeLuminance(t);
@@ -2879,7 +2892,7 @@ async function getAvatarUrl(username) {
       saveJson(AVATAR_CACHE_KEY, avatarCache);
       return json.avatar_url;
     }
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
   return "";
 }
 
@@ -2896,7 +2909,7 @@ function otherParty(thread) {
       const other = details.find(p => Number(p?.id ?? p?.user_id ?? p?.userId) !== myId) || details[0] || null;
       if (other?.username) return other.username;
     }
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 
   const meKey = normKey(me?.username);
   const parts = Array.isArray(thread.participants) ? thread.participants : [];
@@ -3421,7 +3434,7 @@ function syncIrisLolaPerfClass(){
   irisLolaPerfMode = on;
   try{
     document.body?.classList.toggle('irisLolaPerf', !!on);
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 function normalizeUserKey(value) {
@@ -3560,9 +3573,9 @@ function ensureIrisLolaStarfield() {
 }
 
 function clearIrisLolaAmbientLoops(){
-  try{ if (irisLolaConstellationTimer) clearInterval(irisLolaConstellationTimer); }catch{}
-  try{ if (irisLolaShootingStarTimer) clearTimeout(irisLolaShootingStarTimer); }catch{}
-  try{ if (irisLolaTintTimer) clearInterval(irisLolaTintTimer); }catch{}
+  try{ if (irisLolaConstellationTimer) clearInterval(irisLolaConstellationTimer); }catch (err) { clientLogger.warn("Suppressed client error", err); }
+  try{ if (irisLolaShootingStarTimer) clearTimeout(irisLolaShootingStarTimer); }catch (err) { clientLogger.warn("Suppressed client error", err); }
+  try{ if (irisLolaTintTimer) clearInterval(irisLolaTintTimer); }catch (err) { clientLogger.warn("Suppressed client error", err); }
   irisLolaConstellationTimer = null;
   irisLolaShootingStarTimer = null;
   irisLolaTintTimer = null;
@@ -3592,7 +3605,7 @@ function setIrisLolaSkyTintVars(){
       root.style.setProperty('--irisLolaSkyB', 'rgba(0, 190, 140, .34)');
       root.style.setProperty('--irisLolaSkyC', 'rgba(130, 40, 220, .16)');
     }
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 function spawnIrisLolaShootingStar(){
@@ -3613,11 +3626,11 @@ function spawnIrisLolaShootingStar(){
   node.style.setProperty('--len', `${len}px`);
   node.style.setProperty('--sdur', `${dur}ms`);
   field.appendChild(node);
-  setTimeout(()=>{ try{ node.remove(); }catch{} }, dur + 350);
+  setTimeout(()=>{ try{ node.remove(); }catch (err) { clientLogger.warn("Suppressed client error", err); } }, dur + 350);
 }
 
 function scheduleIrisLolaShootingStar(){
-  try{ if (irisLolaShootingStarTimer) clearTimeout(irisLolaShootingStarTimer); }catch{}
+  try{ if (irisLolaShootingStarTimer) clearTimeout(irisLolaShootingStarTimer); }catch (err) { clientLogger.warn("Suppressed client error", err); }
   if (!shouldUseIrisLolaAmbient() || !shouldAnimateAmbientEffects(PREFERS_REDUCED_MOTION)) return;
   // Perf mode: much less frequent to avoid overheating on phones.
   const delay = irisLolaPerfMode
@@ -3672,7 +3685,7 @@ function spawnIrisLolaConstellationWhisper(){
   wrap.appendChild(makeLine(p1, p2));
   wrap.appendChild(makeLine(p2, p3));
   field.appendChild(wrap);
-  setTimeout(()=>{ try{ wrap.remove(); }catch{} }, 1300);
+  setTimeout(()=>{ try{ wrap.remove(); }catch (err) { clientLogger.warn("Suppressed client error", err); } }, 1300);
 }
 
 function ensureIrisLolaAmbientLoops(){
@@ -3690,7 +3703,7 @@ function ensureIrisLolaAmbientLoops(){
   // Occasional constellation whispers: very rare (disabled in perf mode).
   if (!irisLolaPerfMode){
     irisLolaConstellationTimer = setInterval(()=>{
-      try{ spawnIrisLolaConstellationWhisper(); }catch{}
+      try{ spawnIrisLolaConstellationWhisper(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
     }, 2 * 60 * 1000 + Math.floor(Math.random()*60*1000));
   }
 
@@ -3712,7 +3725,7 @@ function updateIrisLolaTogetherClass() {
   if (themeActive) syncIrisLolaPerfClass();
   else {
     irisLolaPerfMode = false;
-    try{ document.body?.classList.remove('irisLolaPerf'); }catch{}
+    try{ document.body?.classList.remove('irisLolaPerf'); }catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
   // Ambient layer: subtle starfield + shooting stars + rare constellation whispers.
   if (themeActive) ensureIrisLolaAmbientLoops();
@@ -4174,27 +4187,27 @@ function roomDraftKey(room){ return `draft:room:${sanitizeRoomClient(room||"main
 function dmDraftKey(threadId){ return `draft:dm:${String(threadId||"")}`; }
 
 function saveRoomDraft(){
-  try { localStorage.setItem(roomDraftKey(currentRoom), String(msgInput?.value||"")); } catch {}
+  try { localStorage.setItem(roomDraftKey(currentRoom), String(msgInput?.value||"")); } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 function loadRoomDraft(){
   try {
     const v = localStorage.getItem(roomDraftKey(currentRoom));
     if (v != null && msgInput) msgInput.value = v;
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 function saveDmDraft(){
   try {
     if (!activeDmId) return;
     localStorage.setItem(dmDraftKey(activeDmId), String(dmText?.value||""));
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 function loadDmDraft(){
   try {
     if (!activeDmId || !dmText) return;
     const v = localStorage.getItem(dmDraftKey(activeDmId));
     if (v != null) dmText.value = v;
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 const draftDebounce = (()=> {
@@ -5191,7 +5204,7 @@ async function openSurvivalNewSeasonModal() {
   setSurvivalModalTab("controls");
   survivalNewSeasonPanel.hidden = false;
   requestAnimationFrame(() => {
-    try { survivalNewSeasonPanel.scrollIntoView({ block: "start", behavior: "smooth" }); } catch {}
+    try { survivalNewSeasonPanel.scrollIntoView({ block: "start", behavior: "smooth" }); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   });
 }
 
@@ -6381,7 +6394,7 @@ try {
     couplesModal.classList.remove("modal-visible", "modal-closing");
     couplesModal.hidden = true;
   }
-} catch {}
+} catch (err) { clientLogger.warn("Suppressed client error", err); }
 const replyPreview = document.getElementById("replyPreview");
 const replyPreviewText = document.getElementById("replyPreviewText");
 const replyPreviewClose = document.getElementById("replyPreviewClose");
@@ -6389,8 +6402,8 @@ const mentionDropdown = document.getElementById("mentionDropdown");
 
 // iOS keyboard / visualViewport: capture a "was pinned" snapshot before the keyboard resizes the viewport.
 // markExpectKeyboard is defined below (function hoisting), safe to reference here.
-msgInput?.addEventListener("focus", () => { try{ markExpectKeyboard(); }catch{} });
-msgInput?.addEventListener("touchstart", () => { try{ markExpectKeyboard(); }catch{} }, { passive:true });
+msgInput?.addEventListener("focus", () => { try{ markExpectKeyboard(); }catch (err) { clientLogger.warn("Suppressed client error", err); } });
+msgInput?.addEventListener("touchstart", () => { try{ markExpectKeyboard(); }catch (err) { clientLogger.warn("Suppressed client error", err); } }, { passive:true });
 
 // dms
 const dmPanel = document.getElementById("dmPanel");
@@ -6653,8 +6666,8 @@ const dmPickFileBtn = document.getElementById("dmPickFileBtn");
 const dmSendBtn = document.getElementById("dmSendBtn");
 
 // iOS keyboard / visualViewport: snapshot pinned state for DM view too.
-dmText?.addEventListener("focus", () => { try{ markExpectKeyboard(); }catch{} });
-dmText?.addEventListener("touchstart", () => { try{ markExpectKeyboard(); }catch{} }, { passive:true });
+dmText?.addEventListener("focus", () => { try{ markExpectKeyboard(); }catch (err) { clientLogger.warn("Suppressed client error", err); } });
+dmText?.addEventListener("touchstart", () => { try{ markExpectKeyboard(); }catch (err) { clientLogger.warn("Suppressed client error", err); } }, { passive:true });
 dmText?.addEventListener("input", ()=>draftDebounce(saveDmDraft));
 
 // Ensure DM quick bars start closed on load (safety net in case markup defaults are changed)
@@ -6667,7 +6680,7 @@ dmFileInput?.addEventListener("change", async () => {
   const file = normalizeSelectedFile(fileRaw);
   if(!file) return;
   // reset input so the same file can be re-selected
-  try{ dmFileInput.value = ""; }catch{}
+  try{ dmFileInput.value = ""; }catch (err) { clientLogger.warn("Suppressed client error", err); }
   dmPendingAttachment = null;
   const validation = validateUploadFile(file);
   if(!validation.ok){
@@ -7162,7 +7175,7 @@ function openMemberActionsOverlay(){
   inlineMemberActionsShade.style.display = "flex";
   memberActionsOverlay.style.display = "block";
   if (quickModMsg) quickModMsg.textContent = "";
-  try { quickReason?.focus(); } catch {}
+  try { quickReason?.focus(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 function closeMemberActionsOverlay(){
@@ -7415,11 +7428,11 @@ const StickyYouTubePlayer = (()=>{
       if(player && player.getPlayerState?.() === window.YT?.PlayerState?.PLAYING){
         startWaveform();
       }
-      try{ localStorage.setItem(YT_AUDIO_ONLY_KEY, "true"); }catch{}
+      try{ localStorage.setItem(YT_AUDIO_ONLY_KEY, "true"); }catch (err) { clientLogger.warn("Suppressed client error", err); }
     }else{
       container.classList.remove("yt-audio-only");
       stopWaveform();
-      try{ localStorage.removeItem(YT_AUDIO_ONLY_KEY); }catch{}
+      try{ localStorage.removeItem(YT_AUDIO_ONLY_KEY); }catch (err) { clientLogger.warn("Suppressed client error", err); }
     }
   }
 
@@ -7490,7 +7503,7 @@ const StickyYouTubePlayer = (()=>{
       if(savedAudioOnly){
         setAudioOnlyMode(true);
       }
-    }catch{}
+    }catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
 
 
@@ -7516,10 +7529,10 @@ const StickyYouTubePlayer = (()=>{
         waveformCanvas.width = holder.clientWidth;
         waveformCanvas.height = holder.clientHeight;
       }
-    }catch{}
+    }catch (err) { clientLogger.warn("Suppressed client error", err); }
 
     if(opts.persist !== false){
-      try{ localStorage.setItem(YT_SIZE_STORAGE_KEY, s); }catch{}
+      try{ localStorage.setItem(YT_SIZE_STORAGE_KEY, s); }catch (err) { clientLogger.warn("Suppressed client error", err); }
     }
   }
   function applyState(next){
@@ -7554,7 +7567,7 @@ const StickyYouTubePlayer = (()=>{
     try{
       const saved = localStorage.getItem(YT_SIZE_STORAGE_KEY) || YT_SIZE_DEFAULT;
       if(YT_SIZE_LEVELS.includes(saved)) applyPlayerSize(saved, { persist:false });
-    }catch{}
+    }catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
   function handleStateChange(e){
     const state = e.data;
@@ -7699,7 +7712,7 @@ const StickyYouTubePlayer = (()=>{
       player.cueVideoById?.({ videoId: currentVideoId, startSeconds: pos, suggestedQuality: q });
       if(wasPlaying){
         // Small delay gives the cue time to apply.
-        setTimeout(()=>{ try{ player.playVideo?.(); }catch{} }, 0);
+        setTimeout(()=>{ try{ player.playVideo?.(); }catch (err) { clientLogger.warn("Suppressed client error", err); } }, 0);
       }
     }catch(err){
       console.warn("[YouTube] applyQuality failed", err);
@@ -7784,8 +7797,8 @@ const StickyYouTubePlayer = (()=>{
     stopProgress();
     stopWaveform();
     if(player){
-      try { player.stopVideo?.(); } catch{}
-      try { player.destroy?.(); } catch{}
+      try { player.stopVideo?.(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
+      try { player.destroy?.(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
     }
     player = null;
     currentVideoId = null;
@@ -7822,7 +7835,7 @@ const StickyYouTubePlayer = (()=>{
           try{
             player.playVideo?.();
           }catch{
-            try { player.mute?.(); player.playVideo?.(); } catch{}
+            try { player.mute?.(); player.playVideo?.(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
           }
         }, 0);
       }
@@ -8477,7 +8490,7 @@ const MusicRoomPlayer = (() => {
       playerContainer.classList.add("is-hidden");
     }
     if (player) {
-      try { player.stopVideo?.(); } catch {}
+      try { player.stopVideo?.(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
     }
     
     // Clean up sync checking interval
@@ -8598,7 +8611,7 @@ const MusicRoomPlayer = (() => {
       currentVideoEl.innerHTML = '<div class="musicCurrentTitle">Nothing playing</div>';
     }
     if (player) {
-      try { player.stopVideo?.(); } catch {}
+      try { player.stopVideo?.(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
     }
   }
 
@@ -10348,7 +10361,7 @@ let currentProfileHeaderRole = "";
 let currentProfileBanner = null;
 function saveBadgePrefsToStorage(){
   try{ localStorage.setItem("dmBadgePrefs", JSON.stringify(badgePrefs)); }
-  catch{}
+  catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 function isValidCssColor(color){
   const c = String(color || "").trim();
@@ -10484,7 +10497,7 @@ function loadDmNeonColorFromStorage(){
   try {
     const raw = localStorage.getItem("dmNeonColor");
     if (raw) return raw;
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 
   // One-time migration from legacy DM background preference.
   try {
@@ -10496,13 +10509,13 @@ function loadDmNeonColorFromStorage(){
       localStorage.removeItem("dmThemePrefs");
       return legacyColor;
     }
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 
   return dmNeonDefaults.color;
 }
 function saveDmNeonColorToStorage(){
   try { localStorage.setItem("dmNeonColor", dmNeonColor); }
-  catch{}
+  catch (err) { clientLogger.warn("Suppressed client error", err); }
   queuePersistPrefs({ dmNeonColor });
 }
 function applyDmNeonPrefs(){
@@ -10520,7 +10533,7 @@ function readDmTranslucentStorage(){
     const raw = localStorage.getItem(DM_TRANSLUCENT_KEY);
     if (raw === "1") return true;
     if (raw === "0") return false;
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
   // default: off
   return false;
 }
@@ -10529,7 +10542,7 @@ function applyDmTranslucent(enabled, { persistLocal = true, persistServer = true
   dmPanel?.classList.toggle("dmTranslucent", on);
   if (dmTranslucentToggle) dmTranslucentToggle.checked = on;
   if (persistLocal) {
-    try { localStorage.setItem(DM_TRANSLUCENT_KEY, on ? "1" : "0"); } catch {}
+    try { localStorage.setItem(DM_TRANSLUCENT_KEY, on ? "1" : "0"); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
   if (persistServer) queuePersistPrefs({ dmTranslucent: on });
 }
@@ -10544,7 +10557,7 @@ function getStoredTheme(){
 }
 function setStoredTheme(theme){
   try{ localStorage.setItem("theme", theme); }
-  catch{}
+  catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 async function fetchThemePreference(){
   if(!me) return null;
@@ -10569,7 +10582,7 @@ async function persistThemePreference(theme){
       const data = await res.json();
       if(data?.theme) me.theme = data.theme;
     }
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 
@@ -10616,7 +10629,7 @@ function applyComfortMode(enabled, { persistLocal = true, persistServer = true }
   document.body?.classList.toggle("comfortMode", on);
   if (prefComfortMode) prefComfortMode.checked = on;
   if (persistLocal) {
-    try { localStorage.setItem(COMFORT_MODE_KEY, on ? "1" : "0"); } catch {}
+    try { localStorage.setItem(COMFORT_MODE_KEY, on ? "1" : "0"); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
   if (persistServer) queuePersistPrefs({ comfortMode: on });
   if (prefComfortHelp) {
@@ -10711,7 +10724,7 @@ function applyMessageLayout(layout, { persistLocal = true, persistServer = true 
   }
   syncMessageLayoutControls(normalized);
   if (persistLocal){
-    try{ localStorage.setItem(MESSAGE_LAYOUT_KEY, JSON.stringify(normalized)); }catch{}
+    try{ localStorage.setItem(MESSAGE_LAYOUT_KEY, JSON.stringify(normalized)); }catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
   if (persistServer){
     queuePersistPrefs({ messageLayout: normalized });
@@ -10800,8 +10813,7 @@ async function loadChatFxPrefs({ force = false } = {}){
     const data = await res.json();
     const prefs = data?.prefs || {};
     applyChatFxPrefsFromServer(prefs.chatFx || {});
-  }catch{
-  }finally{
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }finally{
     chatFxPrefsLoading = false;
   }
 }
@@ -10880,7 +10892,7 @@ async function loadUserPrefs(){
     if (!customizationRaw && (cleanedPrefs.textStyle || legacyGlowPresent)) {
       queuePersistPrefs({ customization: customizationNormalized });
     }
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 function applyTheme(themeName, { persist=true, silent=false, storeLocal=persist } = {}){
   const safe = sanitizeThemeName(themeName || DEFAULT_THEME);
@@ -10949,7 +10961,7 @@ function loadThemeRecents(){
   }
 }
 function saveThemeRecents(){
-  try { localStorage.setItem(THEME_RECENTS_KEY, JSON.stringify(themeRecents)); } catch {}
+  try { localStorage.setItem(THEME_RECENTS_KEY, JSON.stringify(themeRecents)); } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 function recordThemeRecent(themeId){
   if (!themeId) return;
@@ -11918,13 +11930,13 @@ function renderAttachmentNode({ url, mime, type } = {}) {
       if (!ready) {
         // Queue play once ready
         if (typeof ws.once === "function") {
-          ws.once("ready", () => { try { ws.play(); } catch {} });
+          ws.once("ready", () => { try { ws.play(); } catch (err) { clientLogger.warn("Suppressed client error", err); } });
         } else {
-          ws.on("ready", () => { try { ws.play(); } catch {} });
+          ws.on("ready", () => { try { ws.play(); } catch (err) { clientLogger.warn("Suppressed client error", err); } });
         }
         return;
       }
-      try { ws.isPlaying() ? ws.pause() : ws.play(); } catch {}
+      try { ws.isPlaying() ? ws.pause() : ws.play(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
     });
 
     return wrap;
@@ -11962,8 +11974,8 @@ function maybeShowIrisLolaSharedMoment({ isSelf, isPartner, messageTs, container
   // Message-proximity glow: when you and your partner speak close together, softly brighten.
   try{
     document.body?.classList.add('irisLolaProximityGlow');
-    setTimeout(()=>{ try{ document.body?.classList.remove('irisLolaProximityGlow'); }catch{} }, 2000);
-  }catch{}
+    setTimeout(()=>{ try{ document.body?.classList.remove('irisLolaProximityGlow'); }catch (err) { clientLogger.warn("Suppressed client error", err); } }, 2000);
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 function addMessage(m){
@@ -11988,7 +12000,7 @@ try{
       m.replyToText = m.replyToText || hit.text;
     }
   }
-}catch{}
+}catch (err) { clientLogger.warn("Suppressed client error", err); }
 
   // Decide whether we can append into the previous group
   const lastEl = msgs?.lastElementChild;
@@ -12106,13 +12118,13 @@ try{
     const first = body.firstElementChild;
     if(first) first.classList.add("gFirst");
   }
-}catch{}
+}catch (err) { clientLogger.warn("Suppressed client error", err); }
 
 // Update rolling index for reply lookups
 try{
   msgIndex.push({ id: mid, user: senderName, text: String(m.text||""), ts: Number(m.ts||Date.now()) });
   if(msgIndex.length > 500) msgIndex.splice(0, msgIndex.length - 500);
-}catch{}
+}catch (err) { clientLogger.warn("Suppressed client error", err); }
 
   const wantStick = shouldStick || isSelf;
   stickToBottomIfWanted({ force: wantStick, behavior: isSelf ? "smooth" : "auto" });
@@ -13240,7 +13252,7 @@ function renderMembers(users){
       uname.textContent = String(u.name || "");
       name.appendChild(ico);
       name.appendChild(uname);
-      try{ applyNameFxToEl(uname, userFxMap[u.name] || { ...(u.chatFx || {}), customization: u?.customization, textStyle: u?.textStyle }); }catch{}
+      try{ applyNameFxToEl(uname, userFxMap[u.name] || { ...(u.chatFx || {}), customization: u?.customization, textStyle: u?.textStyle }); }catch (err) { clientLogger.warn("Suppressed client error", err); }
 
       const sub=document.createElement("div");
       sub.className="mSub";
@@ -13379,7 +13391,7 @@ function renderFriendsList(list){
       // Preserve CSS bold default (.mName has font-weight:900)
       const unameFx = userFxMap[f.username];
       if (unameFx) {
-        try { applyNameFxFromNormalized(uname, unameFx, { preserveCssFontWeight: true }); } catch {}
+        try { applyNameFxFromNormalized(uname, unameFx, { preserveCssFontWeight: true }); } catch (err) { clientLogger.warn("Suppressed client error", err); }
       }
 
       const sub = document.createElement('div');
@@ -13434,7 +13446,7 @@ async function loadProgression(){
     if(!res.ok){ hardHideProfileModal(); return; }
     const data = await res.json();
     applyProgressionPayload(data);
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 // Search filter
@@ -13513,7 +13525,7 @@ function syncDesktopMembersWidth(){
     // If the drawer is off-canvas, treat it as closed.
     const onScreen = r.width > 0 && r.left < window.innerWidth && r.right > 0;
     root.style.setProperty("--membersW", onScreen ? `${Math.round(r.width)}px` : "0px");
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 window.addEventListener("resize", syncDesktopMembersWidth);
 
@@ -13578,22 +13590,22 @@ function closeAdminModals(){
 function cleanupModalOverlays(){
   try{
     if (typeof closeNotificationsModal === "function" && notificationsModal && !notificationsModal.hidden) closeNotificationsModal();
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
   try{
     if (typeof closeSurvivalModal === "function" && survivalModal && survivalModal.style.display !== "none") closeSurvivalModal();
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
   try{
     if (typeof closeModal === "function" && modal && modal.style.display !== "none") closeModal();
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
   try{
     if (typeof closeCouplesModal === "function" && couplesModal && couplesModal.style.display !== "none") closeCouplesModal();
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
   try{
     if (typeof closeRoomCreateModal === "function" && roomCreateModal && roomCreateModal.style.display !== "none") closeRoomCreateModal();
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
   try{
     if (typeof closeRoomManageModal === "function" && roomManageModal && roomManageModal.style.display !== "none") closeRoomManageModal();
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 function openAdminModal(panelOrId){
   const panel = typeof panelOrId === "string" ? document.getElementById(panelOrId) : panelOrId;
@@ -13706,8 +13718,8 @@ function maybeSpawnIrisLolaDrawerEaster(pane){
     star.style.setProperty('--dx', `${x}%`);
     star.style.setProperty('--dy', `${y}%`);
     pane.appendChild(star);
-    setTimeout(()=>{ try{ star.remove(); }catch{} }, 1400);
-  }catch{}
+    setTimeout(()=>{ try{ star.remove(); }catch (err) { clientLogger.warn("Suppressed client error", err); } }, 1400);
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 function openChannels(){
   // Desktop layouts render channels as a normal panel (not an off-canvas drawer).
@@ -13783,13 +13795,13 @@ window.addEventListener('resize', () => {
   try{
     if(!isMobileDrawerMode()) closeDrawers();
     else ensureDrawerOverlayClosed();
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
 }, { passive:true });
 window.addEventListener('pageshow', () => {
   try{
     ensureDrawerOverlayClosed();
     if(!isMobileDrawerMode()) closeDrawers();
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
 });
 
 // dms (rebuilt)
@@ -13821,7 +13833,7 @@ function threadLabel(t){
         const hit = details.find(p => Number(p?.id ?? p?.user_id ?? p?.userId) !== myId) || details[0] || null;
         other = hit?.username || null;
       }
-    } catch {}
+    } catch (err) { clientLogger.warn("Suppressed client error", err); }
 
     other = other || otherParty(t) || otherUser || null;
     if (other) return other;
@@ -13942,7 +13954,7 @@ function setDmViewMode(mode){
   try {
     const head = document.getElementById("dmHeaderTitle");
     if (head) head.textContent = (next === "thread") ? (document.getElementById("dmMetaTitle")?.textContent || "DM") : "Inbox";
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 function setDmTab(tab){
@@ -14028,7 +14040,7 @@ function renderThreadItem(t){
       const other = (t.participants || []).find((p) => p !== me?.username);
       if (other && userFxMap[other]) applyNameFxToEl(title, userFxMap[other]);
     }
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
   const time = document.createElement("div");
   time.className = "dmItemTime";
   const lastTs = Number(t.last_ts || t.created_at || 0);
@@ -14158,7 +14170,7 @@ function renderDirectThreads(){
               repl.classList.add("dmThreadAvatar");
               av.replaceWith(repl);
             }
-          }catch{}
+          }catch (err) { clientLogger.warn("Suppressed client error", err); }
         }).catch(()=>{});
       }
 
@@ -14301,7 +14313,7 @@ try{
     }
   }
   if (touched) saveJson(AVATAR_CACHE_KEY, avatarCache);
-}catch{}
+}catch (err) { clientLogger.warn("Suppressed client error", err); }
     refreshDmBadgesFromThreads();
     syncDmTabUi();
     renderDmThreads();
@@ -14382,9 +14394,9 @@ async function startDirectMessage(username, targetId){
           const j = await res.json().catch(()=>null);
           msg = j?.message || j?.error || "";
         }
-      } catch {}
+      } catch (err) { clientLogger.warn("Suppressed client error", err); }
       if (!msg) {
-        try { msg = (await res.text()) || ""; } catch {}
+        try { msg = (await res.text()) || ""; } catch (err) { clientLogger.warn("Suppressed client error", err); }
       }
       msg = String(msg || "").trim();
       setDmNotice(msg || "Could not start DM.");
@@ -14423,8 +14435,8 @@ function openDmPanel({ view } = {}){
 function showDmInbox({ tab } = {}){
   saveDmDraft();
   if (activeDmId) {
-    try { socket?.emit("dm leave", { threadId: activeDmId }); } catch {}
-    try { socket?.emit("dm stop typing", { threadId: activeDmId }); } catch {}
+    try { socket?.emit("dm leave", { threadId: activeDmId }); } catch (err) { clientLogger.warn("Suppressed client error", err); }
+    try { socket?.emit("dm stop typing", { threadId: activeDmId }); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
   activeDmId = null;
   setDmViewMode("inbox");
@@ -14441,8 +14453,8 @@ function closeDmPanel(){
 
   // Leaving the active DM prevents ongoing read receipts/badge suppression while the panel is closed.
   if (activeDmId) {
-    try { socket?.emit("dm leave", { threadId: activeDmId }); } catch {}
-    try { socket?.emit("dm stop typing", { threadId: activeDmId }); } catch {}
+    try { socket?.emit("dm leave", { threadId: activeDmId }); } catch (err) { clientLogger.warn("Suppressed client error", err); }
+    try { socket?.emit("dm stop typing", { threadId: activeDmId }); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
   activeDmId = null;
   activeDmUsers = new Set();
@@ -14557,7 +14569,7 @@ function renderDmMessages(threadId){
               try{
                 const img = av.querySelector("img.avatarImg");
                 if (img) img.src = u;
-              }catch{}
+              }catch (err) { clientLogger.warn("Suppressed client error", err); }
             }).catch(()=>{});
           }
         } else {
@@ -14593,7 +14605,7 @@ function renderDmMessages(threadId){
                   repl.classList.add("dmMsgAvatar");
                   av.replaceWith(repl);
                 }
-              }catch{}
+              }catch (err) { clientLogger.warn("Suppressed client error", err); }
             }).catch(()=>{});
           }
         }
@@ -14783,8 +14795,8 @@ function renderDmMessages(threadId){
     row.appendChild(bubbleWrap);
     // If this is a self message, place your avatar on the right.
     if (isSelf && row.__selfAvatarSlot) {
-      try { row.appendChild(row.__selfAvatarSlot); } catch {}
-      try { delete row.__selfAvatarSlot; } catch {}
+      try { row.appendChild(row.__selfAvatarSlot); } catch (err) { clientLogger.warn("Suppressed client error", err); }
+      try { delete row.__selfAvatarSlot; } catch (err) { clientLogger.warn("Suppressed client error", err); }
     }
     queueContrastReinforcement(bubble);
 
@@ -14966,11 +14978,11 @@ function setDmMeta(thread){
           size: 32
         }));
       }
-    }catch{}
+    }catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
 
   // Update typing indicator for this thread (if any).
-  try { renderDmTypingIndicator(); } catch {}
+  try { renderDmTypingIndicator(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 function maybeTriggerPendingChessChallenge(thread){
@@ -14990,7 +15002,7 @@ function openDmThread(threadId){
 
   // Leave previous thread room before switching
   if (activeDmId && String(activeDmId) !== String(threadId)) {
-    try { socket?.emit("dm leave", { threadId: activeDmId }); } catch {}
+    try { socket?.emit("dm leave", { threadId: activeDmId }); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
   activeDmId = threadId;
   loadDmDraft();
@@ -15324,7 +15336,7 @@ async function toggleDmQuickBar(kind){
 
 // DM buttons open the inbox strip only; threads open the conversation panel.
 dmToggleBtn?.addEventListener("click", () => {
-  try { hideAllDmQuickBars(); } catch {}
+  try { hideAllDmQuickBars(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   if (!dmPanel) return;
 
   // Toggle the panel.
@@ -15336,7 +15348,7 @@ dmToggleBtn?.addEventListener("click", () => {
   }
 });
 groupDmToggleBtn?.addEventListener("click", () => {
-  try { hideAllDmQuickBars(); } catch {}
+  try { hideAllDmQuickBars(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   if (!dmPanel) return;
 
   if (dmPanel.classList.contains("open")) {
@@ -15519,7 +15531,7 @@ profileSettingsMenu?.addEventListener("click", async (e) => {
     return;
   }
   setTab("settings");
-  try { syncSoundPrefsUI(true); } catch {}
+  try { syncSoundPrefsUI(true); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   await loadChatFxPrefs({ force: true });
 });
 document.addEventListener("click", (e) => {
@@ -15697,8 +15709,8 @@ async function startVoiceRecording(){
 }
 
 function stopVoiceRecording(){
-  try { voiceRec.recorder?.stop(); } catch {}
-  try { voiceRec.stream?.getTracks?.().forEach(t=>t.stop()); } catch {}
+  try { voiceRec.recorder?.stop(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
+  try { voiceRec.stream?.getTracks?.().forEach(t=>t.stop()); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   voiceRec.recorder = null;
   voiceRec.stream = null;
   voiceRec.chunks = [];
@@ -15891,14 +15903,14 @@ audioFileInput?.addEventListener("change", () => {
     setRoomUploadingState(false);
     addSystem(`Upload failed: ${e?.message || "Upload failed."}`);
   }).finally(() => {
-    try { audioFileInput.value = ""; } catch {}
+    try { audioFileInput.value = ""; } catch (err) { clientLogger.warn("Suppressed client error", err); }
   });
 });
 cancelUploadBtn.addEventListener("click", () => {
   if(uploadXhr){ uploadXhr.abort(); uploadXhr=null; addSystem("Upload canceled."); }
   fileInput.value="";
-  try { audioFileInput.value=""; } catch {}
-  try { if (voiceRec.recorder) stopVoiceRecording(); } catch {}
+  try { audioFileInput.value=""; } catch (err) { clientLogger.warn("Suppressed client error", err); }
+  try { if (voiceRec.recorder) stopVoiceRecording(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   roomUploadToken = null;
   roomPendingAttachment = null;
   setRoomUploadingState(false);
@@ -15977,7 +15989,7 @@ function setTab(tab){
         if (memoryTimelineMsg) {
           memoryTimelineMsg.textContent = "Enable Memory Timeline in your profile settings to start collecting memories.";
         }
-      } catch {}
+      } catch (err) { clientLogger.warn("Suppressed client error", err); }
     } else {
       void loadMemories();
     }
@@ -16134,7 +16146,7 @@ function hardHideProfileModal(){
     modal.classList.remove("modal-visible");
     modal.classList.remove("modal-closing");
     modal.style.display="none";
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
   setModalTargetUsername(null, "hardHideProfileModal");
   modalTargetUserId=null;
   lockBodyScroll(false);
@@ -16160,14 +16172,14 @@ function openModal(){
     modal.classList.add("modal-visible");
     logProfileModal("openModal visible (reduced motion)");
     traceProfileModalOnce("modal visible (reduced motion)");
-    try { closeModalBtn?.focus({ preventScroll: true }); } catch {}
+    try { closeModalBtn?.focus({ preventScroll: true }); } catch (err) { clientLogger.warn("Suppressed client error", err); }
     return;
   }
   requestAnimationFrame(() => {
     modal.classList.add("modal-visible");
     logProfileModal("openModal visible (animated)");
     traceProfileModalOnce("modal visible (animated)");
-    try { closeModalBtn?.focus({ preventScroll: true }); } catch {}
+    try { closeModalBtn?.focus({ preventScroll: true }); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   });
 }
 function closeModal(){
@@ -16334,7 +16346,7 @@ function undockCouplesFromModal(){
     if (d.field?.parent) d.field.parent.insertBefore(d.field.el, d.field.next || null);
     if (d.active?.parent) d.active.parent.insertBefore(d.active.el, d.active.next || null);
     if (d.msg?.parent) d.msg.parent.insertBefore(d.msg.el, d.msg.next || null);
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 function openCouplesModal(){
@@ -16356,14 +16368,14 @@ function closeCouplesModal(){
   if (PREFERS_REDUCED_MOTION) {
     couplesModal.style.display = "none";
     couplesModal.classList.remove("modal-closing");
-    try { couplesModal.hidden = true; } catch {}
+    try { couplesModal.hidden = true; } catch (err) { clientLogger.warn("Suppressed client error", err); }
     return;
   }
   couplesModal.classList.add("modal-closing");
   setTimeout(() => {
     couplesModal.style.display = "none";
     couplesModal.classList.remove("modal-closing");
-    try { couplesModal.hidden = true; } catch {}
+    try { couplesModal.hidden = true; } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }, 140);
 }
 
@@ -16391,7 +16403,7 @@ function closeEditProfileModal(){
   }
   setTimeout(() => {
     editProfileModal.classList.remove("modal-closing");
-    try { editProfileModal.hidden = true; } catch {}
+    try { editProfileModal.hidden = true; } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }, 140);
 }
 
@@ -17650,7 +17662,7 @@ survivalLobbyBtn?.addEventListener("click", async () => {
         survivalState.lobbyUserIds = data.user_ids.map((x) => Number(x)).filter((x) => x > 0);
       }
     }
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
   renderSurvivalArena();
 });
 
@@ -17715,15 +17727,15 @@ function setActiveRoom(room){
   // If a modal is open that is built around room/profile context, close it when switching rooms.
   try {
     if (couplesModal && couplesModal.style.display && couplesModal.style.display !== "none") closeCouplesModal();
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
   try {
     if (survivalModal && survivalModal.style.display && survivalModal.style.display !== "none" && !nowSurvivalRoom) closeSurvivalModal();
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 
 
   // Dice Room: swap media button to dice roll
-  try { closeMediaMenu(); } catch {}
-  try { closeDiceVariantMenu(); } catch {}
+  try { closeMediaMenu(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
+  try { closeDiceVariantMenu(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   if (mediaBtn) {
     if (nowDiceRoom) {
       mediaBtn.textContent = "🎲";
@@ -17735,7 +17747,7 @@ function setActiveRoom(room){
   }
   if (wasDiceRoom && !nowDiceRoom) {
     resetDiceSessionStats();
-    try { closeDicePayout(); } catch {}
+    try { closeDicePayout(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
   if (nowDiceRoom) {
     renderLuckMeter();
@@ -17747,7 +17759,7 @@ function setActiveRoom(room){
     } else {
       unmountDiceFx();
     }
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
   if (wasSurvivalRoom && !nowSurvivalRoom) {
     stopSurvivalAutoRun();
   }
@@ -18147,11 +18159,11 @@ async function handleRoomVersionConflict(res){
 
 function openRoomCreateModal(){
   // Prevent overlay stacking: close drawers / other modals before opening room modals
-  try{ closeDrawers(); }catch{}
-  try{ if(typeof closeMemberMenu==="function") closeMemberMenu(); }catch{}
-  try{ if(typeof closeActionMenu==="function") closeActionMenu(); }catch{}
-  try{ if(typeof closeModal==="function" && modal && modal.style && modal.style.display !== "none") closeModal(); }catch{}
-  try{ if(typeof closeCouplesModal==="function") closeCouplesModal(); }catch{}
+  try{ closeDrawers(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
+  try{ if(typeof closeMemberMenu==="function") closeMemberMenu(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
+  try{ if(typeof closeActionMenu==="function") closeActionMenu(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
+  try{ if(typeof closeModal==="function" && modal && modal.style && modal.style.display !== "none") closeModal(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
+  try{ if(typeof closeCouplesModal==="function") closeCouplesModal(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
   if(!roomCreateModal) return;
   if(roomCreateMsg) roomCreateMsg.textContent = "";
   if(roomCreateNameInput) roomCreateNameInput.value = "";
@@ -18662,7 +18674,7 @@ async function refreshRoomEventsActiveList(){
   let data = {};
   try {
     data = JSON.parse(text || "{}");
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
   const events = Array.isArray(data.events) ? data.events : [];
   if(!events.length){
     roomEventsActiveList.innerHTML = "<div class='muted'>No active events.</div>";
@@ -18701,11 +18713,11 @@ function refreshRoomEventsUi(){
 
 function openRoomManageModal(options = {}){
   // Prevent overlay stacking: close drawers / other modals before opening room modals
-  try{ closeDrawers(); }catch{}
-  try{ if(typeof closeMemberMenu==="function") closeMemberMenu(); }catch{}
-  try{ if(typeof closeActionMenu==="function") closeActionMenu(); }catch{}
-  try{ if(typeof closeModal==="function" && modal && modal.style && modal.style.display !== "none") closeModal(); }catch{}
-  try{ if(typeof closeCouplesModal==="function") closeCouplesModal(); }catch{}
+  try{ closeDrawers(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
+  try{ if(typeof closeMemberMenu==="function") closeMemberMenu(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
+  try{ if(typeof closeActionMenu==="function") closeActionMenu(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
+  try{ if(typeof closeModal==="function" && modal && modal.style && modal.style.display !== "none") closeModal(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
+  try{ if(typeof closeCouplesModal==="function") closeCouplesModal(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
   closeRoomActionsMenu();
   if(!roomManageModal) return;
   if(!me){
@@ -19290,7 +19302,7 @@ function loadLeaderboardCollapseState(){
 function saveLeaderboardCollapseState(){
   try {
     localStorage.setItem(LEADERBOARD_COLLAPSE_STORAGE_KEY, JSON.stringify(leaderboardCollapseState || {}));
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 function applyLeaderboardCollapsedState(card, panelId, collapsed){
@@ -19839,11 +19851,11 @@ function scrollChangelogEditorIntoView(){
     const rect = changelogEditor.getBoundingClientRect();
     const scrollerRect = scroller.getBoundingClientRect();
     if(rect.top < scrollerRect.top || rect.bottom > scrollerRect.bottom){
-      try { changelogEditor.scrollIntoView({ behavior:"smooth", block:"nearest" }); } catch {}
+      try { changelogEditor.scrollIntoView({ behavior:"smooth", block:"nearest" }); } catch (err) { clientLogger.warn("Suppressed client error", err); }
     }
     return;
   }
-  try { changelogEditor.scrollIntoView({ behavior:"smooth", block:"nearest" }); } catch {}
+  try { changelogEditor.scrollIntoView({ behavior:"smooth", block:"nearest" }); } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 function openChangelogEditor(entry){
@@ -20921,7 +20933,7 @@ function emitDmTyping(){
   socket.emit("dm typing", { threadId: activeDmId });
   clearTimeout(dmTypingDebounce);
   dmTypingDebounce = setTimeout(() => {
-    try { socket.emit("dm stop typing", { threadId: activeDmId }); } catch {}
+    try { socket.emit("dm stop typing", { threadId: activeDmId }); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }, 900);
 }
 
@@ -21155,7 +21167,7 @@ async function checkPasswordUpgradeStatus(){
       showPasswordUpgradeView({ nonce: data?.nonce || "" });
       return true;
     }
-  }catch{}
+  }catch (err) { clientLogger.warn("Suppressed client error", err); }
   return false;
 }
 
@@ -21423,7 +21435,7 @@ async function ensureRestrictedSocket(){
   // Recreate if missing or disconnected.
   if(restrictedSocket && restrictedSocket.connected) return restrictedSocket;
   if(restrictedSocket && !restrictedSocket.connected){
-    try{ restrictedSocket.disconnect(); }catch{}
+    try{ restrictedSocket.disconnect(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
     restrictedSocket = null;
   }
 
@@ -21619,7 +21631,7 @@ function staffAction(action){
 function bindRestrictedUI(){
   restrictedRecheckBtn?.addEventListener("click", doRestrictionRecheck);
   restrictedLogoutBtn?.addEventListener("click", async ()=>{
-    try{ await fetch("/logout", { method:"POST", credentials:"include" }); }catch{}
+    try{ await fetch("/logout", { method:"POST", credentials:"include" }); }catch (err) { clientLogger.warn("Suppressed client error", err); }
     setAuthUser(null);
     initLoginUI();
   });
@@ -22140,8 +22152,8 @@ async function doLogout(){
   setAuthUser(null);
   me = null;
   if(socket){
-    try { socket.removeAllListeners(); } catch {}
-    try { socket.disconnect(); } catch {}
+    try { socket.removeAllListeners(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
+    try { socket.disconnect(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
   setView("login");
   initLoginUI();
@@ -22515,14 +22527,14 @@ function ensureVisibleOnFocus(el){
   el._visibleHooked = true;
   el.addEventListener("focus", () => {
     setTimeout(() => {
-      try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch {}
+      try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (err) { clientLogger.warn("Suppressed client error", err); }
     }, 60);
   });
 }
 
 function clearAvatarPreview(){
   if (avatarPreviewUrl) {
-    try { URL.revokeObjectURL(avatarPreviewUrl); } catch {}
+    try { URL.revokeObjectURL(avatarPreviewUrl); } catch (err) { clientLogger.warn("Suppressed client error", err); }
     avatarPreviewUrl = null;
   }
 }
@@ -22979,7 +22991,7 @@ function fillProfileUI(p, isSelf){
         profileCoupleChip.textContent = "";
       }
     }
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 
   try {
     const card = p?.coupleCard;
@@ -23022,7 +23034,7 @@ function fillProfileUI(p, isSelf){
         profileCoupleBio.textContent = bio ? bio : "No couple bio yet.";
       }
     }
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 
   // Render couples flair
   renderCouplesFlair(p);
@@ -23343,7 +23355,7 @@ function wireSoundPrefs(){
         if (Sound.get.roomOn()) Sound.cues.room();
         else if (Sound.get.dmOn()) Sound.cues.dm();
         else if (Sound.get.mentionOn()) Sound.cues.mention();
-      } catch {}
+      } catch (err) { clientLogger.warn("Suppressed client error", err); }
     } else if (prefSoundStatus) {
       prefSoundStatus.textContent = "";
     }
@@ -23466,7 +23478,7 @@ function syncChatFxControls(fx){
       const v = String(resolved.textGradientB || "").trim();
       chatFxPrefEls.textGradientBPick.value = /^#[0-9a-f]{6}$/i.test(v) ? v : "#00e5ff";
     }
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 function readChatFxFormRaw(){
@@ -24965,7 +24977,7 @@ function initPersonalisationSections(container){
         .filter((item) => item.open)
         .map((item) => item.dataset.section)
         .filter(Boolean);
-      try { localStorage.setItem(PERSONALISATION_SECTIONS_KEY, JSON.stringify(openKeys)); } catch {}
+      try { localStorage.setItem(PERSONALISATION_SECTIONS_KEY, JSON.stringify(openKeys)); } catch (err) { clientLogger.warn("Suppressed client error", err); }
     });
   });
 }
@@ -25255,7 +25267,7 @@ function wireProfileAvatarActions(){
       setProfileEditMode(true);
       setTab("profile");
       // Open file picker for avatar
-      try{ avatarFile?.click(); } catch {}
+      try{ avatarFile?.click(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
     });
   }
 
@@ -25521,7 +25533,7 @@ async function openMyProfile(){
   if (memoryEnabled) await loadMemories({ force: true });
 
   if (myProfileEdit) myProfileEdit.style.display="block";
-  try { refreshCouplesUI(); } catch {}
+  try { refreshCouplesUI(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   modalCanModerate = false;
   if (actionsBtn) actionsBtn.style.display = "none";
   closeMemberActionsOverlay();
@@ -25771,7 +25783,7 @@ window.runProfileModalSelfTest = async function runProfileModalSelfTest(targetUs
     await clickAction("profile:toggle-edit", "toggle-edit", { expectEditToggle: true });
     await clickAction("profile:customize", "customize", { expectTab: "settings" });
     await clickAction("profile:themes", "themes");
-    try { closeThemesModal(); } catch {}
+    try { closeThemesModal(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
 
   const closeBtn = modal?.querySelector(`[data-profile-action="profile:close"]`);
@@ -26437,7 +26449,7 @@ initAppealsDurationSelect();
   await loadThemePreference();
 
   await loadMyProfile();
-  try { refreshCouplesUI(); } catch {}
+  try { refreshCouplesUI(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   await loadUserPrefs();
   await loadProgression();
   renderLevelProgress(progression, true);
@@ -26453,8 +26465,8 @@ initAppealsDurationSelect();
   updateRoomControlsVisibility();
 
   if (socket) {
-    try { socket.removeAllListeners(); } catch {}
-    try { socket.disconnect(); } catch {}
+    try { socket.removeAllListeners(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
+    try { socket.disconnect(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
   socket = io({
     transports: ["websocket", "polling"],
@@ -26699,7 +26711,7 @@ initAppealsDurationSelect();
 
   socket.on("restriction:status", async (payload) => {
     if(payload?.type && payload.type !== "none"){
-      try{ socket.disconnect(); }catch{}
+      try{ socket.disconnect(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
       await ensureRestrictedSocket();
       showRestrictedView(payload);
       await refreshMyAppeal();
@@ -26725,8 +26737,8 @@ initAppealsDurationSelect();
   });
 
   socket.on("couples:update", () => {
-    try { refreshCouplesUI(); } catch {}
-    try { emitLocalMembersRefresh(); } catch {}
+    try { refreshCouplesUI(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
+    try { emitLocalMembersRefresh(); } catch (err) { clientLogger.warn("Suppressed client error", err); }
   });
 
   socket.on("couples:nudge", (payload={}) => {
@@ -27215,7 +27227,7 @@ socket.on("mod:case_event", (payload = {}) => {
         document.documentElement.style.setProperty("--diceOverlayLift", String(showDiceAnimation.__prevLift || "0px"));
         delete showDiceAnimation.__prevLift;
       }
-    } catch {}
+    } catch (err) { clientLogger.warn("Suppressed client error", err); }
   }
 
   function showDiceAnimation({ result, variant, won, deltaGold, breakdown, outcome } = {}){
@@ -27235,7 +27247,7 @@ socket.on("mod:case_event", (payload = {}) => {
       const baseLift = IS_IOS ? 38 : 26;
       const extra = kbOpen ? 46 : 0;
       document.documentElement.style.setProperty("--diceOverlayLift", `${baseLift + extra}px`);
-    } catch {}
+    } catch (err) { clientLogger.warn("Suppressed client error", err); }
 
     diceOverlay.style.display = "flex";
     diceOverlay.classList.remove(
@@ -27630,7 +27642,7 @@ socket.on("mod:case_event", (payload = {}) => {
         if (mentioned && Sound.shouldMention()) Sound.cues.mention();
         else if (!played && Sound.shouldRoom()) Sound.cues.room();
       }
-    }catch{}
+    }catch (err) { clientLogger.warn("Suppressed client error", err); }
   });
   socket.on("reaction update", ({ messageId }) => {
     const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
@@ -27752,7 +27764,7 @@ socket.on("dm history", (payload = {}) => {
         const lastMsg = (Array.isArray(messages) && messages.length) ? messages[messages.length - 1] : null;
         const mid = lastMsg ? (lastMsg.messageId || lastMsg.id) : null;
         if (mid) socket?.emit("dm mark read", { threadId, messageId: mid, ts: lastMsg.ts || Date.now() });
-      } catch {}
+      } catch (err) { clientLogger.warn("Suppressed client error", err); }
 
       // Optimistically clear unread count for this thread so badges update immediately.
       const meta = dmThreads.find(t => String(t.id) === String(threadId));
@@ -27812,7 +27824,7 @@ socket.on("dm history", (payload = {}) => {
         if (mentioned && Sound.shouldMention()) Sound.cues.mention();
         else if (!played && Sound.shouldDm()) Sound.cues.dm();
       }
-    }catch{}
+    }catch (err) { clientLogger.warn("Suppressed client error", err); }
 
 
     if (!dmThreads.find((t) => String(t.id) === String(m.threadId))) loadDmThreads();
@@ -27850,7 +27862,7 @@ socket.on("dm history", (payload = {}) => {
       if (String(activeDmId) === tid) {
         renderDmMessages(Number(tid));
       }
-    } catch {}
+    } catch (err) { clientLogger.warn("Suppressed client error", err); }
   });
 
 
@@ -27886,14 +27898,14 @@ socket.on("dm history", (payload = {}) => {
       const u = raw.trim();
       if(!u){
         hardHideProfileModal();
-        try{ history.replaceState(null, "", location.pathname + location.search); }catch{}
+        try{ history.replaceState(null, "", location.pathname + location.search); }catch (err) { clientLogger.warn("Suppressed client error", err); }
         return;
       }
       const opened = await openMemberProfile(u);
       if (!opened) {
         hardHideProfileModal();
       }
-      try{ history.replaceState(null, "", location.pathname + location.search); }catch{}
+      try{ history.replaceState(null, "", location.pathname + location.search); }catch (err) { clientLogger.warn("Suppressed client error", err); }
     }
   };
   handleProfileHash();
@@ -27937,7 +27949,7 @@ async function bootApp(){
         await refreshMyAppeal();
         return;
       }
-    }catch{}
+    }catch (err) { clientLogger.warn("Suppressed client error", err); }
 
     await initChatApp();
     return;
@@ -27995,7 +28007,7 @@ function updateKeyboardInset(target){
   if(Number.isFinite(kb)){ document.documentElement?.style?.setProperty("--kb", `${Math.round(kb)}px`); }
   if(target && target.scrollIntoView){
     setTimeout(() => {
-      try{ target.scrollIntoView({ block:"center", behavior:"smooth" }); }catch{}
+      try{ target.scrollIntoView({ block:"center", behavior:"smooth" }); }catch (err) { clientLogger.warn("Suppressed client error", err); }
     }, 120);
   }
 }
@@ -28038,7 +28050,7 @@ msgInput?.addEventListener("focus", () => {
       }else{
         msgInput.scrollIntoView({ block: "nearest", behavior: "smooth" });
       }
-    }catch{}
+    }catch (err) { clientLogger.warn("Suppressed client error", err); }
   }, 120);
 });
 
@@ -28107,7 +28119,7 @@ function isThemeVisible(themeName) {
   return true;
 }
 
-try{ syncDesktopMembersWidth(); }catch{}
+try{ syncDesktopMembersWidth(); }catch (err) { clientLogger.warn("Suppressed client error", err); }
 
 
 // ---- Couples UI (opt-in)
@@ -28364,14 +28376,14 @@ function updateCoupleGradientFieldVisibility() {
 function emitLocalMembersRefresh(){
   try {
     if (typeof emitUserListNow === "function") emitUserListNow();
-  } catch {}
+  } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 // best-effort helper: re-emit member list if we can
 function emitUserListNow(){
   // The server pushes user list on join/updates; we can also request by toggling a no-op room refresh if such exists.
   // If socket exists, ask it to refresh:
-  try { if (socket) socket.emit("refresh user list"); } catch {}
+  try { if (socket) socket.emit("refresh user list"); } catch (err) { clientLogger.warn("Suppressed client error", err); }
 }
 
 function isCoupleMember(currentUserId, couple){
@@ -28500,7 +28512,7 @@ if (couplesUnlinkBtn) {
 try {
   const oldOpenMyProfile = openMyProfile;
   // openMyProfile exists; it opens modal and fills UI. We'll just hook after it runs.
-} catch {}
+} catch (err) { clientLogger.warn("Suppressed client error", err); }
 
 
 /* === Media Bottom Sheet Logic === */
