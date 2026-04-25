@@ -8,7 +8,7 @@
     "start": "node server.js",
     "dev": "LOCAL_DEV=1 node server.js",
     "dev:seed": "LOCAL_DEV=1 node scripts/dev-seed.js",
-    "test": "echo \"No tests yet\" && exit 0",
+    "test": "node scripts/run-all-tests.js",
     "test:dice": "node scripts/dice-variant-smoke.js",
     "test:dice-stats": "node scripts/test-dice-stats.js",
     "test:survival": "node scripts/test-survival-events.js",
