@@ -92,6 +92,64 @@ const STATUS_EXPIRY_OPTIONS = [
   24 * 60 * MINUTE_MS,
 ];
 
+// CSRF: attach token to all state-changing requests.
+const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+let csrfTokenCache = "";
+let csrfTokenPromise = null;
+const nativeFetch = window.fetch.bind(window);
+
+function getCsrfTokenFromCookie() {
+  const pair = document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("csrf-token="));
+  if (!pair) return "";
+  try {
+    return decodeURIComponent(pair.split("=").slice(1).join("="));
+  } catch {
+    return "";
+  }
+}
+
+async function fetchCsrfToken() {
+  if (csrfTokenCache) return csrfTokenCache;
+  if (!csrfTokenPromise) {
+    csrfTokenPromise = nativeFetch("/api/csrf-token", { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) return "";
+        const data = await res.json().catch(() => ({}));
+        const token = String(data?.csrfToken || "");
+        csrfTokenCache = token;
+        return token;
+      })
+      .catch(() => "")
+      .finally(() => {
+        csrfTokenPromise = null;
+      });
+  }
+  return csrfTokenPromise;
+}
+
+window.fetch = async (input, init = {}) => {
+  const request = new Request(input, init);
+  const method = (request.method || "GET").toUpperCase();
+  if (CSRF_SAFE_METHODS.has(method)) {
+    return nativeFetch(input, init);
+  }
+
+  let token = csrfTokenCache || getCsrfTokenFromCookie();
+  if (!token) token = await fetchCsrfToken();
+
+  const headers = new Headers(init?.headers || request.headers || {});
+  if (token) headers.set("x-csrf-token", token);
+
+  return nativeFetch(input, {
+    ...init,
+    headers,
+    credentials: init?.credentials || "include",
+  });
+};
+
 
 function safeJsonParse(raw, fallback) {
   try {
