@@ -2,23 +2,26 @@
 
 // Update a user's role in SQLite (legacy) and Postgres (Render/prod) when available.
 async function setRoleEverywhere(targetId, username, role) {
-  // SQLite
-  try {
-    if (targetId != null) {
-      await dbRunAsync("UPDATE users SET role=? WHERE id=?", [role, targetId]);
-    } else if (username) {
-      await dbRunAsync("UPDATE users SET role=? WHERE lower(username)=lower(?)", [role, username]);
-    }
-  } catch (err) { logger.warn("Suppressed server error", { err }); }
-
-  // Postgres
-  try {
-    if (targetId != null) {
-      await pgPool.query("UPDATE users SET role=$1 WHERE id=$2", [role, targetId]);
-    } else if (username) {
-      await pgPool.query("UPDATE users SET role=$1 WHERE lower(username)=lower($2)", [role, username]);
-    }
-  } catch (err) { logger.warn("Suppressed server error", { err }); }
+  const writeToPostgres = shouldUsePostgresAsSourceOfTruth();
+  const writeToSqlite = !writeToPostgres;
+  if (writeToSqlite) {
+    try {
+      if (targetId != null) {
+        await dbRunAsync("UPDATE users SET role=? WHERE id=?", [role, targetId]);
+      } else if (username) {
+        await dbRunAsync("UPDATE users SET role=? WHERE lower(username)=lower(?)", [role, username]);
+      }
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
+  }
+  if (writeToPostgres) {
+    try {
+      if (targetId != null) {
+        await pgPool.query("UPDATE users SET role=$1 WHERE id=$2", [role, targetId]);
+      } else if (username) {
+        await pgPool.query("UPDATE users SET role=$1 WHERE lower(username)=lower($2)", [role, username]);
+      }
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
+  }
 }
 "use strict";
 
@@ -666,6 +669,9 @@ const { SURVIVAL_EVENT_TEMPLATES, SURVIVAL_ITEM_POOL } = require("./survival-eve
 const statePersistence = require("./state-persistence");
 const validators = require("./validators");
 const logger = require("./logger");
+const { resolveDbStrategy, validateStartupConnection } = require("./services/dbStrategy");
+const { createHealthRoutes } = require("./routes/healthRoutes");
+const { errorHandler } = require("./middleware/errorHandler");
 
 // DnD modules
 const dndCharacterSystem = require("./dnd/character-system");
@@ -707,6 +713,7 @@ try {
   logger.error("[startup] env validation failed", { err });
   process.exit(1);
 }
+const STARTUP_DB_STRATEGY = resolveDbStrategy({ hasDatabaseUrl: Boolean(STARTUP_ENV.DATABASE_URL) });
 
 const MEMORY_SYSTEM_ENABLED = process.env.MEMORY_SYSTEM_ENABLED === "1";
 const MEMORY_SYSTEM_ALLOWLIST = new Set(
@@ -736,7 +743,7 @@ const IS_DEV_MODE = STARTUP_ENV.IS_DEV_MODE;
 const IS_TEST_MODE = NODE_ENV === "test" || process.env.TEST_MODE === "1";
 
 console.log(
-  `[startup] env validated (mode=${NODE_ENV}, localDev=${LOCAL_DEV ? "yes" : "no"}, database=${STARTUP_ENV.DATABASE_URL ? "postgres+sqlite-fallback" : "sqlite"}, testMode=${IS_TEST_MODE ? "yes" : "no"})`
+  `[startup] env validated (mode=${NODE_ENV}, localDev=${LOCAL_DEV ? "yes" : "no"}, database=${STARTUP_DB_STRATEGY}, testMode=${IS_TEST_MODE ? "yes" : "no"})`
 );
 if (IS_TEST_MODE) {
   console.log(`[startup] test sqlite path: ${process.env.SQLITE_PATH || DB_FILE}`);
@@ -1228,7 +1235,8 @@ for (const dir of [UPLOADS_DIR, AVATARS_DIR]) {
     const winner = symbol === "X" ? "O" : "X";
     finalizeTicTacToeGame(room, game, { winner, reason: reason || "disconnect" });
   }
-const PG_ENABLED = Boolean(process.env.DATABASE_URL);
+const DB_STRATEGY = STARTUP_DB_STRATEGY;
+const PG_ENABLED = DB_STRATEGY === "postgres";
 const pgPool = PG_ENABLED
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
@@ -1241,6 +1249,9 @@ if (!PG_ENABLED && IS_DEV_MODE) {
   console.warn("[db] PG unavailable, using SQLite dev fallback:", DB_FILE);
 }
 let DB_BACKEND = "sqlite";
+function shouldUsePostgresAsSourceOfTruth() {
+  return DB_STRATEGY === "postgres" && Boolean(pgPool) && PG_READY;
+}
 // ---- Postgres: helpers to keep legacy schemas compatible
 async function pgGetColumnType(tableName, columnName) {
   const { rows } = await pgPool.query(
@@ -2773,10 +2784,7 @@ const sessionMiddleware = session({
 });
 
 app.use(sessionMiddleware);
-
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", db: DB_BACKEND });
-});
+app.use(createHealthRoutes(() => DB_BACKEND));
 
 const genericRateLimitHandler = (_req, res) => {
   res.status(429).json({ message: "Too many requests, please try again later." });
@@ -15621,19 +15629,6 @@ async function toggleProfileLike(userId, targetUserId) {
         [userId, targetUserId, now]
       );
       const stats = await fetchProfileLikeStats(targetUserId, userId);
-      // Best-effort mirror to SQLite so legacy reads stay consistent.
-      try {
-        if (stats.liked) {
-          await dbRunAsync(
-            `INSERT OR IGNORE INTO profile_likes (user_id, target_user_id, created_at) VALUES (?, ?, ?)`,
-            [userId, targetUserId, now]
-          );
-        } else {
-          await dbRunAsync(`DELETE FROM profile_likes WHERE user_id = ? AND target_user_id = ?`, [userId, targetUserId]);
-        }
-      } catch (e) {
-        console.warn("[profile likes][sqlite mirror]", e?.message || e);
-      }
       return stats;
     } catch (e) {
       console.warn("[profile likes][pg toggle] failed, falling back to sqlite:", e?.message || e);
@@ -22305,13 +22300,7 @@ socket.on("disconnect", (reason) => {
 
 });
 
-app.use((err, req, res, _next) => {
-  logger.error("[http] unhandled error", { method: req.method, path: req.originalUrl, err });
-  if (res.headersSent) return;
-  const status = Number(err?.status || err?.statusCode) || 500;
-  const safeMessage = status >= 500 ? "Internal server error." : (err?.publicMessage || err?.message || "Request failed.");
-  res.status(status).json({ message: safeMessage, error: { message: safeMessage } });
-});
+app.use(errorHandler);
 
 // ---- Start
 const startupReady = Promise.allSettled([migrationsReady, pgInitPromise]);
@@ -22329,6 +22318,16 @@ async function startServer() {
     if (IS_PROD) {
       process.exit(1);
     }
+  }
+  try {
+    await validateStartupConnection({
+      strategy: DB_STRATEGY,
+      pgPool,
+      sqliteQuery: (sql) => dbAllAsync(sql, []),
+    });
+  } catch (err) {
+    console.error(`[startup] ${DB_STRATEGY} connection validation failed`, err);
+    process.exit(1);
   }
 
   console.log(`[startup] database backend selected: ${DB_BACKEND}`);

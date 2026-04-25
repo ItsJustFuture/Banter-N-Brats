@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const sqlite3 = require("sqlite3").verbose();
 const bcrypt = require("bcrypt");
+const { applySqliteFileMigrations } = require("./services/sqliteMigrationService");
 
 const DEFAULT_SQLITE_PATH = path.join(__dirname, "data", "dev.sqlite");
 const DB_FILE = process.env.SQLITE_PATH || process.env.DB_FILE || DEFAULT_SQLITE_PATH;
@@ -1228,6 +1229,15 @@ await run(`CREATE INDEX IF NOT EXISTS idx_appeal_messages_appeal ON appeal_messa
       UNIQUE(username, endpoint)
     )
   `);
+
+  const migrationResult = await applySqliteFileMigrations({
+    db,
+    run,
+    migrationsDir: path.join(__dirname, "migrations"),
+  });
+  if (migrationResult.applied.length) {
+    console.log(`[database] applied sqlite file migrations: ${migrationResult.applied.join(", ")}`);
+  }
 
 
 // --- Fixed role assignments
