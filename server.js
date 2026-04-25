@@ -9,7 +9,7 @@ async function setRoleEverywhere(targetId, username, role) {
     } else if (username) {
       await dbRunAsync("UPDATE users SET role=? WHERE lower(username)=lower(?)", [role, username]);
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 
   // Postgres
   try {
@@ -18,7 +18,7 @@ async function setRoleEverywhere(targetId, username, role) {
     } else if (username) {
       await pgPool.query("UPDATE users SET role=$1 WHERE lower(username)=lower($2)", [role, username]);
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 }
 "use strict";
 
@@ -665,6 +665,7 @@ const {
 const { SURVIVAL_EVENT_TEMPLATES, SURVIVAL_ITEM_POOL } = require("./survival-events");
 const statePersistence = require("./state-persistence");
 const validators = require("./validators");
+const logger = require("./logger");
 
 // DnD modules
 const dndCharacterSystem = require("./dnd/character-system");
@@ -674,10 +675,10 @@ const dndDb = require("./dnd/database-helpers");
 
 // ---- Safety nets (prevents silent crashes in prod) ----
 process.on("unhandledRejection", (err) => {
-  console.error("[unhandledRejection]", err);
+  logger.error("[unhandledRejection]", { err });
 });
 process.on("uncaughtException", (err) => {
-  console.error("[uncaughtException]", err);
+  logger.error("[uncaughtException]", { err });
 });
 const { Server } = require("socket.io");
 const { createAdapter } = require("@socket.io/redis-adapter");
@@ -703,7 +704,7 @@ let STARTUP_ENV;
 try {
   STARTUP_ENV = validateAndApplyEnv(process.env);
 } catch (err) {
-  console.error(err?.message || err);
+  logger.error("[startup] env validation failed", { err });
   process.exit(1);
 }
 
@@ -1908,7 +1909,7 @@ try {
     for (const q of addCols) {
       try { await pgPool.query(q); } catch (_) {}
     }
-    try { await pgPool.query(`CREATE INDEX IF NOT EXISTS idx_users_vip_expires_at ON users(vip_expires_at)`); } catch {}
+    try { await pgPool.query(`CREATE INDEX IF NOT EXISTS idx_users_vip_expires_at ON users(vip_expires_at)`); } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     // Migrate legacy timestamp/int columns to epoch-ms BIGINT so inserts don't fail.
     const epochMsCols = [
@@ -2001,7 +2002,7 @@ try {
   // Single OPEN appeal per user (best-effort; if already exists, ignore)
   try {
     await pgPool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_open_appeal_per_user ON appeals(username) WHERE status='open'`);
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 } catch (e) {
   console.warn("[pg-init] restrictions/appeals tables failed:", e?.message || e);
 }
@@ -2044,13 +2045,13 @@ try {
     // Best-effort FK constraints (may fail if legacy schemas differ); couples will still work without them.
     try {
       await pgPool.query(`ALTER TABLE couple_links ADD CONSTRAINT couple_links_user1_fk FOREIGN KEY (user1_id) REFERENCES users(id) ON DELETE CASCADE`);
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
     try {
       await pgPool.query(`ALTER TABLE couple_links ADD CONSTRAINT couple_links_user2_fk FOREIGN KEY (user2_id) REFERENCES users(id) ON DELETE CASCADE`);
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
     try {
       await pgPool.query(`ALTER TABLE couple_links ADD CONSTRAINT couple_links_requested_by_fk FOREIGN KEY (requested_by_id) REFERENCES users(id) ON DELETE SET NULL`);
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     await pgPool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_couple_pair ON couple_links(user1_id, user2_id)`);
 
@@ -2072,7 +2073,7 @@ try {
     await pgPool.query(`ALTER TABLE couple_prefs ADD COLUMN IF NOT EXISTS allow_ping BOOLEAN NOT NULL DEFAULT true`);
     try {
       await pgPool.query(`ALTER TABLE couple_prefs ADD CONSTRAINT couple_prefs_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE`);
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     COUPLES_READY = true;
   } catch (e) {
@@ -2111,15 +2112,15 @@ try {
     `);
 
     // Best-effort FK constraints
-    try { await pgPool.query(`ALTER TABLE friend_requests ADD CONSTRAINT friend_requests_from_fk FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch {}
-    try { await pgPool.query(`ALTER TABLE friend_requests ADD CONSTRAINT friend_requests_to_fk FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch {}
-    try { await pgPool.query(`ALTER TABLE friends ADD CONSTRAINT friends_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch {}
-    try { await pgPool.query(`ALTER TABLE friends ADD CONSTRAINT friends_friend_fk FOREIGN KEY (friend_user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch {}
+    try { await pgPool.query(`ALTER TABLE friend_requests ADD CONSTRAINT friend_requests_from_fk FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch (err) { logger.warn("Suppressed server error", { err }); }
+    try { await pgPool.query(`ALTER TABLE friend_requests ADD CONSTRAINT friend_requests_to_fk FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch (err) { logger.warn("Suppressed server error", { err }); }
+    try { await pgPool.query(`ALTER TABLE friends ADD CONSTRAINT friends_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch (err) { logger.warn("Suppressed server error", { err }); }
+    try { await pgPool.query(`ALTER TABLE friends ADD CONSTRAINT friends_friend_fk FOREIGN KEY (friend_user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     await pgPool.query(`CREATE INDEX IF NOT EXISTS idx_friend_requests_to_status ON friend_requests(to_user_id, status)`);
     await pgPool.query(`CREATE INDEX IF NOT EXISTS idx_friend_requests_from_status ON friend_requests(from_user_id, status)`);
     // One pending request per direction
-    try { await pgPool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_friend_request_pending ON friend_requests(from_user_id, to_user_id) WHERE status='pending'`); } catch {}
+    try { await pgPool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_friend_request_pending ON friend_requests(from_user_id, to_user_id) WHERE status='pending'`); } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     FRIENDS_READY = true;
   } catch (e) {
@@ -2705,6 +2706,14 @@ app.disable("x-powered-by");
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 
+app.use((req, _res, next) => {
+  const path = req.path || req.originalUrl || "";
+  if (!/\.(css|js|map|png|jpe?g|gif|svg|ico|woff2?)$/i.test(path)) {
+    logger.info("[http] request", { method: req.method, path: req.originalUrl });
+  }
+  next();
+});
+
 app.use(
   helmet({
     contentSecurityPolicy: false,
@@ -3171,7 +3180,7 @@ function sanitizeBannerUrl(raw) {
     if (parsed.protocol === "http:" || parsed.protocol === "https:") {
       return value.slice(0, BANNER_URL_MAX_LENGTH);
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
   return null;
 }
 
@@ -3407,11 +3416,11 @@ async function getAvatarUrlForUserId(userId){
       const row = await pgGetUserRowById(uid, ["id","avatar","avatar_bytes","avatar_mime","avatar_updated"]).catch(()=>null);
       return avatarUrlFromRow(row);
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
   try {
     const row = await dbGet("SELECT id, avatar FROM users WHERE id=? LIMIT 1", [uid]).catch(()=>null);
     return avatarUrlFromRow(row);
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
   return null;
 }
 
@@ -4184,7 +4193,7 @@ db.get(`SELECT value FROM config WHERE key='active_room_events'`, [], (_e, row) 
       if (Number.isFinite(evId) && evId > maxId) maxId = evId;
     }
     ROOM_EVENT_SEQ = Math.max(ROOM_EVENT_SEQ, maxId + 1);
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 });
 
 
@@ -5471,7 +5480,7 @@ async function spendGold(userId, amount, reason, opts = {}) {
     return result;
   } catch (e) {
     if (manageTx) {
-      try { await client.query("ROLLBACK"); } catch {}
+      try { await client.query("ROLLBACK"); } catch (err) { logger.warn("Suppressed server error", { err }); }
     }
     throw e;
   } finally {
@@ -5698,7 +5707,7 @@ const commandRegistry = {
           s.user.role = newRole;
           try {
             if (s.request?.session?.user) s.request.session.user.role = newRole;
-          } catch {}
+          } catch (err) { logger.warn("Suppressed server error", { err }); }
         }
       }
 
@@ -5798,7 +5807,7 @@ const commandRegistry = {
           });
           emitToStaff("mod:case_created", { id: caseRow.id, type: caseRow.type, status: caseRow.status });
         }
-      } catch {}
+      } catch (err) { logger.warn("Suppressed server error", { err }); }
       return { ok: true, message: `Reported ${target.username}: ${reason}` };
     },
   },
@@ -6638,7 +6647,7 @@ async function applyXpGain(userId, delta, opts = {}) {
         await client.query(`UPDATE users SET ${sets.join(", ")} WHERE id = $${params.length}`, params);
         await client.query("COMMIT");
       } catch (e) {
-        try { await client.query("ROLLBACK"); } catch {}
+        try { await client.query("ROLLBACK"); } catch (err) { logger.warn("Suppressed server error", { err }); }
         console.warn("[xp][pg apply]", e?.message || e);
         return null;
       } finally {
@@ -6819,7 +6828,7 @@ function awardPassiveGold(userId, cb) {
               if (await pgUserExists(userId)) {
                 await pgPool.query('UPDATE users SET "lastGoldTickAt" = $1 WHERE id = $2', [now, userId]);
               }
-            } catch {}
+            } catch (err) { logger.warn("Suppressed server error", { err }); }
             done(null, 0);
           }
         );
@@ -6845,7 +6854,7 @@ function awardPassiveGold(userId, cb) {
                 [ticks, newTickTs, userId]
               );
             }
-          } catch {}
+          } catch (err) { logger.warn("Suppressed server error", { err }); }
 
           if (ticks > 0) emitProgressionUpdate(userId);
           done(null, ticks);
@@ -6915,7 +6924,7 @@ function awardMessageGold(userId, cb) {
                 [now, userId]
               );
             }
-          } catch {}
+          } catch (err) { logger.warn("Suppressed server error", { err }); }
 
           emitProgressionUpdate(userId);
           return done(null, 5);
@@ -7914,7 +7923,7 @@ async function getUserRoomCollapseState(userId) {
       [userId]
     );
     row = rows[0] || null;
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 
   if (!row) {
     try {
@@ -7922,7 +7931,7 @@ async function getUserRoomCollapseState(userId) {
         "SELECT room_master_collapsed, room_category_collapsed FROM users WHERE id = ?",
         [userId]
       );
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
   }
 
   const master = safeJsonParse(row?.room_master_collapsed || "{}", {});
@@ -8670,7 +8679,7 @@ function logSecurityEvent(type, meta = {}) {
       `${JSON.stringify(safeMeta)}\n`,
       () => {}
     );
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 }
 
 function checkLoginBackoff(key) {
@@ -10193,7 +10202,7 @@ app.post("/api/owner/flags", moderationHttpLimiter, requireOwner, express.json({
     }
     await setConfigJson("feature_flags", next);
     FEATURE_FLAGS_CACHE = { ...next };
-    try { io.emit("featureFlags:update", next); } catch {}
+    try { io.emit("featureFlags:update", next); } catch (err) { logger.warn("Suppressed server error", { err }); }
     res.json({ ok: true, flags: next });
   } catch (e) {
     res.status(500).json({ ok: false, error: "failed_to_save_flags" });
@@ -10414,7 +10423,7 @@ async function runVipAutoExpirySweep() {
         await expireDailyRewardVipForUser(Number(row.id) || 0);
       }
       return;
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
   }
   try {
     const rows = await dbAllAsync(
@@ -10427,7 +10436,7 @@ async function runVipAutoExpirySweep() {
     for (const row of rows || []) {
       await expireDailyRewardVipForUser(Number(row.id) || 0);
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 }
 
 setInterval(() => {
@@ -10822,8 +10831,8 @@ async function autoCompleteDailyChallengeReward(userId, dayKey, challengeId) {
     const completedAtKey = `${challengeKey}:completedAt`;
     if (!progress[completedAtKey]) progress[completedAtKey] = Date.now();
     await saveDailyProgress(userId, dayKey, progress, claimed, prog.pg);
-    try { await applyXpGain(userId, challenge.rewardXp || 0, { reason: "daily_challenge_auto", emitToast: true }); } catch {}
-    try { await creditGold(userId, challenge.rewardGold || 0, `daily_challenge_auto:${challengeKey}`); } catch {}
+    try { await applyXpGain(userId, challenge.rewardXp || 0, { reason: "daily_challenge_auto", emitToast: true }); } catch (err) { logger.warn("Suppressed server error", { err }); }
+    try { await creditGold(userId, challenge.rewardGold || 0, `daily_challenge_auto:${challengeKey}`); } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     const completedToday = picked.filter((c) => !!claimed[c.id]).length;
     if (completedToday >= DAILY_FULL_COMPLETION_TARGET) {
@@ -10872,10 +10881,10 @@ async function creditGold(userId, amount, reason = "reward") {
         [userId, amt, String(reason || "reward"), Date.now()]
       );
       await client.query("COMMIT");
-      try { emitProgressionUpdate(userId); } catch {}
+      try { emitProgressionUpdate(userId); } catch (err) { logger.warn("Suppressed server error", { err }); }
       return { ok: true, gold: next };
     } catch (e) {
-      try { await client.query("ROLLBACK"); } catch {}
+      try { await client.query("ROLLBACK"); } catch (err) { logger.warn("Suppressed server error", { err }); }
       return null;
     } finally {
       client.release();
@@ -10883,7 +10892,7 @@ async function creditGold(userId, amount, reason = "reward") {
   }
 
   await dbRunAsync("UPDATE users SET gold = gold + ? WHERE id = ?", [amt, userId]);
-  try { emitProgressionUpdate(userId); } catch {}
+  try { emitProgressionUpdate(userId); } catch (err) { logger.warn("Suppressed server error", { err }); }
   return { ok: true };
 }
 
@@ -10956,14 +10965,14 @@ app.post("/api/challenges/claim", strictLimiter, requireLogin, express.json({ li
     await saveDailyProgress(userId, dk, progress, claimed, prog.pg);
 
     // reward
-    try { await applyXpGain(userId, challenge.rewardXp || 0, { reason: "daily_challenge", emitToast: true }); } catch {}
-    try { await creditGold(userId, challenge.rewardGold || 0, `daily_challenge:${id}`); } catch {}
+    try { await applyXpGain(userId, challenge.rewardXp || 0, { reason: "daily_challenge", emitToast: true }); } catch (err) { logger.warn("Suppressed server error", { err }); }
+    try { await creditGold(userId, challenge.rewardGold || 0, `daily_challenge:${id}`); } catch (err) { logger.warn("Suppressed server error", { err }); }
     try {
       const completedToday = picked.filter((c) => !!claimed[c.id]).length;
       if (completedToday >= DAILY_FULL_COMPLETION_TARGET) {
         await applyWeeklyDailyRewardIfEligible(userId, dk);
       }
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     res.json({ ok: true, claimed: true });
     } finally {
@@ -11156,7 +11165,7 @@ app.post("/api/me/username", strictLimiter, requireLogin, async (req, res) => {
     await client.query("COMMIT");
     nextGold = spend.gold;
   } catch (e) {
-    try { await client.query("ROLLBACK"); } catch {}
+    try { await client.query("ROLLBACK"); } catch (err) { logger.warn("Suppressed server error", { err }); }
     if (e?.code === "23505") {
       return res.status(409).json({ ok: false, message: "Username already taken." });
     }
@@ -12063,7 +12072,7 @@ app.post("/api/profile/status", strictLimiter, requireLogin, express.json({ limi
 async function handleProfileBadges(req, res) {
   const rawParam = req.params.username;
   let decoded = rawParam;
-  try { decoded = decodeURIComponent(rawParam); } catch {}
+  try { decoded = decodeURIComponent(rawParam); } catch (err) { logger.warn("Suppressed server error", { err }); }
   const username = String(decoded || req.session.user?.username || "").trim();
   if (!username) return res.status(400).json({ error: "Invalid username" });
   try {
@@ -12953,8 +12962,8 @@ app.post("/api/survival/seasons", survivalLimiter, requireCoOwner, express.json(
       await dbRunAsync("COMMIT");
     }
   } catch (e) {
-    try { await dbRunAsync("ROLLBACK"); } catch {}
-    try { if (await pgUsersEnabled()) await pgPool.query("ROLLBACK"); } catch {}
+    try { await dbRunAsync("ROLLBACK"); } catch (err) { logger.warn("Suppressed server error", { err }); }
+    try { if (await pgUsersEnabled()) await pgPool.query("ROLLBACK"); } catch (err) { logger.warn("Suppressed server error", { err }); }
     console.warn("[survival] create season failed", e?.message || e);
     return res.status(500).json({ message: "Failed to start season." });
   }
@@ -12968,7 +12977,7 @@ app.post("/api/survival/seasons", survivalLimiter, requireCoOwner, express.json(
       set.clear();
       io.to(SURVIVAL_ROOM_ID).emit("survival:lobby", { user_ids: [] });
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
   const season = await fetchSurvivalSeasonById(seasonId);
   const payload = await buildSurvivalPayload(season);
   io.to(SURVIVAL_ROOM_ID).emit("survival:update", payload);
@@ -12976,7 +12985,7 @@ app.post("/api/survival/seasons", survivalLimiter, requireCoOwner, express.json(
   try {
     emitRoomSystem(SURVIVAL_ROOM_ID, `🏟️ Survival season started: ${payload?.season?.title || title}`, { kind: "survival" });
     emitRoomSystem(SURVIVAL_ROOM_ID, `Day ${payload?.season?.day_index || 1} — ${String(payload?.season?.phase || "day").toUpperCase()}`, { kind: "survival" });
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
   return res.json(payload);
 });
 
@@ -13123,7 +13132,7 @@ app.post("/api/survival/seasons/:id/advance", survivalLimiter, requireCoOwner, e
             .pop()
         : null;
       if (zone) outcome.zone = normalizeSurvivalZoneName(zone) || zone;
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     orderIndex += 1;
     events.push({
@@ -13332,8 +13341,8 @@ app.post("/api/survival/seasons/:id/advance", survivalLimiter, requireCoOwner, e
       await dbRunAsync("COMMIT");
     }
   } catch (e) {
-    try { await dbRunAsync("ROLLBACK"); } catch {}
-    try { if (await pgUsersEnabled()) await pgPool.query("ROLLBACK"); } catch {}
+    try { await dbRunAsync("ROLLBACK"); } catch (err) { logger.warn("Suppressed server error", { err }); }
+    try { if (await pgUsersEnabled()) await pgPool.query("ROLLBACK"); } catch (err) { logger.warn("Suppressed server error", { err }); }
     console.warn("[survival] advance failed", e?.message || e);
     return res.status(500).json({ message: "Failed to advance." });
   }
@@ -13348,7 +13357,7 @@ app.post("/api/survival/seasons/:id/advance", survivalLimiter, requireCoOwner, e
       if (!ev || !ev.text) continue;
       emitRoomSystem(SURVIVAL_ROOM_ID, `⚔️ ${ev.text}`, { kind: "survival" });
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 
   return res.json(payload);
 });
@@ -15241,7 +15250,7 @@ app.patch(
       await dbRunAsync(`UPDATE users SET room_master_collapsed = ? WHERE id = ?`, [serialized, userId]);
       try {
         await pgPool.query(`UPDATE users SET room_master_collapsed = $1 WHERE id = $2`, [serialized, userId]);
-      } catch {}
+      } catch (err) { logger.warn("Suppressed server error", { err }); }
       return res.json({ ok: true });
     } catch (e) {
       console.warn("[rooms] master collapse failed", e?.message || e);
@@ -15268,7 +15277,7 @@ app.patch(
       await dbRunAsync(`UPDATE users SET room_category_collapsed = ? WHERE id = ?`, [serialized, userId]);
       try {
         await pgPool.query(`UPDATE users SET room_category_collapsed = $1 WHERE id = $2`, [serialized, userId]);
-      } catch {}
+      } catch (err) { logger.warn("Suppressed server error", { err }); }
       return res.json({ ok: true });
     } catch (e) {
       console.warn("[rooms] category collapse failed", e?.message || e);
@@ -15795,7 +15804,7 @@ app.get("/profile", requireLogin, async (req, res) => {
 app.get("/profile/:username", requireLogin, async (req, res) => {
   const rawParam = String(req.params.username || "");
   let decoded = rawParam;
-  try { decoded = decodeURIComponent(rawParam); } catch {}
+  try { decoded = decodeURIComponent(rawParam); } catch (err) { logger.warn("Suppressed server error", { err }); }
   const rawName = String(decoded || "").trim().slice(0, 64);
   const cleaned = cleanUsernameForLookup(rawName);
   const legacy = sanitizeUsername(rawName);
@@ -15817,10 +15826,10 @@ app.get("/profile/:username", requireLogin, async (req, res) => {
           );
           row = r.rows?.[0] || null;
           if (row) break;
-        } catch {}
+        } catch (err) { logger.warn("Suppressed server error", { err }); }
       }
       if (row) fromPg = true;
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     // Fallback to SQLite
     if (!row) {
@@ -15872,7 +15881,7 @@ app.get("/profile/:username", requireLogin, async (req, res) => {
       try {
         const full = await pgGetUserRowById(Number(row.id) || 0, PROFILE_COLS);
         if (full) row = full;
-      } catch {}
+      } catch (err) { logger.warn("Suppressed server error", { err }); }
     } else {
       // SQLite full fetch
       try {
@@ -15882,7 +15891,7 @@ app.get("/profile/:username", requireLogin, async (req, res) => {
           [Number(row.id) || 0]
         );
         if (full) row = full;
-      } catch {}
+      } catch (err) { logger.warn("Suppressed server error", { err }); }
     }
 
     const live = onlineState.get(row.id);
@@ -16004,7 +16013,7 @@ app.get("/profile/:username", requireLogin, async (req, res) => {
                 } else {
                   privacyAllows = (await dbAreFriends(viewerId, targetId)) || (await dbAreFriends(viewerId, partnerId));
                 }
-              } catch {}
+              } catch (err) { logger.warn("Suppressed server error", { err }); }
             }
           }
 
@@ -16049,7 +16058,7 @@ app.get("/profile/:username", requireLogin, async (req, res) => {
           }
         }
       }
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     // Friend relationship info (for showing accept/decline/add friend UI)
     try {
@@ -16083,7 +16092,7 @@ app.get("/profile/:username", requireLogin, async (req, res) => {
         }
         payload.friend = { status, requestId };
       }
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
 
 
     return res.json(payload);
@@ -17027,7 +17036,7 @@ app.delete("/profile/avatar", strictLimiter, requireLogin, async (req, res) => {
       if (!rel.startsWith("/avatars/")) return;
       const fp = path.join(AVATARS_DIR, path.basename(rel));
       fs.unlink(fp, () => {});
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
   };
 
   try {
@@ -17195,7 +17204,7 @@ app.post("/upload", uploadLimiter, uploadUserLimiter, requireLogin, (req, res) =
     const isVideo = VIDEO_UPLOAD_ALLOWED_MIME.has(mime);
 
     const cleanupUpload = () => {
-      try { fs.unlinkSync(path.join(UPLOADS_DIR, req.file.filename)); } catch {}
+      try { fs.unlinkSync(path.join(UPLOADS_DIR, req.file.filename)); } catch (err) { logger.warn("Suppressed server error", { err }); }
     };
 
     if (isSvg || (!isImage && !isAudio && !isVideo)) {
@@ -17845,7 +17854,7 @@ async function logModerationAction({ targetUsername, actorUsername, actionType, 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [tUser, aUser, act, why, durationSeconds, expiresAt, now]
     );
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
   try {
     if (PG_READY) {
       await pgPool.query(
@@ -17854,7 +17863,7 @@ async function logModerationAction({ targetUsername, actorUsername, actionType, 
         [tUser, aUser, act, why, durationSeconds, expiresAt, now]
       );
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 }
 
 async function upsertRestrictionEverywhere(username, { type, reason = "", setBy = "", expiresAt = null }){
@@ -17933,7 +17942,7 @@ async function findOpenAppeal(username){
       );
       return rows?.[0] || null;
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
   try {
     const row = await dbGetAsync(
       "SELECT * FROM appeals WHERE lower(username)=lower(?) AND status='open' ORDER BY created_at DESC LIMIT 1",
@@ -17971,7 +17980,7 @@ async function createAppeal(username, restrictionType, reasonAtTime){
         await addModCaseEvent(caseRow.id, { actorUserId: subjectUserId, eventType: "appeal_created", payload: { appealId: appeal.id } });
         emitToStaff("mod:case_created", { id: caseRow.id, type: caseRow.type, status: caseRow.status });
       }
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
     return appeal;
   } catch (e) {
     // If it failed (maybe due to partial unique index in PG only), just fall back to find open
@@ -18000,11 +18009,11 @@ async function createAppeal(username, restrictionType, reasonAtTime){
             await addModCaseEvent(caseRow.id, { actorUserId: subjectUserId, eventType: "appeal_created", payload: { appealId: appeal.id } });
             emitToStaff("mod:case_created", { id: caseRow.id, type: caseRow.type, status: caseRow.status });
           }
-        } catch {}
+        } catch (err) { logger.warn("Suppressed server error", { err }); }
       }
       return appeal;
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
   return await findOpenAppeal(u);
 }
 
@@ -18026,7 +18035,7 @@ async function addAppealMessage(appealId, { authorRole, authorName, message }){
       `UPDATE appeals SET updated_at=?, ${role === "admin" ? "last_admin_reply_at" : "last_user_reply_at"}=? WHERE id=?`,
       [now, now, appealId]
     );
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 
   // PG
   try {
@@ -18039,7 +18048,7 @@ async function addAppealMessage(appealId, { authorRole, authorName, message }){
       const col = role === "admin" ? "last_admin_reply_at" : "last_user_reply_at";
       await pgPool.query(`UPDATE appeals SET updated_at=$1, ${col}=$2 WHERE id=$3`, [now, now, appealId]);
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 }
 
 async function getAppealThread(appealId){
@@ -18052,7 +18061,7 @@ async function getAppealThread(appealId){
       );
       return msgs || [];
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
   try {
     return await dbAllAsync(
       "SELECT * FROM appeal_messages WHERE appeal_id=? ORDER BY created_at ASC",
@@ -18072,7 +18081,7 @@ async function listOpenAppeals(){
       );
       return rows || [];
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
   try {
     return await dbAllAsync("SELECT * FROM appeals WHERE status='open' ORDER BY updated_at DESC LIMIT 200");
   } catch {
@@ -18091,7 +18100,7 @@ async function getModerationLogsForUser(username, limit=200){
       );
       return rows || [];
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
   try {
     return await dbAllAsync(
       "SELECT * FROM moderation_actions WHERE lower(target_username)=lower(?) ORDER BY created_at DESC LIMIT ?",
@@ -18187,7 +18196,7 @@ function broadcastDmTyping(threadId) {
 function emitOnlineUsers() {
   try {
     io.emit("onlineUsers", Array.from(ONLINE_USERS));
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 }
 
 
@@ -18251,7 +18260,7 @@ function emitSmartMentionPings({ room, fromUser, messageId, text }) {
           at: now,
         });
       }
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
   }
 }
 
@@ -18382,7 +18391,7 @@ async function emitUserList(room) {
         }
       }
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 
 
   users.sort((a, b) => {
@@ -18412,7 +18421,7 @@ async function emitUserList(room) {
       }
     }
     if (out.length === users.length) users.splice(0, users.length, ...out);
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 
 
   io.to(room).emit("user list", users);
@@ -18588,7 +18597,7 @@ io.on("connection", async (socket) => {
       locale: null,
       platform: null,
     });
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 
   socket.on("client:hello", (info = {}) => {
     if (IS_DEV_MODE) {
@@ -18607,7 +18616,7 @@ io.on("connection", async (socket) => {
       meta.platform = info.platform ? String(info.platform).slice(0, 64) : meta.platform;
       meta.lastSeenAt = Date.now();
       sessionMetaBySocketId.set(socket.id, meta);
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
   });
 
   socket.on("luck:get", () => {
@@ -18775,7 +18784,7 @@ io.on("connection", async (socket) => {
         now: Date.now(),
       });
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 
   // Track global online usernames (for private theme "together online" effects)
   if (socket.user?.username && (socket.restriction?.type === "none" || !socket.restriction?.type)) {
@@ -19348,7 +19357,7 @@ function doJoin(room, status) {
     meta.room = room;
     meta.lastSeenAt = Date.now();
     sessionMetaBySocketId.set(socket.id, meta);
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 
   try {
     const uid = socket.user?.id;
@@ -19358,14 +19367,14 @@ function doJoin(room, status) {
     lastRoomHopByUserId.set(uid, { room, ts: now });
     // daily challenge: unique rooms
     safeBumpDailyUniqueRoom(uid, dayKeyNow(), String(room));
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 
 
   // send active room event (if any) to joining socket
   try {
     const ev = ACTIVE_ROOM_EVENTS.get(room);
     if (ev) socket.emit("room:event", { room, active: ev, at: Date.now() });
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 
   socket.user.status = normalizeStatus(status || socket.user.status, "Online");
 
@@ -19481,7 +19490,7 @@ function doJoin(room, status) {
     let room = socket.currentRoom;
 if (!room) {
   // fallback: join main so the message shows up instead of disappearing
-  try { doJoin("main", socket.user.status || "Online"); } catch {}
+  try { doJoin("main", socket.user.status || "Online"); } catch (err) { logger.warn("Suppressed server error", { err }); }
   room = socket.currentRoom;
   if (!room) return;
 }
@@ -19582,7 +19591,7 @@ if (!room) {
                         });
                         continue;
                       }
-                    } catch {}
+                    } catch (err) { logger.warn("Suppressed server error", { err }); }
 
                     // Translate timestamp -> message id in this thread.
                     db.get(
@@ -19607,7 +19616,7 @@ if (!room) {
                   }
                 }
               );
-            } catch {}
+            } catch (err) { logger.warn("Suppressed server error", { err }); }
 
             // Send initial DM reactions for these messages (so the client can render immediately)
             try {
@@ -19634,7 +19643,7 @@ if (!room) {
                   }
                 );
               }
-            } catch {}
+            } catch (err) { logger.warn("Suppressed server error", { err }); }
 
             try {
               const latestChallenge = await chessGetLatestChallengeForThread(tid);
@@ -19702,8 +19711,8 @@ if (!room) {
   socket.on("dm leave", (payload = {}) => {
     const tid = Number(payload.threadId);
     if (!Number.isInteger(tid)) return;
-    try { socket.leave(`dm:${tid}`); } catch {}
-    try { socket.dmThreads?.delete(tid); } catch {}
+    try { socket.leave(`dm:${tid}`); } catch (err) { logger.warn("Suppressed server error", { err }); }
+    try { socket.dmThreads?.delete(tid); } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     // Clear any lingering DM typing state for this user in that thread.
     try {
@@ -19713,7 +19722,7 @@ if (!room) {
         if (set.size === 0) dmTypingByThread.delete(tid);
         broadcastDmTyping(tid);
       }
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
   });
 
   // Room message read receipts
@@ -20801,7 +20810,7 @@ if (!room) {
                       messageId: msg.id || msg.messageId || null,
                       text: msg.text || "",
                     });
-                  } catch {}
+                  } catch (err) { logger.warn("Suppressed server error", { err }); }
                   void applyLuckForQualifyingMessage({
                     userId: socket.user.id,
                     room,
@@ -20881,7 +20890,7 @@ if (!room) {
         safeBumpDailyProgress(uid, dayKeyNow(), DAILY_CHALLENGE_IDS.reactions, 1);
         lastReactionByUserId.set(uid, now);
       }
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     db.run(
       `INSERT INTO reactions (message_id, username, emoji)
@@ -21943,7 +21952,7 @@ async function createReferral({ username, referredBy, referredByRole, reason }){
       });
       emitToStaff("mod:case_created", { id: caseRow.id, type: caseRow.type, status: caseRow.status });
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 }
 async function listOpenReferrals(){
   return dbAllAsync(
@@ -21982,9 +21991,9 @@ socket.on("appeals:read", async ({ appealId } = {}, ack) => {
       const { rows } = await pgPool.query("SELECT * FROM appeals WHERE id=$1 LIMIT 1", [id]);
       appeal = rows?.[0] || null;
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
   if (!appeal) {
-    try { appeal = await dbGetAsync("SELECT * FROM appeals WHERE id=? LIMIT 1", [id]); } catch {}
+    try { appeal = await dbGetAsync("SELECT * FROM appeals WHERE id=? LIMIT 1", [id]); } catch (err) { logger.warn("Suppressed server error", { err }); }
   }
   if (!appeal) return typeof ack === "function" ? ack({ ok: false, error: "Not found" }) : null;
 
@@ -22028,9 +22037,9 @@ socket.on("appeals:action", async ({ appealId, action, durationSeconds } = {}, a
       const { rows } = await pgPool.query("SELECT * FROM appeals WHERE id=$1 LIMIT 1", [id]);
       appeal = rows?.[0] || null;
     }
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
   if (!appeal) {
-    try { appeal = await dbGetAsync("SELECT * FROM appeals WHERE id=? LIMIT 1", [id]); } catch {}
+    try { appeal = await dbGetAsync("SELECT * FROM appeals WHERE id=? LIMIT 1", [id]); } catch (err) { logger.warn("Suppressed server error", { err }); }
   }
   if (!appeal) return typeof ack === "function" ? ack({ ok: false, error: "Not found" }) : null;
 
@@ -22043,7 +22052,7 @@ socket.on("appeals:action", async ({ appealId, action, durationSeconds } = {}, a
     try {
       const urow = await dbGetAsync("SELECT id FROM users WHERE lower(username)=lower(?)", [appeal.username]);
       if (urow?.id) dbRunAsync("DELETE FROM punishments WHERE user_id=? AND type='ban'", [urow.id]).catch(()=>{});
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
   } else if (act === "ban_to_kick") {
     const dur = Number(durationSeconds) || 3600;
     const { expiresAt } = await setKickEverywhere(appeal.username, actorName, "ban converted to kick", dur);
@@ -22064,7 +22073,7 @@ socket.on("appeals:action", async ({ appealId, action, durationSeconds } = {}, a
     const now = Date.now();
     await dbRunAsync("UPDATE appeals SET status='resolved', updated_at=? WHERE id=?", [now, id]).catch(()=>{});
     if (PG_READY) await pgPool.query("UPDATE appeals SET status='resolved', updated_at=$1 WHERE id=$2", [now, id]).catch(()=>{});
-  } catch {}
+  } catch (err) { logger.warn("Suppressed server error", { err }); }
 
   io.emit("appeals:updated");
   if (typeof ack === "function") ack({ ok: true });
@@ -22217,7 +22226,7 @@ socket.on("appeals:action", async ({ appealId, action, durationSeconds } = {}, a
   socket.on("refresh user list", () => {
     try {
       if (socket.currentRoom) emitUserList(socket.currentRoom);
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
   });
 
 // Keep this second disconnect handler: the earlier one handles presence/session maps,
@@ -22284,7 +22293,7 @@ socket.on("disconnect", (reason) => {
           }
         }
       }
-    } catch {}
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
   });
 
   // IMPORTANT: Emit server-ready LAST to ensure all event listeners are attached before client starts using the connection.
@@ -22296,10 +22305,12 @@ socket.on("disconnect", (reason) => {
 
 });
 
-app.use((err, _req, res, _next) => {
-  console.error("[http] unhandled error:", err?.message || err);
+app.use((err, req, res, _next) => {
+  logger.error("[http] unhandled error", { method: req.method, path: req.originalUrl, err });
   if (res.headersSent) return;
-  res.status(500).json({ message: "Request failed." });
+  const status = Number(err?.status || err?.statusCode) || 500;
+  const safeMessage = status >= 500 ? "Internal server error." : (err?.publicMessage || err?.message || "Request failed.");
+  res.status(status).json({ message: safeMessage, error: { message: safeMessage } });
 });
 
 // ---- Start
