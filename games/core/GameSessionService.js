@@ -150,7 +150,8 @@ class GameSessionService {
     if (session.status !== "lobby") throw new Error("Game already started");
     const isInSession = session.players.some((p) => String(p.id) === String(playerId));
     if (!isInSession) throw new Error("Only joined players can start");
-    if (session.players.length < 1) throw new Error("Need at least one player");
+    const minPlayers = session.gameType === "tic-tac-toe" || session.gameType === "chess" ? 2 : 1;
+    if (session.players.length < minPlayers) throw new Error(`Need at least ${minPlayers} players`);
 
     session.game.setPlayers(session.players);
     session.game.init();
