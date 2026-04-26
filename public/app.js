@@ -3041,6 +3041,16 @@ const chessState = {
   blackEloChange: null,
   seatClaimable: { white: false, black: false },
 };
+const unifiedGameState = {
+  sessionId: null,
+  roomId: null,
+  gameType: null,
+  status: null,
+  players: [],
+  state: null,
+  chessSelection: null,
+};
+
 const chessChallengesByThread = new Map();
 let pendingChessChallenge = null;
 const recentDiceRolls = new Map();
@@ -6781,7 +6791,15 @@ const leaderboardContainer = document.getElementById("leaderboardContainer");
 const leaderboardsMsg = document.getElementById("leaderboardsMsg");
 const leaderboardsUpdatedAt = document.getElementById("leaderboardsUpdatedAt");
 const refreshLeaderboardsBtn = document.getElementById("refreshLeaderboardsBtn");
-const roomChessBtn = document.getElementById("roomChessBtn");
+const gamesOpenBtn = document.getElementById("gamesOpenBtn");
+const gamesModal = document.getElementById("gamesModal");
+const gamesModalClose = document.getElementById("gamesModalClose");
+const gamesActiveSummary = document.getElementById("gamesActiveSummary");
+const gamesActiveActions = document.getElementById("gamesActiveActions");
+const roomGamePanel = document.getElementById("roomGamePanel");
+const roomGameTitle = document.getElementById("roomGameTitle");
+const roomGameStatus = document.getElementById("roomGameStatus");
+const roomGameBody = document.getElementById("roomGameBody");
 const dmChessBtn = document.getElementById("dmChessBtn");
 const dmChessChallenge = document.getElementById("dmChessChallenge");
 const chessModal = document.getElementById("chessModal");
@@ -10035,6 +10053,14 @@ function handleCommandResponse(payload){
     showCommandPopup("Command error", escapeHtml(payload?.message || "Adventure command failed."));
     return;
   }
+  if(payload?.type === "games") {
+    if (payload?.ok) {
+      openGamesModal();
+      return;
+    }
+    showCommandPopup("Command error", escapeHtml(payload?.message || "Games command failed."));
+    return;
+  }
   if(payload?.type === "help" && Array.isArray(payload.commands)){
     const roleLabel = payload.role || me?.role || "";
     const items = payload.commands.map(cmd=>{
@@ -10046,6 +10072,155 @@ function handleCommandResponse(payload){
   const msg = escapeHtml(payload?.message || "No response");
   const title = payload?.ok ? "Command" : "Command error";
   showCommandPopup(title, msg);
+}
+
+function openGamesModal() {
+  if (!gamesModal) return;
+  gamesModal.hidden = false;
+  renderGamesModal();
+}
+
+function closeGamesModal() {
+  if (!gamesModal) return;
+  gamesModal.hidden = true;
+}
+
+function updateUnifiedGameState(payload = null) {
+  if (!payload) {
+    unifiedGameState.sessionId = null;
+    unifiedGameState.roomId = null;
+    unifiedGameState.gameType = null;
+    unifiedGameState.status = null;
+    unifiedGameState.players = [];
+    unifiedGameState.state = null;
+    unifiedGameState.chessSelection = null;
+  } else {
+    unifiedGameState.sessionId = payload.sessionId || null;
+    unifiedGameState.roomId = payload.roomId || null;
+    unifiedGameState.gameType = payload.gameType || null;
+    unifiedGameState.status = payload.status || null;
+    unifiedGameState.players = Array.isArray(payload.players) ? payload.players : [];
+    unifiedGameState.state = payload.state || null;
+    if (unifiedGameState.gameType !== "chess") unifiedGameState.chessSelection = null;
+  }
+  renderGamesModal();
+  renderRoomGamePanel();
+}
+
+function renderGamesModal() {
+  if (!gamesActiveSummary || !gamesActiveActions) return;
+  if (!unifiedGameState.sessionId || unifiedGameState.roomId !== currentRoom) {
+    gamesActiveSummary.textContent = "No active game in this room.";
+    gamesActiveActions.innerHTML = "";
+    return;
+  }
+  const names = (unifiedGameState.players || []).map((p) => p.username).filter(Boolean).join(", ") || "None";
+  gamesActiveSummary.textContent = `${unifiedGameState.gameType} • ${unifiedGameState.status} • Players: ${names}`;
+  gamesActiveActions.innerHTML = "";
+  const joinBtn = document.createElement("button");
+  joinBtn.type = "button";
+  joinBtn.className = "btn secondary small";
+  joinBtn.textContent = unifiedGameState.status === "lobby" ? "Join" : "Resume";
+  joinBtn.addEventListener("click", () => {
+    socket?.emit("game:join", { roomId: currentRoom });
+  });
+  gamesActiveActions.appendChild(joinBtn);
+
+  if (unifiedGameState.status === "lobby") {
+    const startBtn = document.createElement("button");
+    startBtn.type = "button";
+    startBtn.className = "btn small";
+    startBtn.textContent = "Start";
+    startBtn.addEventListener("click", () => {
+      socket?.emit("game:start", { roomId: currentRoom });
+    });
+    gamesActiveActions.appendChild(startBtn);
+  }
+}
+
+function parseFenBoard(fen) {
+  const map = { p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚", P: "♙", R: "♖", N: "♘", B: "♗", Q: "♕", K: "♔" };
+  const boardFen = String(fen || "").split(" ")[0] || "";
+  const rows = boardFen.split("/");
+  const out = [];
+  for (const row of rows) {
+    for (const ch of row) {
+      if (/\d/.test(ch)) {
+        for (let i = 0; i < Number(ch); i += 1) out.push("");
+      } else {
+        out.push(map[ch] || "");
+      }
+    }
+  }
+  return out;
+}
+
+function renderRoomGamePanel() {
+  if (!roomGamePanel || !roomGameBody || !roomGameTitle || !roomGameStatus) return;
+  if (!unifiedGameState.sessionId || unifiedGameState.roomId !== currentRoom) {
+    roomGamePanel.hidden = true;
+    roomGameBody.innerHTML = "";
+    return;
+  }
+
+  roomGamePanel.hidden = false;
+  roomGameTitle.textContent = unifiedGameState.gameType === "tic-tac-toe" ? "Tic Tac Toe" : "Chess";
+  roomGameStatus.textContent = `${unifiedGameState.status || "lobby"}`;
+  roomGameBody.innerHTML = "";
+
+  const state = unifiedGameState.state || {};
+  if (unifiedGameState.gameType === "tic-tac-toe") {
+    const board = document.createElement("div");
+    board.className = "gameTttBoard";
+    const values = Array.isArray(state.board) ? state.board : Array(9).fill(null);
+    const currentTurnPlayerId = String(state.currentTurnPlayerId || "");
+    const myTurn = currentTurnPlayerId && String(me?.id || "") === currentTurnPlayerId && unifiedGameState.status === "active";
+    values.forEach((value, idx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn secondary small gameTttCell";
+      btn.textContent = value || "";
+      btn.disabled = !!value || !myTurn;
+      btn.addEventListener("click", () => {
+        socket?.emit("game:action", { roomId: currentRoom, action: { type: "move", index: idx } });
+      });
+      board.appendChild(btn);
+    });
+    roomGameBody.appendChild(board);
+  }
+
+  if (unifiedGameState.gameType === "chess") {
+    const board = document.createElement("div");
+    board.className = "gameChessBoard";
+    const cells = parseFenBoard(state.fen);
+    for (let i = 0; i < 64; i += 1) {
+      const rank = 8 - Math.floor(i / 8);
+      const file = String.fromCharCode(97 + (i % 8));
+      const square = `${file}${rank}`;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `gameChessCell ${((Math.floor(i / 8) + (i % 8)) % 2 === 0) ? "light" : "dark"}`;
+      btn.textContent = cells[i] || "";
+      if (unifiedGameState.chessSelection === square) btn.classList.add("selected");
+      btn.addEventListener("click", () => {
+        if (unifiedGameState.status !== "active") return;
+        if (!unifiedGameState.chessSelection) {
+          unifiedGameState.chessSelection = square;
+          renderRoomGamePanel();
+          return;
+        }
+        const from = unifiedGameState.chessSelection;
+        unifiedGameState.chessSelection = null;
+        if (from === square) {
+          renderRoomGamePanel();
+          return;
+        }
+        socket?.emit("game:action", { roomId: currentRoom, action: { type: "move", from, to: square, promotion: "q" } });
+      });
+      board.appendChild(btn);
+    }
+    roomGameBody.appendChild(board);
+  }
 }
 
 function escapeRegex(str){
@@ -15541,8 +15716,21 @@ document.addEventListener("click", (e) => {
   closeProfileSettingsMenu();
 });
 
-roomChessBtn?.addEventListener("click", () => {
-  openChessModal({ contextType: "room", contextId: currentRoom, label: `Room • ${displayRoomName(currentRoom)}` });
+gamesOpenBtn?.addEventListener("click", () => {
+  openGamesModal();
+});
+
+gamesModalClose?.addEventListener("click", closeGamesModal);
+gamesModal?.addEventListener("click", (e) => {
+  if (e.target === gamesModal) closeGamesModal();
+});
+
+document.querySelectorAll("[data-game-start]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const gameType = btn.dataset.gameStart;
+    if (!gameType || !currentRoom) return;
+    socket?.emit("game:create", { roomId: currentRoom, gameType });
+  });
 });
 
 dmChessBtn?.addEventListener("click", () => {
@@ -17825,6 +18013,8 @@ function joinRoom(room){
   setActiveRoom(room);
   clearMsgs();
   socket?.emit("join room", { room, status: normalizeStatusLabel(statusSelect.value, "Online") });
+  socket?.emit("game:join", { roomId: room });
+  if (unifiedGameState.roomId && unifiedGameState.roomId !== room) renderRoomGamePanel();
   closeDrawers();
   
   // Update presence when changing rooms
@@ -20944,6 +21134,12 @@ dmText?.addEventListener("input", () => {
 
 async function sendMessage(){
   const text = msgInput.value || "";
+  const trimmed = String(text || "").trim();
+  if (/^\/(game|games)(\s|$)/i.test(trimmed)) {
+    msgInput.value = "";
+    openGamesModal();
+    return;
+  }
   const file = pendingFile;
   const attachmentReady = roomPendingAttachment;
   if(roomUploading && !attachmentReady) return;
@@ -26761,6 +26957,21 @@ initAppealsDurationSelect();
     try{
       if(typeof playSound === "function") playSound("mention");
     }catch(_){}
+  });
+
+  socket.on("game:update", (payload = {}) => {
+    if (!payload || payload.roomId !== currentRoom) return;
+    updateUnifiedGameState(payload);
+  });
+
+  socket.on("game:error", (payload = {}) => {
+    const message = payload?.message || "Game error";
+    showToast(`🎮 ${message}`, { durationMs: 2600 });
+  });
+
+  socket.on("game:end", (payload = {}) => {
+    if (payload?.roomId !== currentRoom) return;
+    showToast("🎮 Game ended", { durationMs: 2600 });
   });
 
   socket.on("survival:update", (payload = {}) => {

@@ -5630,6 +5630,20 @@ const commandRegistry = {
       return { ok: true, type: "dnd", message: "Opening DnD..." };
     },
   },
+  game: {
+    minRole: "User",
+    description: "Open the Games menu",
+    usage: "/game",
+    example: "/game",
+    handler: async () => ({ ok: true, type: "games", message: "Opening Games..." }),
+  },
+  games: {
+    minRole: "User",
+    description: "Open the Games menu",
+    usage: "/games",
+    example: "/games",
+    handler: async () => ({ ok: true, type: "games", message: "Opening Games..." }),
+  },
   ttt: {
     minRole: "User",
     description: "Start or manage a Tic Tac Toe game in this room",
@@ -18548,11 +18562,7 @@ function emitGameError(socket, message, details = {}) {
 }
 
 function broadcastGameUpdate(session) {
-  for (const player of session.players || []) {
-    if (!player?.connectionId) continue;
-    const payload = gameSessionService.buildPayloadForPlayer(session, player.id);
-    io.to(player.connectionId).emit("game:update", payload);
-  }
+  io.to(session.roomId).emit("game:update", gameSessionService.buildPayloadForPlayer(session, null));
 }
 
 function broadcastGameEnd(session) {
@@ -20028,11 +20038,15 @@ if (!room) {
           connectionId: socket.id,
         });
         if (reconnectSession) {
-          const payload = gameSessionService.buildPayloadForPlayer(reconnectSession, socket.user.id);
-          socket.emit("game:update", payload);
+          socket.emit("game:update", gameSessionService.buildPayloadForPlayer(reconnectSession, socket.user.id));
           return;
         }
       } catch (_ignored) {}
+      const existingSession = gameSessionService.getSessionByRoom(targetRoomId);
+      if (existingSession) {
+        socket.emit("game:update", gameSessionService.buildPayloadForPlayer(existingSession, socket.user.id));
+        return;
+      }
       emitGameError(socket, err?.message || "Failed to join game");
     }
   });

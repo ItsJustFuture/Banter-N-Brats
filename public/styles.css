@@ -16793,3 +16793,20 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 }
 
 /* ========== END PRESENCE SYSTEM STYLES ========== */
+
+/* Unified games UI */
+.gamesModalCard { width:min(560px,92vw); }
+.gamesModalSection { margin-bottom:14px; }
+.gamesStartList { display:flex; flex-direction:column; gap:8px; }
+.gamesStartItem { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; }
+.gamesActiveActions { display:flex; gap:8px; margin-top:10px; }
+
+.gamePanel { margin:10px 12px 0; border:1px solid var(--line); border-radius:12px; padding:10px; background:var(--surface2, rgba(255,255,255,0.03)); }
+.gamePanelHeader { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px; }
+.gameTttBoard { display:grid; grid-template-columns:repeat(3,46px); gap:6px; }
+.gameTttCell { width:46px; height:46px; font-weight:700; }
+.gameChessBoard { display:grid; grid-template-columns:repeat(8,36px); border:1px solid var(--line); width:max-content; }
+.gameChessCell { width:36px; height:36px; border:0; font-size:22px; cursor:pointer; }
+.gameChessCell.light { background:#f0d9b5; }
+.gameChessCell.dark { background:#b58863; }
+.gameChessCell.selected { outline:2px solid #43b581; }
