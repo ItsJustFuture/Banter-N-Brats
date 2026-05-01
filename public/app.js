@@ -3051,6 +3051,11 @@ const unifiedGameState = {
   chessSelection: null,
 };
 
+let activeGames = [];
+let currentGameId = null;
+window.activeGames = activeGames;
+window.currentGameId = currentGameId;
+
 const chessChallengesByThread = new Map();
 let pendingChessChallenge = null;
 const recentDiceRolls = new Map();
@@ -15717,20 +15722,12 @@ document.addEventListener("click", (e) => {
 });
 
 gamesOpenBtn?.addEventListener("click", () => {
-  openGamesModal();
+  window.GamesMenu?.open();
 });
 
-gamesModalClose?.addEventListener("click", closeGamesModal);
+gamesModalClose?.addEventListener("click", () => window.GamesMenu?.close());
 gamesModal?.addEventListener("click", (e) => {
-  if (e.target === gamesModal) closeGamesModal();
-});
-
-document.querySelectorAll("[data-game-start]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const gameType = btn.dataset.gameStart;
-    if (!gameType || !currentRoom) return;
-    socket?.emit("game:create", { roomId: currentRoom, gameType });
-  });
+  if (e.target === gamesModal) window.GamesMenu?.close();
 });
 
 dmChessBtn?.addEventListener("click", () => {
@@ -26962,6 +26959,13 @@ initAppealsDurationSelect();
   socket.on("game:update", (payload = {}) => {
     if (!payload || payload.roomId !== currentRoom) return;
     updateUnifiedGameState(payload);
+    activeGames = Array.isArray(payload.activeGames) ? payload.activeGames : activeGames;
+    window.activeGames = activeGames;
+    currentGameId = window.currentGameId || currentGameId;
+    if (payload.gameId === currentGameId) {
+      window.GameSession?.update(payload);
+    }
+    window.GamesMenu?.render();
   });
 
   socket.on("game:error", (payload = {}) => {
