@@ -19,6 +19,10 @@ class Game {
     return this.state;
   }
 
+  getState() {
+    return this.state;
+  }
+
   isFinished() {
     return false;
   }

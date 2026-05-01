@@ -679,6 +679,7 @@ const dndEventTemplates = require("./dnd/event-templates");
 const dndEventResolution = require("./dnd/event-resolution");
 const dndDb = require("./dnd/database-helpers");
 const GameSessionService = require("./games/core/GameSessionService");
+const GameManager = require("./games/core/GameManager");
 
 // ---- Safety nets (prevents silent crashes in prod) ----
 process.on("unhandledRejection", (err) => {
@@ -18556,24 +18557,10 @@ function applyLuckForRoll({ luck, rollStreak, lastQualMsgAt, userId, now }) {
 }
 
 const gameSessionService = new GameSessionService({ dbAllAsync, dbRunAsync });
+const gameManager = new GameManager({ io, gameSessionService });
 
 function emitGameError(socket, message, details = {}) {
   socket.emit("game:error", { message, ...details });
-}
-
-function broadcastGameUpdate(session) {
-  io.to(session.roomId).emit("game:update", gameSessionService.buildPayloadForPlayer(session, null));
-}
-
-function broadcastGameEnd(session) {
-  const winnerId = session.game.getWinner?.() || null;
-  io.to(session.roomId).emit("game:end", {
-    sessionId: session.id,
-    roomId: session.roomId,
-    gameType: session.gameType,
-    winnerId,
-    state: session.game.getVisibleState(null),
-  });
 }
 
 // ---- Socket handlers
@@ -19991,96 +19978,61 @@ if (!room) {
     });
   });
 
-  socket.on("game:create", async ({ roomId, gameType } = {}) => {
+  socket.on("game:create", async ({ gameType, config } = {}) => {
     if (!socket.user) return emitGameError(socket, "Unauthorized");
-    const targetRoomId = String(roomId || socket.currentRoom || "").trim();
-    if (!targetRoomId) return emitGameError(socket, "Missing room");
     if (!gameType) return emitGameError(socket, "Missing gameType");
+
     try {
-      const session = await gameSessionService.createSession({
-        roomId: targetRoomId,
+      const game = await gameManager.startGame({
         gameType: String(gameType),
-        creator: {
-          id: socket.user.id,
-          username: socket.user.username,
-          connectionId: socket.id,
-          metadata: {},
-        },
+        hostUserId: socket.user.id,
+        config: config || {},
       });
-      socket.join(targetRoomId);
-      broadcastGameUpdate(session);
+      const gameRoom = `game:${game.gameId}`;
+      socket.join(gameRoom);
+      gameManager.emitGameState(game.gameId);
+      socket.emit("game:created", game);
     } catch (err) {
       emitGameError(socket, err?.message || "Failed to create game");
     }
   });
 
-  socket.on("game:join", async ({ roomId } = {}) => {
+  socket.on("game:join", async ({ gameId } = {}) => {
     if (!socket.user) return emitGameError(socket, "Unauthorized");
-    const targetRoomId = String(roomId || socket.currentRoom || "").trim();
-    if (!targetRoomId) return emitGameError(socket, "Missing room");
+    if (!gameId) return emitGameError(socket, "Missing gameId");
+
     try {
-      const session = await gameSessionService.joinSession({
-        roomId: targetRoomId,
-        player: {
-          id: socket.user.id,
-          username: socket.user.username,
-          connectionId: socket.id,
-          metadata: {},
-        },
-      });
-      socket.join(targetRoomId);
-      broadcastGameUpdate(session);
+      socket.join(`game:${gameId}`);
+      await gameManager.joinGame({ gameId, userId: socket.user.id });
     } catch (err) {
-      try {
-        const reconnectSession = await gameSessionService.reconnectPlayer({
-          roomId: targetRoomId,
-          playerId: socket.user.id,
-          connectionId: socket.id,
-        });
-        if (reconnectSession) {
-          socket.emit("game:update", gameSessionService.buildPayloadForPlayer(reconnectSession, socket.user.id));
-          return;
-        }
-      } catch (_ignored) {}
-      const existingSession = gameSessionService.getSessionByRoom(targetRoomId);
-      if (existingSession) {
-        socket.emit("game:update", gameSessionService.buildPayloadForPlayer(existingSession, socket.user.id));
-        return;
-      }
       emitGameError(socket, err?.message || "Failed to join game");
     }
   });
 
-  socket.on("game:start", async ({ roomId } = {}) => {
+  socket.on("game:leave", async ({ gameId } = {}) => {
     if (!socket.user) return emitGameError(socket, "Unauthorized");
-    const targetRoomId = String(roomId || socket.currentRoom || "").trim();
-    if (!targetRoomId) return emitGameError(socket, "Missing room");
+    if (!gameId) return emitGameError(socket, "Missing gameId");
+
     try {
-      const session = await gameSessionService.startSession({
-        roomId: targetRoomId,
-        playerId: socket.user.id,
-      });
-      broadcastGameUpdate(session);
+      socket.leave(`game:${gameId}`);
+      await gameManager.leaveGame({ gameId, userId: socket.user.id });
     } catch (err) {
-      emitGameError(socket, err?.message || "Failed to start game");
+      emitGameError(socket, err?.message || "Failed to leave game");
     }
   });
 
-  socket.on("game:action", async ({ roomId, action } = {}) => {
+  socket.on("game:action", async ({ gameId, action, payload } = {}) => {
     if (!socket.user) return emitGameError(socket, "Unauthorized");
-    const targetRoomId = String(roomId || socket.currentRoom || "").trim();
-    if (!targetRoomId) return emitGameError(socket, "Missing room");
-    if (!action || typeof action !== "object") return emitGameError(socket, "Invalid action");
+    if (!gameId) return emitGameError(socket, "Missing gameId");
+    if (!action) return emitGameError(socket, "Missing action");
+
     try {
-      const { session } = await gameSessionService.handleAction({
-        roomId: targetRoomId,
-        playerId: socket.user.id,
+      await gameManager.handleAction({
+        gameId,
+        userId: socket.user.id,
         action,
+        payload,
       });
-      broadcastGameUpdate(session);
-      if (session.status === "finished") {
-        broadcastGameEnd(session);
-      }
     } catch (err) {
       emitGameError(socket, err?.message || "Failed to process action");
     }
