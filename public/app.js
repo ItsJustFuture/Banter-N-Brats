@@ -10060,7 +10060,7 @@ function handleCommandResponse(payload){
   }
   if(payload?.type === "games") {
     if (payload?.ok) {
-      openGamesModal();
+      openGamesMenu();
       return;
     }
     showCommandPopup("Command error", escapeHtml(payload?.message || "Games command failed."));
@@ -10079,15 +10079,12 @@ function handleCommandResponse(payload){
   showCommandPopup(title, msg);
 }
 
-function openGamesModal() {
-  if (!gamesModal) return;
-  gamesModal.hidden = false;
-  renderGamesModal();
+function openGamesMenu() {
+  window.openGamesMenu?.();
 }
 
-function closeGamesModal() {
-  if (!gamesModal) return;
-  gamesModal.hidden = true;
+function closeGamesMenu() {
+  window.closeGamesMenu?.();
 }
 
 function updateUnifiedGameState(payload = null) {
@@ -15722,12 +15719,13 @@ document.addEventListener("click", (e) => {
 });
 
 gamesOpenBtn?.addEventListener("click", () => {
-  window.GamesMenu?.open();
+  console.log("Games button clicked");
+  openGamesMenu();
 });
 
-gamesModalClose?.addEventListener("click", () => window.GamesMenu?.close());
+gamesModalClose?.addEventListener("click", () => closeGamesMenu());
 gamesModal?.addEventListener("click", (e) => {
-  if (e.target === gamesModal) window.GamesMenu?.close();
+  if (e.target === gamesModal) closeGamesMenu();
 });
 
 dmChessBtn?.addEventListener("click", () => {
@@ -21134,7 +21132,7 @@ async function sendMessage(){
   const trimmed = String(text || "").trim();
   if (/^\/(game|games)(\s|$)/i.test(trimmed)) {
     msgInput.value = "";
-    openGamesModal();
+    openGamesMenu();
     return;
   }
   const file = pendingFile;
@@ -26965,7 +26963,7 @@ initAppealsDurationSelect();
     if (payload.gameId === currentGameId) {
       window.GameSession?.update(payload);
     }
-    window.GamesMenu?.render();
+    window.GamesUI?.renderGamesMenu?.();
   });
 
   socket.on("game:error", (payload = {}) => {

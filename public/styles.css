@@ -16795,11 +16795,17 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 /* ========== END PRESENCE SYSTEM STYLES ========== */
 
 /* Unified games UI */
-.gamesModalCard { width:min(560px,92vw); }
+.gamesModalCard { width:min(560px,92vw); max-height:min(80vh,680px); }
+#gamesModal { z-index: 930; }
 .gamesModalSection { margin-bottom:14px; }
 .gamesStartList { display:flex; flex-direction:column; gap:8px; }
-.gamesStartItem { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; }
-.gamesActiveActions { display:flex; gap:8px; margin-top:10px; }
+.gamesStartItem { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--surface2, rgba(255,255,255,0.02)); transition:transform .14s ease, border-color .14s ease, background .14s ease; cursor:pointer; width:100%; }
+.gamesStartItem:hover { transform:translateY(-1px); border-color:var(--accent, #43b581); background:var(--surface3, rgba(255,255,255,0.05)); }
+.gamesStartItem:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+.gamesStartLabel { font-weight:600; }
+.gamesStartCta { font-size:12px; opacity:.85; }
+.gamesActiveActions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+@media (max-width: 640px) { .gamesModalCard { width:min(96vw,560px); } }
 
 .gamePanel { margin:10px 12px 0; border:1px solid var(--line); border-radius:12px; padding:10px; background:var(--surface2, rgba(255,255,255,0.03)); }
 .gamePanelHeader { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px; }
