@@ -10084,7 +10084,10 @@ function handleCommandResponse(payload){
 }
 
 function openGamesMenu() {
-  window.openGamesMenu?.();
+  const openMenu = window.openGamesMenu;
+  if (typeof openMenu !== "function" || openMenu === openGamesMenu) return;
+  console.log("Opening games menu");
+  openMenu();
 }
 
 function closeGamesMenu() {
@@ -13641,16 +13644,18 @@ async function loadProgression(){
 
 // Search filter
 function applySearch(){
+  if (!searchInput) return;
   const q = searchInput.value.trim().toLowerCase();
   if(!q){
-    msgIndex.forEach(m => m.el.style.display = "");
+    msgIndex.forEach(m => { if (m?.el) m.el.style.display = ""; });
     return;
   }
   msgIndex.forEach(m => {
+    if (!m?.el) return;
     m.el.style.display = m.textLower.includes(q) ? "" : "none";
   });
 }
-searchInput.addEventListener("input", applySearch);
+searchInput?.addEventListener("input", applySearch);
 
 // drawers
 function anyDrawerOpen(){
@@ -26612,7 +26617,15 @@ function urlBase64ToUint8Array(base64String) {
 // ========== END PRESENCE SYSTEM FUNCTIONS ==========
 
 // start app
+let appInitialized = false;
+let initChatAppPromise = null;
+let mountDiceFx = () => {};
+let unmountDiceFx = () => {};
+
 async function initChatApp(){
+  if (appInitialized) return;
+  if (initChatAppPromise) return initChatAppPromise;
+  initChatAppPromise = (async () => {
   const sessionUser = await validateSession();
   if(!sessionUser){
     initLoginUI();
@@ -27427,7 +27440,7 @@ socket.on("mod:case_event", (payload = {}) => {
   confettiLayer.style.display = "none";
 
   let diceFxMounted = false;
-  function mountDiceFx(){
+  mountDiceFx = function mountDiceFx(){
     if (diceFxMounted) return;
     const chatMain = document.querySelector("main.chat") || document.getElementById("chatMain") || document.body;
     chatMain.style.position = chatMain.style.position || "relative";
@@ -27435,7 +27448,7 @@ socket.on("mod:case_event", (payload = {}) => {
     if (!chatMain.contains(confettiLayer)) chatMain.appendChild(confettiLayer);
     diceFxMounted = true;
   }
-  function unmountDiceFx(){
+  unmountDiceFx = function unmountDiceFx(){
     if (!diceFxMounted) return;
     diceOverlay.style.display = "none";
     confettiLayer.style.display = "none";
@@ -28143,7 +28156,14 @@ socket.on("dm history", (payload = {}) => {
   // Mark chat as initialized and flush any buffered messages
   isInitialized = true;
   flushIncomingMessageBuffer();
+  appInitialized = true;
+})();
 
+try {
+  await initChatAppPromise;
+} finally {
+  initChatAppPromise = null;
+}
 }
 
 // boot: auth gate
