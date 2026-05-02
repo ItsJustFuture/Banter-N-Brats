@@ -3056,6 +3056,10 @@ let currentGameId = null;
 window.activeGames = activeGames;
 window.currentGameId = currentGameId;
 
+function isValidGameId(gameId) {
+  return typeof gameId === "string" && gameId.trim().length > 0;
+}
+
 const chessChallengesByThread = new Map();
 let pendingChessChallenge = null;
 const recentDiceRolls = new Map();
@@ -10124,7 +10128,10 @@ function renderGamesModal() {
   joinBtn.className = "btn secondary small";
   joinBtn.textContent = unifiedGameState.status === "lobby" ? "Join" : "Resume";
   joinBtn.addEventListener("click", () => {
-    socket?.emit("game:join", { roomId: currentRoom });
+    const gameId = String(unifiedGameState.sessionId || "").trim();
+    if (!isValidGameId(gameId)) return;
+    window.currentGameId = gameId;
+    socket?.emit("game:join", { gameId });
   });
   gamesActiveActions.appendChild(joinBtn);
 
@@ -10134,7 +10141,9 @@ function renderGamesModal() {
     startBtn.className = "btn small";
     startBtn.textContent = "Start";
     startBtn.addEventListener("click", () => {
-      socket?.emit("game:start", { roomId: currentRoom });
+      const gameId = String(unifiedGameState.sessionId || "").trim();
+      if (!isValidGameId(gameId)) return;
+      socket?.emit("game:start", { gameId });
     });
     gamesActiveActions.appendChild(startBtn);
   }
@@ -10184,7 +10193,9 @@ function renderRoomGamePanel() {
       btn.textContent = value || "";
       btn.disabled = !!value || !myTurn;
       btn.addEventListener("click", () => {
-        socket?.emit("game:action", { roomId: currentRoom, action: { type: "move", index: idx } });
+        const gameId = String(unifiedGameState.sessionId || "").trim();
+        if (!isValidGameId(gameId)) return;
+        socket?.emit("game:action", { gameId, action: "move", payload: { index: idx } });
       });
       board.appendChild(btn);
     });
@@ -10217,7 +10228,9 @@ function renderRoomGamePanel() {
           renderRoomGamePanel();
           return;
         }
-        socket?.emit("game:action", { roomId: currentRoom, action: { type: "move", from, to: square, promotion: "q" } });
+        const gameId = String(unifiedGameState.sessionId || "").trim();
+        if (!isValidGameId(gameId)) return;
+        socket?.emit("game:action", { gameId, action: "move", payload: { from, to: square, promotion: "q" } });
       });
       board.appendChild(btn);
     }
@@ -18008,7 +18021,6 @@ function joinRoom(room){
   setActiveRoom(room);
   clearMsgs();
   socket?.emit("join room", { room, status: normalizeStatusLabel(statusSelect.value, "Online") });
-  socket?.emit("game:join", { roomId: room });
   if (unifiedGameState.roomId && unifiedGameState.roomId !== room) renderRoomGamePanel();
   closeDrawers();
   

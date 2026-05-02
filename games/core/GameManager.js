@@ -40,6 +40,10 @@ class GameManager {
   }
 
   async joinGame({ gameId, userId }) {
+    if (!this.isValidGameId(gameId)) {
+      console.warn("GameManager called without gameId");
+      return null;
+    }
     const session = this.requireGame(gameId);
     if (!userId) throw new Error("Missing userId");
 
@@ -61,6 +65,10 @@ class GameManager {
   }
 
   async leaveGame({ gameId, userId }) {
+    if (!this.isValidGameId(gameId)) {
+      console.warn("GameManager called without gameId");
+      return null;
+    }
     const session = this.requireGame(gameId);
     const nextPlayers = session.players.filter((p) => String(p.id) !== String(userId));
     if (nextPlayers.length === session.players.length) return this.buildMetadata(session);
@@ -80,6 +88,10 @@ class GameManager {
   }
 
   async endGame({ gameId, reason = "completed" }) {
+    if (!this.isValidGameId(gameId)) {
+      console.warn("GameManager called without gameId");
+      return null;
+    }
     const session = this.requireGame(gameId);
     session.status = "finished";
     session.endedAt = Date.now();
@@ -98,6 +110,7 @@ class GameManager {
   }
 
   getGame(gameId) {
+    if (!this.isValidGameId(gameId)) return null;
     return this.games.get(gameId) || null;
   }
 
@@ -106,6 +119,13 @@ class GameManager {
   }
 
   emitGameState(gameId) {
+    if (!this.isValidGameId(gameId)) {
+      console.warn("GameManager called without gameId");
+      return null;
+    }
+    if (process.env.NODE_ENV !== "production") {
+      console.log("Game init attempt:", { gameId });
+    }
     const session = this.requireGame(gameId);
     const state = {
       gameId,
@@ -120,6 +140,10 @@ class GameManager {
   }
 
   async handleAction({ gameId, userId, action, payload }) {
+    if (!this.isValidGameId(gameId)) {
+      console.warn("GameManager called without gameId");
+      return null;
+    }
     const session = this.requireGame(gameId);
     if (session.status === "finished") throw new Error("Game already finished");
     if (!session.players.some((p) => String(p.id) === String(userId))) {
@@ -139,6 +163,10 @@ class GameManager {
   }
 
   requireGame(gameId) {
+    if (!this.isValidGameId(gameId)) {
+      console.warn("GameManager called without gameId");
+      throw new Error("Game not found");
+    }
     const session = this.getGame(gameId);
     if (!session) throw new Error("Game not found");
     return session;
@@ -169,6 +197,10 @@ class GameManager {
          updated_at = excluded.updated_at`,
       [session.id, `game:${session.id}`, session.gameType, JSON.stringify(session.state || {}), session.status, session.startedAt || now, now]
     );
+  }
+
+  isValidGameId(gameId) {
+    return typeof gameId === "string" && gameId.length > 0;
   }
 }
 

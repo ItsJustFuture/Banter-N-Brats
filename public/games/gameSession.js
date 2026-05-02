@@ -29,7 +29,10 @@
 
   function open({ socket, gameId, gameType }) {
     socketRef = socketRef || socket;
-    if (!socketRef || !gameId) return;
+    if (!socketRef || typeof gameId !== "string" || gameId.length === 0) return;
+    if (typeof process !== "undefined" && process?.env?.NODE_ENV !== "production") {
+      console.log("Game init attempt:", { gameId });
+    }
     window.currentGameId = gameId;
     const overlay = ensureOverlay();
     overlay.hidden = false;
@@ -67,7 +70,9 @@
   }
 
   function leave() {
-    if (socketRef && window.currentGameId) socketRef.emit("game:leave", { gameId: window.currentGameId });
+    if (socketRef && typeof window.currentGameId === "string" && window.currentGameId.length > 0) {
+      socketRef.emit("game:leave", { gameId: window.currentGameId });
+    }
     window.currentGameId = null;
     close();
   }
