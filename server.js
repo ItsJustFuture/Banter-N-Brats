@@ -16942,16 +16942,8 @@ const avatarUpload = multer({
 
 // IMPORTANT: Most of your app now reads profiles from Postgres (when the user exists there).
 // The old version of this route only updated SQLite, so uploads "worked" but never showed up.
-app.post("/profile", strictLimiter, requireLogin, (req, res) => {
-  avatarUpload.single("avatar")(req, res, async (err) => {
-    if (err) {
-      const msg =
-        err.code === "LIMIT_FILE_SIZE"
-          ? "Avatar too large (max 2MB)."
-          : (err.message || "Avatar upload failed.");
-      return res.status(400).json({ ok: false, message: msg });
-    }
-
+app.post("/profile", strictLimiter, requireLogin, avatarUpload.single("avatar"), async (req, res) => {
+  try {
     const userId = req.session.user.id;
     const mood = String(req.body?.mood || "").slice(0, 100);
     const bio = String(req.body?.bio || "").slice(0, 500);
@@ -16960,11 +16952,12 @@ app.post("/profile", strictLimiter, requireLogin, (req, res) => {
     const vibeTags = sanitizeVibeTags(req.body?.vibeTags);
     const headerGradA = sanitizeHexColor(req.body?.headerColorA);
     const headerGradB = sanitizeHexColor(req.body?.headerColorB);
-    // Postgres stores vibe_tags as JSONB. node-postgres will otherwise serialize arrays
-    // as Postgres array literals, which causes the UPDATE to fail and makes changes
-    // appear to "revert" on refresh (because /profile reads from Postgres first).
     const vibeTagsJson = JSON.stringify(vibeTags);
     const file = req.file || null;
+
+    console.log("[/profile] BODY:", req.body);
+    console.log("[/profile] FILE:", file ? { originalname: file.originalname, mimetype: file.mimetype, size: file.size } : null);
+
     if (file) {
       const sniffed = sniffImageMime(file.buffer);
       if (!sniffed || !AVATAR_ALLOWED_MIME.has(sniffed)) {
@@ -16974,7 +16967,6 @@ app.post("/profile", strictLimiter, requireLogin, (req, res) => {
     const avatarUpdated = file ? Date.now() : null;
     const avatarUrl = file ? `/avatar/${userId}?v=${avatarUpdated}` : null;
 
-    // Best-effort: push updated profile bits into the currently-connected socket (so members list/chat updates immediately)
     const refreshLivePresence = () => {
       const sid = socketIdByUserId.get(userId);
       const s = sid ? io.sockets.sockets.get(sid) : null;
@@ -16986,7 +16978,6 @@ app.post("/profile", strictLimiter, requireLogin, (req, res) => {
     };
 
     try {
-      // Prefer Postgres if this user exists there (Render prod path)
       if (await pgUserExists(userId)) {
         if (file) {
           await pgPool.query(
@@ -17020,8 +17011,6 @@ app.post("/profile", strictLimiter, requireLogin, (req, res) => {
           );
         }
         if (avatarUrl) req.session.user.avatar = avatarUrl;
-        // Reinforcement: persist the updated session before responding so refresh
-        // cannot revert to a stale/empty avatar due to an unsaved session write.
         return req.session.save((saveErr) => {
           if (saveErr) return res.status(500).json({ ok: false, message: "Session save failed" });
           refreshLivePresence();
@@ -17036,7 +17025,6 @@ app.post("/profile", strictLimiter, requireLogin, (req, res) => {
       return res.status(500).json({ ok: false, message: "Avatar storage unavailable right now." });
     }
 
-    // SQLite fallback (original behavior)
     db.get("SELECT avatar, vibe_tags, header_grad_a, header_grad_b FROM users WHERE id = ?", [userId], (_e, old) => {
       const newAvatar = old?.avatar || null;
       const oldVibes = sanitizeVibeTags(old?.vibe_tags || []);
@@ -17055,10 +17043,20 @@ app.post("/profile", strictLimiter, requireLogin, (req, res) => {
         }
       );
     });
-  });
+  } catch (err) {
+    if (err?.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ ok: false, message: "Avatar too large (max 2MB)." });
+    }
+    if (err?.message === "Invalid avatar type") {
+      return res.status(400).json({ ok: false, message: "Invalid avatar type" });
+    }
+    if (String(err?.message || "").toLowerCase().includes("unexpected end of form")) {
+      return res.status(400).json({ ok: false, message: "Incomplete upload payload. Please retry." });
+    }
+    console.error("[/profile] update failed:", err);
+    return res.status(500).json({ error: "Profile update failed" });
+  }
 });
-
-
 
 // Remove avatar (clears avatar field; best-effort deletes local file if present)
 app.delete("/profile/avatar", strictLimiter, requireLogin, async (req, res) => {
