@@ -1318,6 +1318,29 @@ async function pgEnsureEpochMsBigint(tableName, columnName) {
     );
   }
 }
+async function pgConstraintExists(tableName, constraintName) {
+  const { rows } = await pgPool.query(
+    `SELECT 1
+     FROM pg_constraint c
+     JOIN pg_class t ON t.oid = c.conrelid
+     JOIN pg_namespace n ON n.oid = t.relnamespace
+     WHERE n.nspname = 'public' AND t.relname = $1 AND c.conname = $2
+     LIMIT 1`,
+    [tableName, constraintName]
+  );
+  return Boolean(rows?.[0]);
+}
+async function sqliteTableExists(tableName) {
+  try {
+    const rows = await dbAllAsync(
+      "SELECT 1 FROM sqlite_master WHERE type='table' AND name = ? LIMIT 1",
+      [tableName]
+    );
+    return Boolean(rows?.[0]);
+  } catch (_) {
+    return false;
+  }
+}
 
 // ---- Postgres schema flags
 let PG_USERS_CREATED_AT_IS_TIMESTAMP = false;
@@ -1834,17 +1857,19 @@ const pgInitPromise = PG_ENABLED ? (async () => {
 
     // Best-effort backfill of legacy SQLite likes into Postgres so leaderboards/profile counts stay consistent.
     try {
-      const sqliteLikes = await dbAllAsync("SELECT user_id, target_user_id, created_at FROM profile_likes");
-      for (const row of sqliteLikes || []) {
-        await pgPool.query(
-          `INSERT INTO profile_likes (user_id, target_user_id, created_at)
-           VALUES ($1, $2, $3)
-           ON CONFLICT (user_id, target_user_id) DO NOTHING`,
-          [row.user_id, row.target_user_id, row.created_at]
-        );
+      if (await sqliteTableExists("profile_likes")) {
+        const sqliteLikes = await dbAllAsync("SELECT user_id, target_user_id, created_at FROM profile_likes");
+        for (const row of sqliteLikes || []) {
+          await pgPool.query(
+            `INSERT INTO profile_likes (user_id, target_user_id, created_at)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (user_id, target_user_id) DO NOTHING`,
+            [row.user_id, row.target_user_id, row.created_at]
+          );
+        }
       }
     } catch (e) {
-      console.warn("[pg backfill] profile_likes:", e?.message || e);
+      console.warn("[pg backfill][optional] profile_likes backfill skipped:", e?.message || e);
     }
 // Fix camelCase columns that Postgres lowercased previously
 // ---- Fix camelCase timestamp columns Postgres lowercased
@@ -2057,13 +2082,15 @@ try {
 
     // Best-effort FK constraints (may fail if legacy schemas differ); couples will still work without them.
     try {
-      await pgPool.query(`ALTER TABLE couple_links ADD CONSTRAINT couple_links_user1_fk FOREIGN KEY (user1_id) REFERENCES users(id) ON DELETE CASCADE`);
-    } catch (err) { logger.warn("Suppressed server error", { err }); }
-    try {
-      await pgPool.query(`ALTER TABLE couple_links ADD CONSTRAINT couple_links_user2_fk FOREIGN KEY (user2_id) REFERENCES users(id) ON DELETE CASCADE`);
-    } catch (err) { logger.warn("Suppressed server error", { err }); }
-    try {
-      await pgPool.query(`ALTER TABLE couple_links ADD CONSTRAINT couple_links_requested_by_fk FOREIGN KEY (requested_by_id) REFERENCES users(id) ON DELETE SET NULL`);
+      if (!(await pgConstraintExists("couple_links", "couple_links_user1_fk"))) {
+        await pgPool.query(`ALTER TABLE couple_links ADD CONSTRAINT couple_links_user1_fk FOREIGN KEY (user1_id) REFERENCES users(id) ON DELETE CASCADE`);
+      }
+      if (!(await pgConstraintExists("couple_links", "couple_links_user2_fk"))) {
+        await pgPool.query(`ALTER TABLE couple_links ADD CONSTRAINT couple_links_user2_fk FOREIGN KEY (user2_id) REFERENCES users(id) ON DELETE CASCADE`);
+      }
+      if (!(await pgConstraintExists("couple_links", "couple_links_requested_by_fk"))) {
+        await pgPool.query(`ALTER TABLE couple_links ADD CONSTRAINT couple_links_requested_by_fk FOREIGN KEY (requested_by_id) REFERENCES users(id) ON DELETE SET NULL`);
+      }
     } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     await pgPool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_couple_pair ON couple_links(user1_id, user2_id)`);
@@ -2085,7 +2112,9 @@ try {
     `);
     await pgPool.query(`ALTER TABLE couple_prefs ADD COLUMN IF NOT EXISTS allow_ping BOOLEAN NOT NULL DEFAULT true`);
     try {
-      await pgPool.query(`ALTER TABLE couple_prefs ADD CONSTRAINT couple_prefs_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE`);
+      if (!(await pgConstraintExists("couple_prefs", "couple_prefs_user_fk"))) {
+        await pgPool.query(`ALTER TABLE couple_prefs ADD CONSTRAINT couple_prefs_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE`);
+      }
     } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     COUPLES_READY = true;
@@ -2125,10 +2154,12 @@ try {
     `);
 
     // Best-effort FK constraints
-    try { await pgPool.query(`ALTER TABLE friend_requests ADD CONSTRAINT friend_requests_from_fk FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch (err) { logger.warn("Suppressed server error", { err }); }
-    try { await pgPool.query(`ALTER TABLE friend_requests ADD CONSTRAINT friend_requests_to_fk FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch (err) { logger.warn("Suppressed server error", { err }); }
-    try { await pgPool.query(`ALTER TABLE friends ADD CONSTRAINT friends_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch (err) { logger.warn("Suppressed server error", { err }); }
-    try { await pgPool.query(`ALTER TABLE friends ADD CONSTRAINT friends_friend_fk FOREIGN KEY (friend_user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch (err) { logger.warn("Suppressed server error", { err }); }
+    try {
+      if (!(await pgConstraintExists("friend_requests", "friend_requests_from_fk"))) await pgPool.query(`ALTER TABLE friend_requests ADD CONSTRAINT friend_requests_from_fk FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE`);
+      if (!(await pgConstraintExists("friend_requests", "friend_requests_to_fk"))) await pgPool.query(`ALTER TABLE friend_requests ADD CONSTRAINT friend_requests_to_fk FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE`);
+      if (!(await pgConstraintExists("friends", "friends_user_fk"))) await pgPool.query(`ALTER TABLE friends ADD CONSTRAINT friends_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE`);
+      if (!(await pgConstraintExists("friends", "friends_friend_fk"))) await pgPool.query(`ALTER TABLE friends ADD CONSTRAINT friends_friend_fk FOREIGN KEY (friend_user_id) REFERENCES users(id) ON DELETE CASCADE`);
+    } catch (err) { logger.warn("Suppressed server error", { err }); }
 
     await pgPool.query(`CREATE INDEX IF NOT EXISTS idx_friend_requests_to_status ON friend_requests(to_user_id, status)`);
     await pgPool.query(`CREATE INDEX IF NOT EXISTS idx_friend_requests_from_status ON friend_requests(from_user_id, status)`);
@@ -22392,9 +22423,11 @@ async function startServer() {
   if (SERVER_STARTED) return httpServer;
   const results = await startupReady;
   const [sqliteResult, pgResult] = results;
-  if (sqliteResult.status === "rejected") {
+  if (sqliteResult.status === "rejected" && DB_STRATEGY === "sqlite") {
     console.error("[startup] SQLite migration failed", sqliteResult.reason);
     process.exit(1);
+  } else if (sqliteResult.status === "rejected") {
+    console.warn("[startup][optional] SQLite compatibility migrations failed (ignored because Postgres is active):", sqliteResult.reason?.message || sqliteResult.reason);
   }
   if (pgResult.status === "rejected") {
     console.error("[startup] Postgres init failed", pgResult.reason);
@@ -22413,7 +22446,7 @@ async function startServer() {
     process.exit(1);
   }
 
-  console.log(`[startup] database backend selected: ${DB_BACKEND}`);
+  console.log(`[startup] database strategy=${DB_STRATEGY}, active backend=${DB_BACKEND}`);
 
   // Initialize state persistence
   try {

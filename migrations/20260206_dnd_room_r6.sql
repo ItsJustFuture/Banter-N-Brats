@@ -1,7 +1,7 @@
 -- Canonical DnD room entry (R6)
 
-ALTER TABLE rooms ADD COLUMN IF NOT EXISTS room_id TEXT;
-ALTER TABLE rooms ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE rooms ADD COLUMN room_id TEXT;
+ALTER TABLE rooms ADD COLUMN description TEXT;
 
 DELETE FROM rooms
  WHERE replace(replace(replace(lower(name), ' ', ''), '-', ''), '_', '') IN ('dndstoryroom', 'dndstory');
