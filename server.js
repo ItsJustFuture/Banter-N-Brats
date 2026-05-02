@@ -20030,7 +20030,10 @@ if (!room) {
 
   socket.on("game:join", async ({ gameId } = {}) => {
     if (!socket.user) return emitGameError(socket, "Unauthorized");
-    if (!gameId) return emitGameError(socket, "Missing gameId");
+    if (typeof gameId !== "string" || gameId.length === 0) {
+      console.warn("game:join called without valid gameId");
+      return;
+    }
 
     try {
       socket.join(`game:${gameId}`);
@@ -20042,7 +20045,10 @@ if (!room) {
 
   socket.on("game:leave", async ({ gameId } = {}) => {
     if (!socket.user) return emitGameError(socket, "Unauthorized");
-    if (!gameId) return emitGameError(socket, "Missing gameId");
+    if (typeof gameId !== "string" || gameId.length === 0) {
+      console.warn("game:leave called without valid gameId");
+      return;
+    }
 
     try {
       socket.leave(`game:${gameId}`);
@@ -20054,7 +20060,10 @@ if (!room) {
 
   socket.on("game:action", async ({ gameId, action, payload } = {}) => {
     if (!socket.user) return emitGameError(socket, "Unauthorized");
-    if (!gameId) return emitGameError(socket, "Missing gameId");
+    if (typeof gameId !== "string" || gameId.length === 0) {
+      console.warn("game:action called without valid gameId");
+      return;
+    }
     if (!action) return emitGameError(socket, "Missing action");
 
     try {

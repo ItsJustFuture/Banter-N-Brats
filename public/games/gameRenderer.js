@@ -8,7 +8,7 @@
   }
 
   function emitAction(socket, gameId, action, payload = {}) {
-    if (!socket || !gameId || !action) return;
+    if (!socket || typeof gameId !== "string" || gameId.length === 0 || !action) return;
     socket.emit("game:action", { gameId, action, payload });
   }
 
