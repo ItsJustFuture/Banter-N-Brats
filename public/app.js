@@ -10085,9 +10085,16 @@ function handleCommandResponse(payload){
 
 function openGamesMenu() {
   const openMenu = window.openGamesMenu;
-  if (typeof openMenu !== "function" || openMenu === openGamesMenu) return;
-  console.log("Opening games menu");
-  openMenu();
+  if (typeof openMenu === "function" && openMenu !== openGamesMenu) {
+    console.log("Opening games menu");
+    openMenu();
+    return;
+  }
+  if (gamesModal) {
+    gamesModal.hidden = false;
+    gamesModal.classList.add("modal-visible");
+    document.body.classList.add("modal-open");
+  }
 }
 
 function closeGamesMenu() {

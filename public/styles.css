@@ -16816,3 +16816,54 @@ body[data-theme="Iris & Lola Neon"] .irisLolaDrawerEasterStar{
 .gameChessCell.light { background:#f0d9b5; }
 .gameChessCell.dark { background:#b58863; }
 .gameChessCell.selected { outline:2px solid #43b581; }
+
+
+/* === Mobile-first UI/UX cleanup (chat core) === */
+:root{ --space-1:8px; --space-2:12px; --space-3:16px; }
+
+.chat-main .msgs,
+.msg,
+.bubble,
+.topbar,
+.topActions,
+.inputBar,
+.modalCard,
+.modalBody,
+.roomTitle,
+.searchWrap,
+.tonePicker,
+.toneMenuPanel,
+.gamesModalCard{ max-width:100%; min-width:0; }
+
+@media (max-width: 768px){
+  .topbar{ height:48px; min-height:48px; flex-basis:48px; padding:0 var(--space-2); gap:var(--space-1); }
+  .topbar .topLeft{ flex:1 1 auto; min-width:0; }
+  .topbar .roomTitle{ min-width:0; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .topbar .topActions{ gap:var(--space-1); }
+  .topbar .btn.secondary.small,
+  .topbar .iconBtn{ width:40px; min-width:40px; height:40px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
+  .topbar #gamesOpenBtn{ font-size:18px; }
+
+  .chat-main .msgs{ padding:var(--space-2); gap:var(--space-1); overflow-x:hidden; }
+  .msg{ gap:var(--space-1); }
+  .bubble{ padding:10px 12px; overflow-wrap:anywhere; word-break:break-word; }
+  .ts,.msgMeta .small{ display:none; }
+
+  .inputBar{ position:sticky; bottom:0; z-index:120; gap:var(--space-1); padding:var(--space-1) var(--space-2) calc(var(--space-1) + env(safe-area-inset-bottom)); }
+  .inputBar input[type="text"]{ min-height:44px; font-size:16px; padding:10px 12px; }
+  .inputBar #sendBtn{ min-width:44px; width:44px; height:44px; padding:0; border-radius:12px; font-size:0; }
+  .inputBar #sendBtn::before{ content:"➤"; font-size:18px; }
+
+  .inputBar .tonePicker,
+  .dmInput .tonePicker{ margin-left:0; order:3; }
+  .toneMenuBtn{ min-height:40px; min-width:40px; width:40px; padding:0; border-radius:12px; font-size:0; border-left:0; }
+  .toneMenuBtn::before{ content:"🙂"; font-size:18px; }
+  .toneMenuPanel{ position:fixed; left:var(--space-2); right:var(--space-2); bottom:calc(56px + env(safe-area-inset-bottom)); min-width:0; width:auto; max-width:none; border-radius:14px; }
+
+  .modal{ align-items:flex-end; padding:var(--space-1); }
+  .modalCard{ width:100%; max-width:100%; border-radius:16px 16px 12px 12px; }
+  .modalBody{ padding:0 var(--space-2) var(--space-2); }
+}
+
+@media (min-width: 769px) and (max-width: 1024px){ .topbar{ padding:0 var(--space-3); } }
+@media (min-width: 1025px){ .topbar{ padding:0 var(--space-3); } }
